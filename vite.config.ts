@@ -1,4 +1,3 @@
-
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
@@ -11,18 +10,23 @@ export default defineConfig({
       srcDir: "src",
       filename: "sw.ts",
       exclude: [/\.wasm$/],
+      injectManifest: {
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024, // 3MB로 설정
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff2,ttf,otf}"], // .wasm 제외
+        globIgnores: ["**/*.wasm", "**/*.map"], // .wasm 파일 및 .map 파일 제외
+      },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff2,ttf,otf}"],
         runtimeCaching: [
           {
-            urlPattern: ({url}) => url.pathname.startsWith("/models/"),
+            urlPattern: ({ url }) => url.pathname.startsWith("/models/"),
             handler: "CacheFirst",
             options: {
               cacheName: "model-cache",
-              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 }
-            }
-          }
-        ]
+              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
+            },
+          },
+        ],
       },
       manifest: {
         name: "Continuum",
@@ -40,24 +44,26 @@ export default defineConfig({
             title: "title",
             text: "text",
             url: "url",
-            files: [{ name: "files", accept: ["*/*"] }]
-          }
+            files: [{ name: "files", accept: ["*/*"] }],
+          },
         },
         icons: [
           { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
           { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
-          { src: "/icons/maskable.png", sizes: "512x512", type: "image/png", purpose: "maskable any" }
-        ]
-      }
-    })
+          { src: "/icons/maskable.png", sizes: "512x512", type: "image/png", purpose: "maskable any" },
+        ],
+      },
+    }),
   ],
   server: {
     port: 5173,
-    proxy: process.env.VITE_API_BASE ? {
-      "/api": { target: process.env.VITE_API_BASE, changeOrigin: true }
-    } : undefined
+    proxy: process.env.VITE_API_BASE
+      ? {
+          "/api": { target: process.env.VITE_API_BASE, changeOrigin: true },
+        }
+      : undefined,
   },
   worker: {
-    format: "es"
-  }
+    format: "es",
+  },
 });
