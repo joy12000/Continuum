@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { Note } from "../lib/db";
-import { pushToast } from "../lib/toast";
+import { toast } from "../lib/toast";
 
 class RAGClient {
   private w: Worker;
@@ -20,14 +20,14 @@ export function DedupSuggestions({ notes, engine, onMerge }:{ notes: Note[]; eng
     try{
       const res:any = await client.dedup({ notes, engine, threshold: 0.92, max: 500 });
       setGroups(res);
-    }catch(e){ console.error(e); pushToast("중복 스캔 실패"); }
+    }catch(e){ console.error(e); toast.error("중복 스캔 실패"); }
     setBusy(false);
   }
 
   async function merge(g:{ids:string[]}){
     const [keep, ...remove] = g.ids;
     await onMerge(keep, remove);
-    pushToast(`병합 완료: ${remove.length}개 → ${keep}`);
+    toast.success(`병합 완료: ${remove.length}개 → ${keep}`);
     setGroups(prev=> prev.filter(x=> x!==g));
   }
 

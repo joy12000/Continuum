@@ -15,9 +15,13 @@ import { Toasts } from "./components/Toasts";
 import { ModelStatus } from "./components/ModelStatus";
 import { cosineSim } from "./lib/search/cosine";
 import { SemWorkerClient } from "./lib/semWorkerClient";
+import Diagnostics from "./components/Diagnostics"; // Import Diagnostics component
 
 const sharedStore = kvCreateStore("continuum-shared", "queue");
 
+type View = 'main' | 'settings' | 'diagnostics';
+
+// ... (useLiveNotes hook remains the same)
 function useLiveNotes() {
   const [notes, setNotes] = useState<Note[]>([]);
 
@@ -65,12 +69,15 @@ function useLiveNotes() {
   return notes;
 }
 
+
 export default function App() {
   const semWorker = useMemo(() => new SemWorkerClient(), []);
   const notes = useLiveNotes();
   const [q, setQ] = useState("");
   const [engine, setEngine] = useState<"auto" | "remote">((localStorage.getItem("semanticEngine") as any) || "auto");
+  const [view, setView] = useState<View>('main'); // State for view management
 
+  // ... (useEffect for /share URL remains the same)
   useEffect(() => {
     const url = new URL(window.location.href);
     if (url.pathname === "/share") {
@@ -101,6 +108,7 @@ export default function App() {
     return idx;
   }, [notes]);
 
+  // ... (useEffect for embedding remains the same)
   useEffect(() => {
     (async () => {
       if (notes.length === 0) return;
@@ -119,6 +127,7 @@ export default function App() {
 
   const [finalResults, setFinalResults] = useState<Note[]>(notes);
 
+  // ... (useEffect for search remains the same)
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -148,6 +157,53 @@ export default function App() {
     return () => { cancelled = true; };
   }, [q, notes, bm25Index, engine, semWorker]);
 
+
+  const renderContent = () => {
+    switch (view) {
+      case 'diagnostics':
+        return <Diagnostics onBack={() => setView('settings')} />;
+      case 'settings':
+        return (
+          <div className="space-y-4">
+             <button onClick={() => setView('main')} className="mb-4 text-blue-500 hover:underline">← 홈으로 돌아가기</button>
+            <BackupRestore />
+            <Settings onChange={setEngine} onNavigateToDiagnostics={() => setView('diagnostics')} />
+          </div>
+        );
+      default:
+        return (
+          <>
+            <RichNoteEditor />
+            <SearchBar value={q} onChange={setQ} />
+            <button onClick={() => setView('settings')} className="w-full text-center py-2 text-blue-500 hover:underline">설정 및 백업</button>
+            <RecallCards notes={notes} onClickTag={(t) => setQ(t)} setQuery={setQ} />
+
+            <section className="space-y-2">
+              {finalResults.map(n => (
+                <article key={n.id} className="card">
+                  <div className="text-xs opacity-70">
+                    {new Date(n.updatedAt).toLocaleString()}
+                  </div>
+                  <div className="whitespace-pre-wrap leading-relaxed" dangerouslySetInnerHTML={{ __html: n.content }} />
+                  <AttachmentGallery noteId={n.id!} />
+                  {n.tags.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {n.tags.map((t: string) => (
+                        <button key={t} onClick={() => setQ(t)} className="px-2 py-1 rounded-lg bg-slate-700 text-xs hover:bg-slate-600">#{t}</button>
+                      ))}
+                    </div>
+                  )}
+                </article>
+              ))}
+              {finalResults.length === 0 && (
+                <div className="text-slate-400">검색 결과가 없습니다.</div>
+              )}
+            </section>
+          </>
+        );
+    }
+  };
+
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-4">
       <Toasts />
@@ -158,34 +214,10 @@ export default function App() {
           <div><ErrorBoundary><ModelStatus engine={engine} /></ErrorBoundary></div>
         </div>
       </header>
-
-      <RichNoteEditor />
-      <SearchBar value={q} onChange={setQ} />
-      <BackupRestore />
-      <Settings onChange={setEngine} />
-      <RecallCards notes={notes} onClickTag={(t) => setQ(t)} setQuery={setQ} />
-
-      <section className="space-y-2">
-        {finalResults.map(n => (
-          <article key={n.id} className="card">
-            <div className="text-xs opacity-70">
-              {new Date(n.updatedAt).toLocaleString()}
-            </div>
-            <div className="whitespace-pre-wrap leading-relaxed" dangerouslySetInnerHTML={{ __html: n.content }} />
-            <AttachmentGallery noteId={n.id!} />
-            {n.tags.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {n.tags.map((t: string) => (
-                  <button key={t} onClick={() => setQ(t)} className="px-2 py-1 rounded-lg bg-slate-700 text-xs hover:bg-slate-600">#{t}</button>
-                ))}
-              </div>
-            )}
-          </article>
-        ))}
-        {finalResults.length === 0 && (
-          <div className="text-slate-400">검색 결과가 없습니다.</div>
-        )}
-      </section>
+      
+      <main>
+        {renderContent()}
+      </main>
 
       <footer className="text-center text-sm text-slate-500 py-6">
         PWA가 자동 업데이트됩니다. 네트워크가 없을 때도 동작합니다.

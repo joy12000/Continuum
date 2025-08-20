@@ -1,9 +1,30 @@
-export type GenResult = { summary: string; bullets: string[]; cites?: {id:string, text:string}[] };
-export async function generateWithFallback(prompt: string, arg2?: any, arg3?: string | null): Promise<GenResult> {
-  const apiBase = typeof arg2 === "string" ? arg2 : (typeof arg3 === "string" ? arg3 : "/api");
+import type { GeneratedAnswerType } from "../../components/GeneratedAnswer";
+
+export async function generateWithFallback(prompt: string, apiBase: string = "/api"): Promise<GeneratedAnswerType> {
   try {
-    const r = await fetch(`${apiBase}/generate`, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ prompt }) });
-    if (r.ok) return await r.json();
-  } catch {}
-  return { summary: "추가 근거 필요", bullets: ["로컬 폴백 응답입니다.", "설정에서 Generate API를 연결하세요."], cites: [] };
+    const r = await fetch(`${apiBase}/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt }),
+    });
+    if (r.ok) {
+      const data = await r.json();
+      // Ensure the response has the expected structure
+      if (data && Array.isArray(data.answer)) {
+        return data;
+      }
+    }
+    // Throw an error if the response is not ok or malformed
+    throw new Error(`API request failed with status ${r.status}`);
+  } catch (e) {
+    console.error("Generation API call failed, using fallback.", e);
+    // Fallback response conforms to the new structure
+    return {
+      answer: [
+        { sentence: "The generation API is not available.", sourceNoteId: "fallback-1" },
+        { sentence: "This is a local fallback response.", sourceNoteId: "fallback-2" },
+        { sentence: "Please check your settings for the Generate API endpoint.", sourceNoteId: "fallback-3" },
+      ],
+    };
+  }
 }
