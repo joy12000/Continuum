@@ -84,36 +84,33 @@ async function findDuplicates(threshold: number) {
  * @param {string} text The text to find similarities for.
  * @param {string} currentNoteId The ID of the note currently being edited, to exclude from results.
  */
-async function findSimilar(text: string, currentNoteId: string) {
-  const [textVec] = await embed('auto', [text]);
-  if (!textVec) return;
+async function findSimilar(text: string, currentNoteId: string, engine: "auto" | "remote") {
+  try {
+    const [textVec] = await embed(engine, [text]);
+    if (!textVec) return;
 
-  // Fetch embeddings for all notes except the current one
-  const otherEmbeddings = await db.embeddings.where('noteId').notEqual(currentNoteId).toArray();
+    const otherEmbeddings = await db.embeddings.where('noteId').notEqual(currentNoteId).toArray();
 
-  // Calculate cosine similarity
-  const similarities = otherEmbeddings.map(emb => ({
-    noteId: emb.noteId,
-    score: cosineSim(textVec, emb.vec),
-  }));
+    const similarities = otherEmbeddings.map(emb => ({
+      noteId: emb.noteId,
+      score: cosineSim(textVec, emb.vec),
+    }));
 
-  // Sort by similarity score and take the top 3
-  similarities.sort((a, b) => b.score - a.score);
-  const top3 = similarities.slice(0, 3);
+    similarities.sort((a, b) => b.score - a.score);
+    const top3 = similarities.slice(0, 3);
 
-  if (top3.length === 0) {
-    self.postMessage({ type: 'SIMILAR_FOUND', payload: { notes: [] } });
-    return;
+    if (top3.length > 0) {
+      const topNoteIds = top3.map(s => s.noteId);
+      const notes = await db.notes.bulkGet(topNoteIds);
+      self.postMessage({ type: 'SIMILAR_FOUND', payload: { notes: notes.filter(Boolean) } });
+    } else {
+      self.postMessage({ type: 'SIMILAR_FOUND', payload: { notes: [] } });
+    }
+  } catch (error) {
+    console.error("Error finding similar notes:", error);
+    // Optionally, send an error message back to the main thread
+    self.postMessage({ type: 'SIMILAR_ERROR', error: (error as Error).message });
   }
-
-  // Fetch the full note data for the top 3
-  const topNoteIds = top3.map(s => s.noteId);
-  const noteMap = new Map((await db.notes.where('id').anyOf(topNoteIds).toArray()).map(n => [n.id, n]));
-  
-  // Preserve the sorted order
-  const notes = topNoteIds.map(id => noteMap.get(id)).filter(Boolean) as Note[];
-
-  self.postMessage({ type: 'SIMILAR_FOUND', payload: { notes } });
 }
 
 
@@ -121,12 +118,26 @@ self.addEventListener("message", async (e: MessageEvent)=>{
   const { id, type, payload } = e.data || {};
   try{
     if (type === "score"){
-      // ... (existing score logic remains the same)
+      const { q, engine, notes } = payload as Req;
+      const terms = tokenize(q);
+      const vecs = await embed(engine, [q, ...notes.map(n=>n.content)]);
+      const qvec = vecs[0];
+      const nvecs = vecs.slice(1);
+      const bm25 = buildBM25(notes.map(n => ({ id: n.id, tokens: tokenize(n.content) })));
+      const scores = notes.map((n,i)=>{
+        const docTokens = bm25.docs[i]?.tokens || [];
+        const s1 = bm25Score(q, docTokens, bm25);
+        const s2 = cosine(qvec, nvecs[i]);
+        return { id:n.id, score: s1 * 0.2 + s2 * 0.8 };
+      });
+      scores.sort((a,b)=>b.score-a.score);
+      self.postMessage({ id, ok:true, result:scores });
+      return;
     } else if (type === 'FIND_DUPLICATES') {
       await findDuplicates(payload.threshold);
       return;
     } else if (type === 'FIND_SIMILAR') {
-      await findSimilar(payload.text, payload.currentNoteId);
+      await findSimilar(payload.text, payload.currentNoteId, payload.engine || 'auto');
       return;
     }
     self.postMessage({ id, ok:false, error:"unknown" });

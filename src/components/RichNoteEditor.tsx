@@ -59,7 +59,7 @@ export function RichNoteEditor({ note: initialNote, onNoteLinkClick, onSaved }: 
         if (editorContent.length > 20 && initialNote?.id) {
           searchWorker.postMessage({
             type: 'FIND_SIMILAR',
-            payload: { text: editorContent, currentNoteId: initialNote.id }
+            payload: { text: editorContent, currentNoteId: initialNote.id, engine: 'auto' }
           });
         } else {
           setSuggestedNotes(null);

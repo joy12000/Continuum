@@ -20,15 +20,28 @@ exports.handler = async (event) => {
       return { statusCode: 500, headers: cors, body: JSON.stringify({ error: "Missing GEMINI_API_KEY" }) };
     }
 
-    const { question, contexts = [] } = JSON.parse(event.body || "{}");
-    if (!question) {
-      return { statusCode: 400, headers: cors, body: JSON.stringify({ error: "Missing 'question'" }) };
-    }
+    const body = JSON.parse(event.body || "{}");
+    // Support both the old RAG format and the new "zero-shot" question format
+    const { question, contexts = [], prompt } = body;
 
-    const cappedContexts = (Array.isArray(contexts) ? contexts : []).slice(0, 10).map((s, i) => ({ id: s.id || `doc_${i}`, content: String(s.content).slice(0, 2000) }));
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${DEFAULT_MODEL}:generateContent?key=${encodeURIComponent(API_KEY)}`;
+    let systemInstruction, userPrompt, responseMimeType;
 
-    const systemInstruction = `You are a helpful RAG (Retrieval-Augmented Generation) summarizer. Follow these rules strictly:
+    if (prompt && typeof prompt === 'string') {
+      // New "zero-shot" question generation
+      systemInstruction = `You are a helpful assistant that generates questions based on provided text.
+Follow these rules strictly:
+1.  **Analyze the user's notes.** Understand the main topics and ideas.
+2.  **Generate 3 distinct and insightful questions.** The questions should be something a user would be genuinely curious about.
+3.  **Output in the specified JSON format.** The output must be a single, valid JSON object with a "questions" key containing an array of strings.
+
+Example output format:
+{"questions": ["What are the main advantages of X?", "How does Y compare to Z?", "What is the first step to start learning about A?"]}`;
+      userPrompt = prompt;
+      responseMimeType = "application/json";
+
+    } else if (question) {
+      // Original RAG functionality
+      systemInstruction = `You are a helpful RAG (Retrieval-Augmented Generation) summarizer. Follow these rules strictly:
 1.  **Answer only within the provided context.** Do not use any external knowledge.
 2.  **Preserve numerical values** and specific details from the context accurately.
 3.  **Express uncertainty.** If the answer is not clearly supported by the context, state that the context does not provide a definitive answer.
@@ -42,26 +55,32 @@ Example output format:
     { "sentence": "A final summary point from the first document.", "sourceNoteId": "doc_0" }
   ]
 }`;
+      const cappedContexts = (Array.isArray(contexts) ? contexts : []).slice(0, 10).map((s, i) => ({ id: s.id || `doc_${i}`, content: String(s.content).slice(0, 2000) }));
+      userPrompt = [
+        "Question: " + question,
+        "Contexts:",
+        ...cappedContexts.map(c => `(ID: ${c.id}) ${c.content}`)
+      ].join("\n");
+      responseMimeType = "application/json";
 
-    const prompt = [
-      "Question: " + question,
-      "Contexts:",
-      ...cappedContexts.map(c => `(ID: ${c.id}) ${c.content}`)
-    ].join("\n");
+    } else {
+      return { statusCode: 400, headers: cors, body: JSON.stringify({ error: "Missing 'question' or 'prompt'" }) };
+    }
 
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${DEFAULT_MODEL}:generateContent?key=${encodeURIComponent(API_KEY)}`;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
-    const body = {
+    const requestBody = {
       system_instruction: { parts: [{ text: systemInstruction }] },
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.2, maxOutputTokens: 2048, response_mime_type: "application/json" },
+      contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+      generationConfig: { temperature: 0.7, maxOutputTokens: 2048, response_mime_type: responseMimeType },
     };
 
     const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify(requestBody),
       signal: controller.signal,
     });
     clearTimeout(timeout);
@@ -83,24 +102,20 @@ Example output format:
       console.error("Error extracting text from Gemini response:", e);
     }
 
-    // Attempt to parse the JSON, with a fallback for malformed output
-    let parsedResult;
-    try { parsedResult = JSON.parse(responseText);
-      if (!Array.isArray(parsedResult.answer)) {
-        throw new Error("Invalid JSON structure: 'answer' is not an array.");
-      }
+    // The model should return valid JSON, so we just parse and forward it.
+    try {
+      JSON.parse(responseText); // Validate JSON
+      return { statusCode: 200, headers: { ...cors, "Content-Type": "application/json" }, body: responseText };
     } catch (e) {
       console.error("Failed to parse JSON response from model:", e);
-      // Create a fallback error response that still fits the expected structure
-      parsedResult = {
-        answer: [{ 
-          sentence: "The model returned a response that was not in the expected JSON format. The raw response was: " + responseText.slice(0, 500),
-          sourceNoteId: "error-invalid-format"
-        }]
-      };
+      const errorMessage = `The model returned a response that was not valid JSON. Raw response: ${responseText.slice(0, 500)}`;
+      // Depending on the request type, return a differently structured error
+      const errorBody = prompt 
+        ? { questions: [errorMessage] } 
+        : { answer: [{ sentence: errorMessage, sourceNoteId: "error-invalid-format" }] };
+      return { statusCode: 200, headers: { ...cors, "Content-Type": "application/json" }, body: JSON.stringify(errorBody) };
     }
 
-    return { statusCode: 200, headers: { ...cors, "Content-Type": "application/json" }, body: JSON.stringify(parsedResult) };
   } catch (e) {
     const msg = (e && e.name === "AbortError") ? "Upstream timeout" : String(e);
     return { statusCode: 500, headers: cors, body: JSON.stringify({ error: msg }) };

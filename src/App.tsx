@@ -1,30 +1,29 @@
 import { useEffect, useMemo, useState } from "react";
-import { db, Note } from "./lib/db";
+import { db, Note, Embedding } from "./lib/db";
 import { liveQuery } from "dexie";
 import { RichNoteEditor } from "./components/RichNoteEditor";
 import { RecallCards } from "./components/RecallCards";
 import { SearchBar } from "./components/SearchBar";
 import { BM25 } from "./lib/search/bm25";
 import { rrfFuse } from "./lib/search/rrf";
-import { BackupRestore } from "./components/BackupRestore";
 import { AttachmentGallery } from "./components/AttachmentGallery";
 import { get as kvGet, keys as kvKeys, del as kvDel, createStore as kvCreateStore } from "idb-keyval";
 import { Settings } from "./components/Settings";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Toasts } from "./components/Toasts";
 import { ModelStatus } from "./components/ModelStatus";
-import { cosineSim } from "./lib/search/cosine";
 import { SemWorkerClient } from "./lib/semWorkerClient";
-import Diagnostics from "./components/Diagnostics"; // Import Diagnostics component
+import Diagnostics from "./components/Diagnostics";
+import { requestNotificationPermission } from "./lib/notifications";
+import { cosineSim } from "./lib/search/cosine";
 
 const sharedStore = kvCreateStore("continuum-shared", "queue");
 
 type View = 'main' | 'settings' | 'diagnostics';
+type Engine = "auto" | "remote";
 
-// ... (useLiveNotes hook remains the same)
 function useLiveNotes() {
   const [notes, setNotes] = useState<Note[]>([]);
-
   useEffect(() => {
     async function drain() {
       const allKeys = await kvKeys(sharedStore);
@@ -34,52 +33,67 @@ function useLiveNotes() {
         const item: any = await kvGet(key, sharedStore);
         if (!item) continue;
         const now = item.when || Date.now();
-        const content = [item.title, item.text, item.url].filter(Boolean).join("\n\n").trim();
+        const { title, text, url: sharedUrl } = item;
+        const content = [title, text, sharedUrl].filter(Boolean).join("\n\n").trim();
         const id = crypto.randomUUID();
         await db.notes.add({ id, content, createdAt: now, updatedAt: now, tags: ["shared"] });
         if (Array.isArray(item.files) && item.files.length > 0) {
           await db.attachments.bulkAdd(item.files.map((f: any) => ({
-            id: crypto.randomUUID(),
-            noteId: id,
-            name: f.name,
-            type: f.type,
-            blob: f.blob
+            id: crypto.randomUUID(), noteId: id, name: f.name, type: f.type, blob: f.blob
           })));
         }
         await kvDel(key, sharedStore);
       }
     }
     drain();
-
     navigator.serviceWorker?.addEventListener("message", (ev: any) => {
-      if (ev.data?.type === "shared-queue") {
-        drain();
-      }
+      if (ev.data?.type === "shared-queue") drain();
     });
   }, []);
-
   useEffect(() => {
-    const sub = liveQuery(() => db.notes.orderBy("updatedAt").reverse().toArray())
-      .subscribe({
-        next: setNotes,
-        error: (e) => console.error("liveQuery error", e)
-      });
+    const sub = liveQuery(() => db.notes.orderBy("updatedAt").reverse().toArray()).subscribe({
+      next: setNotes, error: (e) => console.error("liveQuery error", e)
+    });
     return () => sub.unsubscribe();
   }, []);
   return notes;
 }
 
-
 export default function App() {
   const semWorker = useMemo(() => new SemWorkerClient(), []);
   const notes = useLiveNotes();
   const [q, setQ] = useState("");
-  const [engine, setEngine] = useState<"auto" | "remote">((localStorage.getItem("semanticEngine") as any) || "auto");
-  const [view, setView] = useState<View>('main'); // State for view management
+  const [engine, setEngine] = useState<Engine>((localStorage.getItem("semanticEngine") as any) || "auto");
+  const [view, setView] = useState<View>('main');
+  const [selectedNote, setSelectedNote] = useState<Note | undefined>(undefined);
 
-  // ... (useEffect for /share URL remains the same)
+  useEffect(() => {
+    const setupNotifications = async () => {
+      const swRegistration = await navigator.serviceWorker?.ready;
+      const supportsPeriodicSync = swRegistration && 'periodicSync' in swRegistration;
+      if ('serviceWorker' in navigator && 'PushManager' in window && supportsPeriodicSync) {
+        const permission = await requestNotificationPermission();
+        if (permission === 'granted') {
+          try {
+            await (swRegistration as any).periodicSync.register('daily-lookback', { minInterval: 24 * 60 * 60 * 1000 });
+          } catch (e) { console.error('Periodic sync registration failed', e); }
+        }
+      }
+    };
+    setupNotifications();
+  }, []);
+
   useEffect(() => {
     const url = new URL(window.location.href);
+    const noteIdFromUrl = url.searchParams.get('note');
+    if (noteIdFromUrl) {
+      db.notes.get(noteIdFromUrl).then(note => {
+        if (note) {
+          setSelectedNote(note);
+          history.replaceState(null, "", "/");
+        }
+      });
+    }
     if (url.pathname === "/share") {
       const title = url.searchParams.get("title") || "";
       const text = url.searchParams.get("text") || "";
@@ -88,16 +102,12 @@ export default function App() {
       if (content) {
         const now = Date.now();
         db.notes.add({ id: crypto.randomUUID(), content, createdAt: now, updatedAt: now, tags: ["shared"] })
-          .then(() => {
-            history.replaceState(null, "", "/");
-          });
+          .then(() => { history.replaceState(null, "", "/"); });
       } else {
         history.replaceState(null, "", "/");
       }
     }
   }, []);
-
-  const [semName, setSemName] = useState("…");
 
   const bm25Index = useMemo(() => {
     const idx = new BM25();
@@ -108,120 +118,91 @@ export default function App() {
     return idx;
   }, [notes]);
 
-  // ... (useEffect for embedding remains the same)
   useEffect(() => {
     (async () => {
       if (notes.length === 0) return;
-      const ensure = await semWorker.ensure(engine) as { name: string; ready: boolean };
-      setSemName(ensure?.name || "semantic");
+      await semWorker.ensure(engine);
       const existing = new Set((await db.embeddings.toArray()).map(e => e.noteId));
       const toEmbed = notes.filter(n => n.id && !existing.has(n.id));
       if (toEmbed.length === 0) return;
       const vecs = await semWorker.embed(engine, toEmbed.map(n => [n.content, n.tags.join(" ")].join(" ")));
-      await db.embeddings.bulkPut(toEmbed.map((n, i) => ({
-        noteId: n.id!,
-        vec: vecs[i]
-      })));
+      await db.embeddings.bulkPut(toEmbed.map((n, i) => ({ noteId: n.id!, vec: vecs[i] })));
     })();
   }, [notes, engine, semWorker]);
 
   const [finalResults, setFinalResults] = useState<Note[]>(notes);
 
-  // ... (useEffect for search remains the same)
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (!q.trim()) { setFinalResults(notes); return; }
-      const bm = bm25Index.search(q, 50).map(x => ({ id: x.id }));
-      const qvecs = await semWorker.embed(engine, [q]);
-      const qvec = qvecs?.[0];
-
-      const embs = await db.embeddings.toArray();
-      const sims: { id: string; score: number }[] = [];
-      for (const e of embs) {
-        if (!qvec || !e.vec || e.vec.length === 0) continue;
-        sims.push({ id: e.noteId, score: cosineSim(qvec, e.vec) });
+      if (!q.trim()) {
+        setFinalResults(notes);
+        return;
       }
-      sims.sort((a, b) => b.score - a.score);
-      const simTop = sims.slice(0, 50).map(x => ({ id: x.id }));
+      const bm = bm25Index.search(q).slice(0, 50);
+      
+      const [qVec] = await semWorker.embed(engine, [q]);
+      const allEmbeddings = await db.embeddings.toArray();
+      const sem: { id: string; score: number }[] = allEmbeddings
+        .map((e: Embedding) => ({ id: e.noteId, score: cosineSim(qVec, e.vec) }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 50);
 
-      const fused = rrfFuse([bm, simTop], 60);
-      const order = new Map(fused.map((x, i) => [x.id, i]));
-      const sorted = [...notes].sort((a, b) => {
-        const ra = order.get(a.id!) ?? 1e9;
-        const rb = order.get(b.id!) ?? 1e9;
-        return ra - rb;
-      });
-      if (!cancelled) setFinalResults(sorted);
+      const noteMap = new Map(notes.map(n => [n.id, n]));
+      const fused = rrfFuse([bm, sem]);
+      if (cancelled) return;
+      setFinalResults(fused.map(s => noteMap.get(s.id)!).filter(Boolean));
     })();
     return () => { cancelled = true; };
   }, [q, notes, bm25Index, engine, semWorker]);
 
-
-  const renderContent = () => {
-    switch (view) {
-      case 'diagnostics':
-        return <Diagnostics onBack={() => setView('settings')} />;
-      case 'settings':
-        return (
-          <div className="space-y-4">
-             <button onClick={() => setView('main')} className="mb-4 text-blue-500 hover:underline">← 홈으로 돌아가기</button>
-            <BackupRestore />
-            <Settings onChange={setEngine} onNavigateToDiagnostics={() => setView('diagnostics')} />
-          </div>
-        );
-      default:
-        return (
-          <>
-            <RichNoteEditor />
-            <SearchBar value={q} onChange={setQ} />
-            <button onClick={() => setView('settings')} className="w-full text-center py-2 text-blue-500 hover:underline">설정 및 백업</button>
-            <RecallCards notes={notes} onClickTag={(t) => setQ(t)} setQuery={setQ} />
-
-            <section className="space-y-2">
-              {finalResults.map(n => (
-                <article key={n.id} className="card">
-                  <div className="text-xs opacity-70">
-                    {new Date(n.updatedAt).toLocaleString()}
-                  </div>
-                  <div className="whitespace-pre-wrap leading-relaxed" dangerouslySetInnerHTML={{ __html: n.content }} />
-                  <AttachmentGallery noteId={n.id!} />
-                  {n.tags.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {n.tags.map((t: string) => (
-                        <button key={t} onClick={() => setQ(t)} className="px-2 py-1 rounded-lg bg-slate-700 text-xs hover:bg-slate-600">#{t}</button>
-                      ))}
-                    </div>
-                  )}
-                </article>
-              ))}
-              {finalResults.length === 0 && (
-                <div className="text-slate-400">검색 결과가 없습니다.</div>
-              )}
-            </section>
-          </>
-        );
-    }
+  const handleNoteLinkClick = (noteId: string) => {
+    const note = notes.find(n => n.id === noteId);
+    if (note) setSelectedNote(note);
   };
 
   return (
-    <div className="max-w-3xl mx-auto p-4 space-y-4">
-      <Toasts />
-      <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Continuum</h1>
-        <div className="text-sm text-slate-400">
-          오프라인·온디바이스 PWA · 시맨틱: <span className="font-mono">{semName}</span> · 엔진: <span className="font-mono">{engine}</span>
-          <div><ErrorBoundary><ModelStatus engine={engine} /></ErrorBoundary></div>
-        </div>
-      </header>
-      
-      <main>
-        {renderContent()}
-      </main>
+    <ErrorBoundary>
+      <div className="min-h-screen bg-slate-900 text-slate-100 font-sans p-3 sm:p-6 flex flex-col gap-6">
+        <header className="flex flex-col sm:flex-row gap-3 justify-between items-start">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-indigo-400">Continuum</h1>
+            <ModelStatus engine={engine} />
+          </div>
+          <div className="flex gap-2">
+            <button className="btn" onClick={() => setView('main')}>메인</button>
+            <button className="btn" onClick={() => setView('settings')}>설정</button>
+          </div>
+        </header>
 
-      <footer className="text-center text-sm text-slate-500 py-6">
-        PWA가 자동 업데이트됩니다. 네트워크가 없을 때도 동작합니다.
-      </footer>
-    </div>
+        {view === 'main' && (
+          <main className="flex-grow grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
+            <div className="lg:col-span-2 space-y-6">
+              <RichNoteEditor
+                key={selectedNote?.id || 'new'}
+                note={selectedNote}
+                onSaved={() => setSelectedNote(undefined)}
+                onNoteLinkClick={handleNoteLinkClick}
+              />
+              <SearchBar q={q} setQ={setQ} />
+              <RecallCards notes={finalResults} onClickTag={(t) => setQ(`tag:${t}`)} setQuery={setQ} />
+            </div>
+            <div className="space-y-6">
+              <AttachmentGallery noteId={selectedNote?.id} />
+            </div>
+          </main>
+        )}
+
+        {view === 'settings' && (
+          <Settings onChange={setEngine} onNavigateToDiagnostics={() => setView('diagnostics')} />
+        )}
+
+        {view === 'diagnostics' && (
+          <Diagnostics onBack={() => setView('settings')} />
+        )}
+        
+        <Toasts />
+      </div>
+    </ErrorBoundary>
   );
 }

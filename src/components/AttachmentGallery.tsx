@@ -2,9 +2,13 @@
 import { useEffect, useState } from "react";
 import { db, Attachment } from "../lib/db";
 
-export function AttachmentGallery({ noteId }: { noteId: string }) {
+export function AttachmentGallery({ noteId }: { noteId?: string }) {
   const [items, setItems] = useState<Attachment[]>([]);
   useEffect(() => {
+    if (!noteId) {
+      setItems([]);
+      return;
+    }
     let alive = true;
     (async () => {
       const arr = await db.attachments.where("noteId").equals(noteId).toArray();
