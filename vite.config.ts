@@ -19,13 +19,21 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff2,ttf,otf}"],
         runtimeCaching: [
           {
-            urlPattern: ({ url }) => url.pathname.startsWith("/models/"),
-            handler: "CacheFirst",
+            urlPattern: /\/models\/.*\.onnx$/,
+            handler: 'CacheFirst',
             options: {
-              cacheName: "model-cache",
-              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
-            },
+              cacheName: 'model-cache',
+              expiration: { maxEntries: 5, maxAgeSeconds: 60 * 60 * 24 * 365 } // 1 year
+            }
           },
+          {
+            urlPattern: /\.wasm$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'wasm-cache',
+              expiration: { maxEntries: 5, maxAgeSeconds: 60 * 60 * 24 * 365 } // 1 year
+            }
+          }
         ],
       },
       manifest: {
