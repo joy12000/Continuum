@@ -156,7 +156,9 @@ const Diagnostics: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
         // This is a placeholder for the actual RAG call.
         // It should return a generated answer and the source note ID.
-        const { answer, sourceNoteId } = await generateWithFallback(testCase.question, testCase.context);
+        const generated = await generateWithFallback(testCase.question);
+        const answer = generated.answer.map(s => s.sentence).join(' ');
+        const sourceNoteId = generated.answer[0]?.sourceNoteId;
 
         const answerAccuracy = answer.includes(testCase.expectedAnswerSubstring) ? 'Pass' : 'Fail';
         const sourceAccuracy = sourceNoteId === testCase.expectedSourceId ? 'Pass' : 'Fail';

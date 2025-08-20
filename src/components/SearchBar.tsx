@@ -3,7 +3,7 @@ export function SearchBar({ value, onChange }: { value: string; onChange: (v: st
   return (
     <input
       className="input"
-      placeholder="검색 (키워드 + 시맨틱, RRF 융합)"
+      placeholder="검색 (-제외, date>=YYYY-MM-DD)"
       value={value}
       onChange={e => onChange(e.target.value)}
     />

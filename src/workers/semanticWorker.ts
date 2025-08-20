@@ -1,11 +1,11 @@
 
 /// <reference lib="webworker" />
-import { BertTokenizer } from '../lib/semantic/bert_tokenizer';
+import { BertWordPiece } from '../lib/semantic/bert_tokenizer';
 import { InferenceSession, Tensor } from 'onnxruntime-web';
 
 class OnDeviceSemantic {
   public name = "on-device";
-  private tokenizer?: BertTokenizer;
+  private tokenizer?: BertWordPiece;
   private session?: InferenceSession;
   private readyPromise?: Promise<boolean>;
 
@@ -25,15 +25,14 @@ class OnDeviceSemantic {
    * This method is called by ensureReady().
    */
   private init = async () => {
-    const vocabUrl = '/models/vocab.json';
     const modelUrl = '/models/all-MiniLM-L6-v2.onnx';
     
     try {
-      const [vocab, session] = await Promise.all([
-        fetch(vocabUrl).then(r => r.json()),
-        InferenceSession.create(modelUrl, { executionProviders: ['wasm'] })
+      this.tokenizer = new BertWordPiece();
+      const [session] = await Promise.all([
+        InferenceSession.create(modelUrl, { executionProviders: ['wasm'] }),
+        this.tokenizer.load()
       ]);
-      this.tokenizer = new BertTokenizer(vocab, true);
       this.session = session;
       return true;
     } catch (e) {
@@ -47,15 +46,15 @@ class OnDeviceSemantic {
    * @param {string[]} texts - The texts to embed.
    * @returns {Promise<number[][]>} A promise that resolves to an array of embeddings.
    */
-  public embed = async (texts: string[]): Promise<number[][]> => {
+  public embed = async (texts: string): Promise<number[][]> => {
     if (!this.tokenizer || !this.session) {
       throw new Error("Session not initialized. Call ensureReady() first.");
     }
 
-    const { input_ids, attention_mask } = this.tokenizer.encode(texts);
+    const { ids, mask } = await this.tokenizer.encode(texts);
     const feeds = {
-      input_ids: new Tensor('int32', input_ids.flat(), [input_ids.length, input_ids[0].length]),
-      attention_mask: new Tensor('int32', attention_mask.flat(), [attention_mask.length, attention_mask[0].length]),
+      input_ids: new Tensor('int32', ids, [1, ids.length]),
+      attention_mask: new Tensor('int32', mask, [1, mask.length]),
     };
     
     const output = await this.session.run(feeds);
@@ -111,7 +110,7 @@ self.addEventListener("message", async (e: MessageEvent<Msg>) => {
     }
     if (type === "embed") {
       await onDeviceSemantic.ensureReady();
-      const vecs = await onDeviceSemantic.embed(payload.texts);
+      const vecs = await onDeviceSemantic.embed(payload.texts.join(' '));
       self.postMessage({ id, ok: true, result: vecs });
       return;
     }
