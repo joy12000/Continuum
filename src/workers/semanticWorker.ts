@@ -25,7 +25,7 @@ class OnDeviceSemantic {
    * This method is called by ensureReady().
    */
   private init = async () => {
-    const modelUrl = '/models/all-MiniLM-L6-v2.onnx';
+    const modelUrl = '/models/ko-sroberta-multitask_quantized.onnx';
     
     try {
       this.tokenizer = new BertWordPiece();

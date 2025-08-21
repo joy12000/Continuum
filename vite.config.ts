@@ -19,7 +19,7 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff2,ttf,otf}"],
         runtimeCaching: [
           {
-            urlPattern: /\/models\/.*\.onnx$/,
+            urlPattern: /\/models\/ko-sroberta-multitask_quantized\.onnx$/,
             handler: 'CacheFirst',
             options: {
               cacheName: 'model-cache',
