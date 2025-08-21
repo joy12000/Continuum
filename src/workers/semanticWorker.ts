@@ -1,121 +1,98 @@
-
-/// <reference lib="webworker" />
-import { BertWordPiece } from '../lib/semantic/bert_tokenizer';
+import { env, AutoTokenizer } from '@xenova/transformers';
 import { InferenceSession, Tensor } from 'onnxruntime-web';
 
-class OnDeviceSemantic {
-  public name = "on-device";
-  private tokenizer?: BertWordPiece;
-  private session?: InferenceSession;
-  private readyPromise?: Promise<boolean>;
+// ONNX Runtime WebAssembly 파일의 경로를 명시적으로 설정합니다.
+// 이는 Vite와 같은 모던 번들러 환경에서 필수적입니다.
+env.backends.onnx.wasm.wasmPaths = '/';
 
-  /**
-   * Ensures the model and tokenizer are loaded and ready for inference.
-   * @returns {Promise<boolean>} True if the session is ready, false otherwise.
-   */
-  public ensureReady = () => {
-    if (!this.readyPromise) {
-      this.readyPromise = this.init();
+class SemanticSearchPipeline {
+  private static instance: SemanticSearchPipeline | null = null;
+  private session: InferenceSession | null = null;
+  private tokenizer: AutoTokenizer | null = null;
+  private modelPath = '/models/ko-sroberta-multitask_quantized.onnx';
+  private tokenizerPath = '/models/tokenizer.json'; // 로컬 토크나이저 파일이 있는 디렉토리
+
+  private constructor() {}
+
+  public static async getInstance(): Promise<SemanticSearchPipeline> {
+    if (!SemanticSearchPipeline.instance) {
+      SemanticSearchPipeline.instance = new SemanticSearchPipeline();
+      await SemanticSearchPipeline.instance.init();
     }
-    return this.readyPromise;
+    return SemanticSearchPipeline.instance;
   }
 
-  /**
-   * Initializes the tokenizer and ONNX session.
-   * This method is called by ensureReady().
-   */
-  private init = async () => {
-    const modelUrl = '/models/ko-sroberta-multitask_quantized.onnx';
-    
+  private async init(): Promise<void> {
     try {
-      this.tokenizer = new BertWordPiece();
-      const [session] = await Promise.all([
-        InferenceSession.create(modelUrl, { executionProviders: ['wasm'] }),
-        this.tokenizer.load()
-      ]);
-      this.session = session;
-      return true;
-    } catch (e) {
-      console.error("Failed to initialize on-device semantic model:", e);
-      return false;
+      console.log('[SemanticWorker] Initializing...');
+      this.session = await InferenceSession.create(this.modelPath, {
+        executionProviders: ['wasm'],
+        graphOptimizationLevel: 'all',
+      });
+      // 로컬 경로에서 토크나이저 로드
+      this.tokenizer = await AutoTokenizer.from_pretrained(this.tokenizerPath);
+      console.log('[SemanticWorker] Model and tokenizer loaded successfully.');
+    } catch (error) {
+      console.error('[SemanticWorker] Initialization failed:', error);
+      throw error; // 초기화 실패 시 에러를 전파
     }
   }
 
-  /**
-   * Generates embeddings for a list of texts.
-   * @param {string[]} texts - The texts to embed.
-   * @returns {Promise<number[][]>} A promise that resolves to an array of embeddings.
-   */
-  public embed = async (texts: string): Promise<number[][]> => {
-    if (!this.tokenizer || !this.session) {
-      throw new Error("Session not initialized. Call ensureReady() first.");
+  public async embed(text: string | string[]): Promise<number[][] | null> {
+    if (!this.session || !this.tokenizer) {
+      console.error('[SemanticWorker] Pipeline not initialized.');
+      return null;
     }
 
-    const { ids, mask } = await this.tokenizer.encode(texts);
-    const feeds = {
-      input_ids: new Tensor('int32', ids, [1, ids.length]),
-      attention_mask: new Tensor('int32', mask, [1, mask.length]),
-    };
-    
-    const output = await this.session.run(feeds);
-    const embeddings = this.normalize(output.last_hidden_state.data as Float32Array, output.last_hidden_state.dims[1], output.last_hidden_state.dims[2]);
-    
-    return embeddings;
+    try {
+      const texts = Array.isArray(text) ? text : [text];
+      const embeddings: number[][] = [];
+
+      for (const t of texts) {
+        // 토크나이저 인스턴스를 직접 함수처럼 사용
+        const encoded = (this.tokenizer as any)(t, { padding: true, truncation: true });
+
+        const feeds = {
+          input_ids: new Tensor('int64', BigInt64Array.from(encoded.input_ids.data.map(BigInt)), encoded.input_ids.dims),
+          attention_mask: new Tensor('int64', BigInt64Array.from(encoded.attention_mask.data.map(BigInt)), encoded.attention_mask.dims),
+          token_type_ids: new Tensor('int64', BigInt64Array.from(encoded.token_type_ids.data.map(BigInt)), encoded.token_type_ids.dims),
+        };
+
+        const output = await this.session.run(feeds);
+        const embedding = output.last_hidden_state.data as Float32Array;
+        
+        // 결과 벡터를 정규화(Normalize)하여 검색 품질을 높입니다.
+        const normalized = this.normalize(embedding);
+        embeddings.push(Array.from(normalized));
+      }
+
+      return embeddings;
+
+    } catch (error) {
+      console.error('[SemanticWorker] Embedding failed:', error);
+      throw error; // 임베딩 실패 시 에러 전파
+    }
   }
 
-  /**
-   * Normalizes the output tensor to create sentence embeddings.
-   * @param {Float32Array} data - The raw output from the model.
-   * @param {number} numTokens - The number of tokens.
-   * @param {number} embeddingDim - The dimension of the embeddings.
-   * @returns {number[][]} The normalized embeddings.
-   */
-  private normalize = (data: Float32Array, numTokens: number, embeddingDim: number): number[][] => {
-    const embeddings: number[][] = [];
-    for (let i = 0; i < data.length; i += numTokens * embeddingDim) {
-      const sentenceEmbedding = new Array(embeddingDim).fill(0);
-      const slice = data.slice(i, i + numTokens * embeddingDim);
-      
-      // Mean pooling
-      for (let j = 0; j < numTokens; j++) {
-        for (let k = 0; k < embeddingDim; k++) {
-          sentenceEmbedding[k] += slice[j * embeddingDim + k];
-        }
-      }
-      for (let k = 0; k < embeddingDim; k++) {
-        sentenceEmbedding[k] /= numTokens;
-      }
-
-      // L2 normalization
-      const norm = Math.sqrt(sentenceEmbedding.reduce((acc, val) => acc + val * val, 0));
-      embeddings.push(sentenceEmbedding.map(val => val / norm));
-    }
-    return embeddings;
+  // 벡터 정규화 함수
+  private normalize(v: Float32Array): Float32Array {
+    const magnitude = Math.sqrt(v.reduce((sum, val) => sum + val * val, 0));
+    if (magnitude === 0) return v;
+    return v.map(val => val / magnitude);
   }
 }
 
-const onDeviceSemantic = new OnDeviceSemantic();
-
-type Msg =
-  | { id: string; type: "ensure"; payload: { pref: "auto" | "remote" } }
-  | { id: string; type: "embed"; payload: { pref: "auto" | "remote"; texts: string[] } };
-
-self.addEventListener("message", async (e: MessageEvent<Msg>) => {
-  const { id, type, payload } = e.data;
+// Web Worker의 메시지 이벤트 리스너
+self.onmessage = async (event) => {
   try {
-    if (type === "ensure") {
-      const ready = await onDeviceSemantic.ensureReady();
-      self.postMessage({ id, ok: true, result: { name: onDeviceSemantic.name, ready } });
-      return;
+    const { type, payload } = event.data;
+    const pipelineInstance = await SemanticSearchPipeline.getInstance();
+
+    if (type === 'embed') {
+      const embeddings = await pipelineInstance.embed(payload);
+      self.postMessage({ type: 'embed_result', payload: embeddings });
     }
-    if (type === "embed") {
-      await onDeviceSemantic.ensureReady();
-      const vecs = await onDeviceSemantic.embed(payload.texts.join(' '));
-      self.postMessage({ id, ok: true, result: vecs });
-      return;
-    }
-    self.postMessage({ id, ok: false, error: "Unknown command" });
-  } catch (err: any) {
-    self.postMessage({ id, ok: false, error: String(err?.message || err) });
+  } catch (error) {
+    self.postMessage({ type: 'error', payload: (error as Error).message });
   }
-});
+};

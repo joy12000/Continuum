@@ -114,6 +114,17 @@ export default function App() {
         }));
         semanticScores.sort((a, b) => b.score - a.score);
         setSemanticResults(semanticScores);
+
+        // =================================================================
+        // == ✅ 온디바이스 AI 작동 확인 코드 (START) ==
+        // =================================================================
+        console.log('%c[On-Device AI Check]', 'color: limegreen; font-weight: bold;', {
+          query: debouncedQ,
+          semanticSearchResults: semanticScores.slice(0, 5), // 상위 5개 결과만 표시
+        });
+        // =================================================================
+        // == ✅ 온디바이스 AI 작동 확인 코드 (END) ==
+        // =================================================================
       } catch (error) {
         console.error("Semantic search failed:", error);
         setSemanticResults([]);
