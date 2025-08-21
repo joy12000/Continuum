@@ -27,8 +27,7 @@ function Toolbar({ editor }: { editor: any }) {
  * @param {(content: string) => void} [props.onSave] - Callback for autosaving.
  * @param {boolean} [props.autoFocus] - Whether to autofocus the editor.
  */
-export function RichNoteEditor({ note: initialNote, onNoteLink
-Click, onSaved, onSave, autoFocus, hideSaveButton }: { note?: Note, onNoteLinkClick?: (noteId: string) => void, onSaved?: () => void, onSave?: (content: string) => void, autoFocus?: boolean, hideSaveButton?: boolean }) {
+export function RichNoteEditor({ note: initialNote, onNoteLinkClick, onSaved, onSave, autoFocus, hideSaveButton }: { note?: Note, onNoteLinkClick?: (noteId: string) => void, onSaved?: () => void, onSave?: (content: string) => void, autoFocus?: boolean, hideSaveButton?: boolean }) {
   const [tags, setTags] = useState(initialNote?.tags?.join(", ") || "");
   const [suggestedNotes, setSuggestedNotes] = useState<Note[] | null>(null);
   const debounceTimeout = useRef<number | null>(null);
