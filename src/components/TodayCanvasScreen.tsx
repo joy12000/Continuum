@@ -1,175 +1,154 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { RichNoteEditor } from './RichNoteEditor';
-import { db, Note } from '../lib/db';
+import React, { useState, useEffect, useCallback, Dispatch, SetStateAction } from 'react';
 import { SearchBar } from './SearchBar';
-import { RecallCards } from './RecallCards';
-import { liveQuery } from 'dexie';
+import { RichNoteEditor } from './RichNoteEditor';
+import { Plus, Sun, Moon, Search } from 'lucide-react';
 
-// App.tsx에서 가져온 useLiveNotes 훅
-function useLiveNotes() {
-  const [notes, setNotes] = useState<Note[]>([]);
-  useEffect(() => {
-    const sub = liveQuery(() => db.notes.orderBy("updatedAt").reverse().toArray()).subscribe({
-      next: setNotes, error: (e) => console.error("liveQuery error", e)
-    });
-    return () => sub.unsubscribe();
-  }, []);
-  return notes;
-}
+type Theme = 'light' | 'dark' | 'system';
+type View = 'today' | 'settings' | 'diagnostics';
 
-
-const NOTE_ID = 'today-canvas';
-
-export function TodayCanvasScreen() {
-  const [note, setNote] = useState<Note | null>(null);
+export default function TodayCanvasScreen({ onNavigate }: { onNavigate: Dispatch<SetStateAction<View>> }) {
+  // 1. State 정의
+  const [scrollY, setScrollY] = useState(0);
   const [isSearchVisible, setIsSearchVisible] = useState(false);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [showAllNotes, setShowAllNotes] = useState(false);
-  
-  const allNotes = useLiveNotes();
-  const [q, setQ] = useState("");
-
-  // 검색 기능은 아직 완전히 구현되지 않았으므로, 필터링된 노트는 allNotes를 그대로 사용합니다.
-  const filteredNotes = allNotes.filter(n => n.id !== NOTE_ID);
-
-  useEffect(() => {
-    const loadNote = async () => {
-      let todayNote = await db.notes.get(NOTE_ID);
-      if (!todayNote) {
-        todayNote = {
-          id: NOTE_ID,
-          content: '',
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          tags: ['today'],
-        };
-        await db.notes.put(todayNote);
-      }
-      setNote(todayNote);
-    };
-
-    loadNote();
-  }, []);
-
-  const editorContainerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const container = editorContainerRef.current;
-    if (!container) return;
-
-    const handleWheel = (event: WheelEvent) => {
-      // 에디터 내용이 스크롤될 게 없거나, 이미 최상단에 있을 때 위로 스크롤하면 검색창 열기
-      if (container.scrollTop === 0 && event.deltaY < 0) {
-        setIsSearchVisible(true);
-      }
-    };
-
-    container.addEventListener('wheel', handleWheel);
-    return () => {
-      container.removeEventListener('wheel', handleWheel);
-    };
-  }, [note]); // note가 로드된 후 ref가 설정되므로 의존성 배열에 추가
-
-  const handleNoteChange = (content: string) => {
-    if (note) {
-      const updatedNote = { ...note, content, updatedAt: Date.now() };
-      setNote(updatedNote);
-      db.notes.put(updatedNote);
-    }
-  };
+  const [editorCharCount, setEditorCharCount] = useState(0);
+  const [theme, setTheme] = useState<Theme>('system');
+  const [fontSize, setFontSize] = useState(16);
+  const [q, setQ] = useState('');
+  const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
 
   const today = new Date();
-  const dateFormatter = new Intl.DateTimeFormat('ko-KR', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    weekday: 'long',
-  });
+  const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
 
-  if (showAllNotes) {
-    return (
-      <div>
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="text-xl font-bold">전체 노트</h1>
-          <button className="btn" onClick={() => setShowAllNotes(false)}>오늘의 캔버스 돌아가기</button>
-        </div>
-        <SearchBar q={q} setQ={setQ} />
-        <div className="mt-4">
-          <RecallCards notes={filteredNotes} onClickTag={(t) => setQ(`tag:${t}`)} setQuery={setQ} />
-        </div>
-      </div>
-    );
+  // Theme 처리 로직
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') as Theme | null;
+    if (savedTheme) {
+      setTheme(savedTheme);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (theme === 'system') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      document.documentElement.classList.toggle('dark', mediaQuery.matches);
+      const handler = (e: MediaQueryListEvent) => document.documentElement.classList.toggle('dark', e.matches);
+      mediaQuery.addEventListener('change', handler);
+      return () => mediaQuery.removeEventListener('change', handler);
+    } else {
+      document.documentElement.classList.toggle('dark', theme === 'dark');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+// 스크롤 및 휠 이벤트 로직
+const handleScroll = useCallback(() => {
+  setScrollY(window.scrollY);
+  if (window.scrollY > 20) {
+    setIsSearchVisible(true);
   }
+}, []);
 
-  return (
-    <div className="flex flex-col h-screen p-4">
-      <header className="flex justify-between items-center text-center mb-4">
-        <div className="w-10"></div> {/* For spacing */}
-        <h1 className="text-lg font-semibold">{dateFormatter.format(today)}</h1>
-        <button onClick={() => setIsSearchVisible(!isSearchVisible)} className="p-2">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-        </button>
-      </header>
+const handleWheel = useCallback((e: WheelEvent) => {
+  if (window.scrollY === 0 && e.deltaY < 0) {
+    setIsSearchVisible(true);
+  }
+}, []);
 
-      {/* Animated SearchBar */}
-      <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isSearchVisible ? 'max-h-40 mb-4' : 'max-h-0'}`}>
-        <SearchBar q={q} setQ={setQ} />
+useEffect(() => {
+  window.addEventListener('scroll', handleScroll);
+  window.addEventListener('wheel', handleWheel);
+  return () => {
+    window.removeEventListener('scroll', handleScroll);
+    window.removeEventListener('wheel', handleWheel);
+  };
+}, [handleScroll, handleWheel]);
+
+const handleSearchBarFocus = useCallback(async () => {
+  if (isLoadingSuggestions) return;
+
+  setIsLoadingSuggestions(true);
+  try {
+    const prompt = "Generate 3 interesting and distinct questions a user might ask about general knowledge. Return the result as a single, valid JSON object with a \"questions\" key containing an array of strings. Example: {\"questions\": [\"Question 1?\"]}";
+    const response = await fetch('/.netlify/functions/generate', {
+      method: 'POST',
+      body: JSON.stringify({ prompt })
+    });
+
+    if (!response.ok) {
+      throw new Error('API request failed');
+    }
+
+    const result = await response.json();
+    if (result && Array.isArray(result.questions)) {
+      setSuggestedQuestions(result.questions);
+    } else {
+      throw new Error('Invalid JSON structure received');
+    }
+  } catch (error) {
+    console.error("Failed to get suggestions:", error);
+    setSuggestedQuestions([]); // Clear suggestions on error
+  } finally {
+    setIsLoadingSuggestions(false);
+  }
+}, [isLoadingSuggestions]);
+
+return (
+
+  <div className="bg-slate-50 dark:bg-slate-900 min-h-screen transition-colors duration-300" style={{ fontSize: `${fontSize}px` }}>
+    {/* 검색창 배경 (Backdrop) */}
+    {isSearchVisible && (
+      <div
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-10 animate-fadeIn motion-reduce:animate-none"
+        onClick={() => setIsSearchVisible(false)}
+      />
+    )}
+
+    {/* Header */}
+    <header className={`sticky top-0 z-20 h-48 flex flex-col justify-end items-center p-4 transition-all duration-300 ease-out ${scrollY > 0 ? 'opacity-0' : 'opacity-100'}`}>
+      <h1 className="text-xl font-semibold text-slate-500 dark:text-slate-400 opacity-80">{formattedDate}</h1>
+      <div className="absolute top-4 right-4 flex items-center gap-2">
+          <button onClick={() => setFontSize(f => f - 1)} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700">-</button>
+          <button onClick={() => setFontSize(f => f + 1)} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700">+</button>
+          <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700">
+            <Sun className="h-5 w-5 dark:hidden" />
+            <Moon className="h-5 w-5 hidden dark:block" />
+          </button>
+          <button onClick={() => setIsSearchVisible(true)} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700">
+            <Search className="h-5 w-5" />
+          </button>
       </div>
+    </header>
 
-      <div ref={editorContainerRef} className="flex-grow flex flex-col overflow-y-auto" style={{ display: note ? 'flex' : 'none' }}>
-        {note && (
-          <RichNoteEditor
-            note={note}
-            onSave={handleNoteChange}
-            autoFocus={true}
-            hideSaveButton={true}
-          />
-        )}
-      </div>
-      {!note && <div className="flex-grow text-center">Loading...</div>}
-
-      {/* FAB */}
-      <button 
-        onClick={() => setIsMenuOpen(true)}
-        className="fixed bottom-8 right-8 bg-indigo-600 text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg z-50"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-        </svg>
-      </button>
-
-      {/* BottomSheet */}
-      <div 
-        className={`fixed inset-0 bg-black z-40 transition-opacity duration-300 ease-in-out ${isMenuOpen ? 'bg-opacity-50' : 'bg-opacity-0 pointer-events-none'}`}
-        onClick={() => setIsMenuOpen(false)}
-      >
-        <div 
-          className={`fixed bottom-0 left-0 right-0 bg-slate-800 p-4 rounded-t-lg z-50 transition-transform duration-300 ease-in-out ${isMenuOpen ? 'translate-y-0' : 'translate-y-full'}`}
-          onClick={(e) => e.stopPropagation()}
-        >
-            <ul className="space-y-2">
-              <li>
-                <button className="w-full text-left p-2 rounded hover:bg-slate-700">새 노트 작성</button>
-              </li>
-              <li>
-                <button className="w-full text-left p-2 rounded hover:bg-slate-700">이미지/파일 첨부</button>
-              </li>
-              <li>
-                <button 
-                  onClick={() => {
-                    setShowAllNotes(true);
-                    setIsMenuOpen(false);
-                  }} 
-                  className="w-full text-left p-2 rounded hover:bg-slate-700"
-                >
-                  전체 노트 목록 보기
-                </button>
-              </li>
-            </ul>
-          </div>
-        </div>
+    {/* SearchBar */}
+    <div className={`sticky top-0 z-20 transition-all duration-300 ease-out ${isSearchVisible ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0'}`}>
+      <SearchBar 
+        q={q} 
+        setQ={setQ} 
+        onFocus={handleSearchBarFocus}
+        suggestedQuestions={suggestedQuestions}
+        isLoadingSuggestions={isLoadingSuggestions}
+      />
     </div>
-  );
+
+    {/* Main (Editor 영역) */}
+    <main className="px-4 sm:px-10 pb-20">
+      <div className="max-w-4xl mx-auto bg-white dark:bg-slate-800 rounded-lg p-10">
+        <RichNoteEditor 
+          autoFocus 
+          onSave={(content) => setEditorCharCount(content.length)}
+        />
+      </div>
+      <div className="max-w-4xl mx-auto mt-2 px-2 flex justify-between text-xs text-slate-400 dark:text-slate-500">
+          <span>자동 저장됨</span>
+          <span>{editorCharCount > 0 ? editorCharCount.toString().split(/\s+/).length : 0} 단어 / {editorCharCount} 글자</span>
+      </div>
+    </main>
+
+    {/* FAB */}
+    <button className={`fixed bottom-4 right-4 sm:bottom-14 sm:right-14 h-11 w-11 sm:h-14 sm:w-14 bg-indigo-600 text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-300 ease-out ${editorCharCount >= 1 ? 'scale-100 animate-zoomIn' : 'scale-0'}`}>
+      <Plus className="h-7 w-7" />
+    </button>
+  </div>
+);
 }

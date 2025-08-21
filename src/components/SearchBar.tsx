@@ -1,82 +1,61 @@
+import React from 'react';
+import { Search } from 'lucide-react';
 
-import { useState } from "react";
-import { db } from "../lib/db";
+// 1. Props: 부모 컴포넌트로부터 필요한 모든 데이터와 핸들러를 받습니다.
+interface SearchBarProps {
+  q: string;
+  setQ: (v: string) => void;
+  onFocus: () => void;
+  suggestedQuestions: string[];
+  isLoadingSuggestions: boolean;
+}
 
-type ApiState = 'idle' | 'loading' | 'error';
-
-export function SearchBar({ q, setQ }: { q: string; setQ: (v: string) => void }) {
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [apiState, setApiState] = useState<ApiState>('idle');
-
-  async function handleFocus() {
-    if (apiState !== 'idle' || suggestions.length > 0) {
-      return; // Prevent multiple calls or re-fetching if suggestions already exist
-    }
-
-    setApiState('loading');
-    try {
-      const recentNotes = await db.notes.orderBy('updatedAt').reverse().limit(5).toArray();
-      if (recentNotes.length === 0) {
-        setApiState('idle');
-        return;
-      }
-
-      const notesContent = recentNotes.map(n => n.content.replace(/<[^>]+>/g, '')).join('\n\n---\n\n');
-
-      const prompt = `Based on the following notes, generate 3 interesting and distinct questions a user might ask.
-Return the result as a single, valid JSON object with a "questions" key containing an array of strings. Example: {"questions": ["Question 1?", "Question 2?", "Question 3?"]}
-
-NOTES:
----
-${notesContent}
----
-`;
-
-      const response = await fetch('/.netlify/functions/generate', {
-        method: 'POST',
-        body: JSON.stringify({ prompt }) // Sending the new prompt structure
-      });
-
-      if (!response.ok) {
-        throw new Error('API request failed');
-      }
-
-      const result = await response.json();
-      
-      if (result && Array.isArray(result.questions)) {
-        setSuggestions(result.questions);
-      } else {
-        // Handle cases where the JSON is valid but doesn't match the expected structure
-        throw new Error('Invalid JSON structure received');
-      }
-
-      setApiState('idle');
-    } catch (error) {
-      console.error("Failed to get suggestions:", error);
-      setApiState('error');
-      setTimeout(() => {
-        setApiState('idle');
-      }, 2000); // Reset after 2 seconds
-    }
-  }
-
+export function SearchBar({
+  q,
+  setQ,
+  onFocus,
+  suggestedQuestions,
+  isLoadingSuggestions,
+}: SearchBarProps) {
+  // 2. 내부 상태/로직 제거: 이 컴포넌트는 상태를 관리하거나 API를 호출하지 않습니다.
   return (
-    <div className="space-y-2">
-      <input
-        className="input"
-        placeholder="검색 또는 클릭하여 질문 제안받기"
-        value={q}
-        onChange={e => setQ(e.target.value)}
-        onFocus={handleFocus}
-      />
-      <div className="flex flex-wrap gap-2">
-        {apiState === 'loading' && <span className="text-sm text-slate-400">질문 생성 중...</span>}
-        {apiState === 'error' && <span className="text-sm text-red-400">질문 제안에 실패했습니다.</span>}
-        {suggestions.map((s, i) => (
-          <button key={i} className="btn-sm bg-slate-700" onClick={() => setQ(s)}>
-            {s}
-          </button>
-        ))}
+    <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
+      <div className="relative">
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <Search className="h-5 w-5 text-slate-400" />
+        </div>
+        <input
+          type="search"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          // 3. Input onFocus 연결: 부모로부터 받은 onFocus 핸들러를 연결합니다.
+          onFocus={onFocus}
+          placeholder="과거의 나에게 질문하기..."
+          className="w-full p-3 pl-10 bg-white dark:bg-slate-700 rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none transition"
+        />
+      </div>
+
+      {/* 4. 조건부 렌더링 */}
+      <div className="mt-2 text-center">
+        {isLoadingSuggestions && (
+          <div className="text-sm text-slate-500 dark:text-slate-400 animate-pulse">
+            질문 제안 중...
+          </div>
+        )}
+
+        {!isLoadingSuggestions && suggestedQuestions.length > 0 && (
+          <div className="flex flex-wrap justify-center gap-2">
+            {suggestedQuestions.map((question, index) => (
+              <button
+                key={index}
+                onClick={() => setQ(question)}
+                className="px-3 py-1 text-sm bg-indigo-100 text-indigo-700 rounded-full hover:bg-indigo-200 dark:bg-indigo-900 dark:text-indigo-300 dark:hover:bg-indigo-800 transition"
+              >
+                {question}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
