@@ -76,20 +76,12 @@ export default function TodayCanvasScreen({
     }
   }, [isSearchVisible]);
 
-  const handleWheel = useCallback((e: WheelEvent) => {
-    if (window.scrollY === 0 && e.deltaY < 0 && !isSearchVisible) {
-      setIsSearchVisible(true);
-    }
-  }, [isSearchVisible]);
-
   useEffect(() => {
     window.addEventListener('scroll', handleScroll);
-    window.addEventListener('wheel', handleWheel);
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('wheel', handleWheel);
     };
-  }, [handleScroll, handleWheel]);
+  }, [handleScroll]);
 
   // --- 렌더링 로직 ---
   const charCount = editorContent.length;
