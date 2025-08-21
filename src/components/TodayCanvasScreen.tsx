@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { RichNoteEditor } from './RichNoteEditor';
 import { db, Note } from '../lib/db';
 import { SearchBar } from './SearchBar';
@@ -170,7 +170,6 @@ export function TodayCanvasScreen() {
             </ul>
           </div>
         </div>
-      )}
     </div>
   );
 }
