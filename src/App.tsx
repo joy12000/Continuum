@@ -10,7 +10,7 @@ import { Settings } from './components/Settings'; // 명명된 가져오기로 �
 import Diagnostics from './components/Diagnostics'; // 기본 가져오기 유지
 import { Toasts } from './components/Toasts';
 import { AnswerData, SearchResult } from './types/common';
-import { loadSettings } from './lib/config'; // loadSettings 가져오기
+import { getConfig } from './lib/config'; // getConfig 가져오기
 
 // --- 타입 정의 ---
 type View = 'today' | 'settings' | 'diagnostics';
@@ -157,7 +157,7 @@ export default function App() {
         // =================================================================
         // == 🕵️‍♂️ 진단 코드 추가 (START) ==
         // =================================================================
-        const settings = await loadSettings();
+        const settings = getConfig();
         const isGenerativeMode = settings.genEnabled; // Assuming genEnabled indicates generative mode
         const apiUrl = settings.genEndpoint; // Assuming genEndpoint is the API URL
 
@@ -203,7 +203,7 @@ export default function App() {
       const recentNotes = notes.slice(0, 5);
       const notesContent = recentNotes.map(n => n.content.replace(/<[^>]+>/g, '')).join('\n\n');
       
-      const settings = await loadSettings();
+      const settings = getConfig();
       const isGenerativeMode = settings.genEnabled; // Assuming genEnabled indicates generative mode
       const apiUrl = settings.genEndpoint; // Assuming genEndpoint is the API URL
 

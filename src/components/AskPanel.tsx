@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { AnswerCard } from "./AnswerCard";
 import { GeneratedAnswer } from "./GeneratedAnswer";
 import { AnswerData } from '../types/common';
-import { loadSettings } from "../lib/config";
+import { getConfig } from "../lib/config";
 import { generateWithFallback } from "../lib/gen/generate";
 
 class RAGClient {
@@ -49,7 +49,7 @@ export function AskPanel({ engine, setQuery, notes }: { engine: "auto" | "remote
   const [genError, setGenError] = useState<Error | null>(null);
   const [resGen, setResGen] = useState<AnswerData | null>(null);
   
-  const settings = loadSettings();
+  const settings = getConfig();
 
   async function onAsk() {
     const q = qRef.current?.value?.trim();
