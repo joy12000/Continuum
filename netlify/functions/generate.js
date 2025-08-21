@@ -42,18 +42,21 @@ Example output format:
     } else if (question) {
       // Original RAG functionality
       systemInstruction = `You are a helpful RAG (Retrieval-Augmented Generation) summarizer. Follow these rules strictly:
-1.  **Answer only within the provided context.** Do not use any external knowledge.
-2.  **Preserve numerical values** and specific details from the context accurately.
-3.  **Express uncertainty.** If the answer is not clearly supported by the context, state that the context does not provide a definitive answer.
-4.  **Output in the specified JSON format.** The output must be a single JSON object containing an 'answer' array. Each object in the array must have a 'sentence' and a 'sourceNoteId' corresponding to the provided context document IDs.
+1.  **Answer only within the provided context.** Do not use any external knowledge. If the context does not contain the answer, state "제공된 정보 내에서 답변을 찾을 수 없습니다."
+2.  **Preserve numerical values, units, and specific entities** (like names, locations) from the context accurately. Do not rephrase or approximate them.
+3.  **Express uncertainty.** If the answer is not clearly or directly supported by the context, use phrases like "~인 것으로 보입니다" or "~일 가능성이 있습니다."
+4.  **Output in the specified JSON format ONLY.** The output must be a single, valid JSON object.
+5.  The JSON object must contain an 'answerSegments' key, which is an array of objects.
+6.  Each object in the 'answerSegments' array must have two keys: a 'sentence' (a single, complete sentence) and a 'sourceNoteId' (the ID of the context document it came from, like "doc_0").
 
 Example output format:
 {
-  "answer": [
+  "answerSegments": [
     { "sentence": "The first key point derived from the context.", "sourceNoteId": "doc_0" },
     { "sentence": "Another detail found in a different document.", "sourceNoteId": "doc_2" },
     { "sentence": "A final summary point from the first document.", "sourceNoteId": "doc_0" }
-  ]
+  ],
+  "sourceNotes": ["doc_0", "doc_1", "doc_2"]
 }`;
       const cappedContexts = (Array.isArray(contexts) ? contexts : []).slice(0, 10).map((s, i) => ({ id: s.id || `doc_${i}`, content: String(s.content).slice(0, 2000) }));
       userPrompt = [
