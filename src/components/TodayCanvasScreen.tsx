@@ -114,17 +114,28 @@ export default function TodayCanvasScreen({
         >
           Continuum 🛡️
         </h1>
-        <button
-          onClick={() => onNavigate('settings')}
-          className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-          aria-label="설정으로 이동"
-        >
-          {/* SVG 아이콘을 사용하여 일관된 디자인 유지 */}
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-slate-600 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-        </button>
+        <div className="flex items-center gap-2"> {/* 기존 버튼들을 위한 래퍼 div */}
+          <button onClick={() => setFontSize(f => Math.max(12, f - 1))} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700">-</button>
+          <button onClick={() => setFontSize(f => Math.min(24, f + 1))} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700">+</button>
+          <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700">
+            <Sun className="h-5 w-5 dark:hidden" />
+            <Moon className="h-5 w-5 hidden dark:block" />
+          </button>
+          <button onClick={() => setIsSearchVisible(true)} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700">
+            <Search className="h-5 w-5" />
+          </button>
+          <button
+            onClick={() => onNavigate('settings')}
+            className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+            aria-label="설정으로 이동"
+          >
+            {/* SVG 아이콘을 사용하여 일관된 디자인 유지 */}
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-slate-600 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
+        </div>
       </header>
 
       <div className={`sticky top-0 z-20 transition-all duration-300 ease-out ${isSearchVisible ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
