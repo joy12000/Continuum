@@ -1,6 +1,6 @@
-import type { GeneratedAnswerType } from "../../components/GeneratedAnswer";
+import type { AnswerData } from "../../components/GeneratedAnswer";
 
-export async function generateWithFallback(prompt: string, apiBase: string = "/api"): Promise<GeneratedAnswerType> {
+export async function generateWithFallback(prompt: string, apiBase: string = "/api"): Promise<AnswerData> {
   try {
     const r = await fetch(`${apiBase}/generate`, {
       method: "POST",
@@ -10,7 +10,7 @@ export async function generateWithFallback(prompt: string, apiBase: string = "/a
     if (r.ok) {
       const data = await r.json();
       // Ensure the response has the expected structure
-      if (data && Array.isArray(data.answer)) {
+      if (data && Array.isArray(data.answerSegments) && Array.isArray(data.sourceNotes)) {
         return data;
       }
     }
@@ -20,11 +20,12 @@ export async function generateWithFallback(prompt: string, apiBase: string = "/a
     console.error("Generation API call failed, using fallback.", e);
     // Fallback response conforms to the new structure
     return {
-      answer: [
+      answerSegments: [
         { sentence: "The generation API is not available.", sourceNoteId: "fallback-1" },
         { sentence: "This is a local fallback response.", sourceNoteId: "fallback-2" },
         { sentence: "Please check your settings for the Generate API endpoint.", sourceNoteId: "fallback-3" },
       ],
+      sourceNotes: [],
     };
   }
 }

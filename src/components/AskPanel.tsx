@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { AnswerCard } from "./AnswerCard";
-import { GeneratedAnswer, GeneratedAnswerType } from "./GeneratedAnswer";
+import { GeneratedAnswer } from "./GeneratedAnswer";
 import { loadSettings } from "../lib/config";
 import { generateWithFallback } from "../lib/gen/generate";
 
@@ -32,6 +32,14 @@ class RAGClient {
   }
 }
 
+interface AnswerData {
+  answerSegments: {
+    sentence: string;
+    sourceNoteId: string;
+  }[];
+  sourceNotes: string[];
+}
+
 export function AskPanel({ engine, setQuery, notes }: { engine: "auto" | "remote"; setQuery: (q: string) => void; notes?: any[] }) {
   const rag = useMemo(() => new RAGClient(), []);
   const qRef = useRef<HTMLInputElement>(null);
@@ -44,7 +52,7 @@ export function AskPanel({ engine, setQuery, notes }: { engine: "auto" | "remote
   // State for generative results
   const [isGenerating, setIsGenerating] = useState(false);
   const [genError, setGenError] = useState<Error | null>(null);
-  const [resGen, setResGen] = useState<GeneratedAnswerType | null>(null);
+  const [resGen, setResGen] = useState<AnswerData | null>(null);
   
   const settings = loadSettings();
 
@@ -112,13 +120,14 @@ export function AskPanel({ engine, setQuery, notes }: { engine: "auto" | "remote
           </label>
         </div>
         
-        {showGenAnswer ? (
+        {showGenAnswer && resGen ? (
           <GeneratedAnswer
-            answer={resGen}
-            isGenerating={isGenerating}
-            error={genError}
-            onRetry={onAsk}
+            data={resGen}
           />
+        ) : showGenAnswer && isGenerating ? (
+          <div className="text-center text-slate-500 animate-pulse">AI가 답변을 생성 중입니다...</div>
+        ) : showGenAnswer && genError ? (
+          <div className="text-center text-red-500">{genError.message}</div>
         ) : (
           res && <AnswerCard kp={res.kp} cites={res.cites} onJump={(id) => setQuery("#" + id)} />
         )}

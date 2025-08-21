@@ -2,20 +2,41 @@ import React, { useState, useEffect, useCallback, Dispatch, SetStateAction } fro
 import { SearchBar } from './SearchBar';
 import { RichNoteEditor } from './RichNoteEditor';
 import { Plus, Sun, Moon, Search } from 'lucide-react';
+import { GeneratedAnswer } from './GeneratedAnswer';
 
 type Theme = 'light' | 'dark' | 'system';
 type View = 'today' | 'settings' | 'diagnostics';
 
-export default function TodayCanvasScreen({ onNavigate }: { onNavigate: Dispatch<SetStateAction<View>> }) {
+interface AnswerData {
+  answerSegments: {
+    sentence: string;
+    sourceNoteId: string;
+  }[];
+  sourceNotes: string[];
+}
+
+interface Note {
+  id: string;
+  content: string;
+  tags: string[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export default function TodayCanvasScreen({ onNavigate, q, setQ, finalResults }: { onNavigate: Dispatch<SetStateAction<View>>; q: string; setQ: (v: string) => void; finalResults: Note[]; }) {
   // 1. State 정의
   const [scrollY, setScrollY] = useState(0);
   const [isSearchVisible, setIsSearchVisible] = useState(false);
   const [editorCharCount, setEditorCharCount] = useState(0);
   const [theme, setTheme] = useState<Theme>('system');
   const [fontSize, setFontSize] = useState(16);
-  const [q, setQ] = useState('');
   const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [generatedAnswer, setGeneratedAnswer] = useState<{
+    data: AnswerData | null;
+    isLoading: boolean;
+    error: string | null;
+  }>({ data: null, isLoading: false, error: null });
 
   const today = new Date();
   const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
@@ -93,6 +114,45 @@ const handleSearchBarFocus = useCallback(async () => {
   }
 }, [isLoadingSuggestions]);
 
+// RAG 답변 생성 로직
+useEffect(() => {
+  if (!q) {
+    setGeneratedAnswer({ data: null, isLoading: false, error: null });
+    return;
+  }
+
+  setGeneratedAnswer(prev => ({ ...prev, isLoading: true, error: null }));
+
+  const generateAnswer = async () => {
+    try {
+      const notesContent = finalResults.map(n => n.content.replace(/<[^>]+>/g, '')).join('\n\n---\n\n');
+      const prompt = `Based on the following notes, answer the question: "${q}".\nReturn the result as a single, valid JSON object with an "answerSegments" key containing an array of objects, each with a "sentence" and "sourceNoteId" key, and a "sourceNotes" key containing an array of strings. Example: {"answerSegments": [{"sentence": "Answer part 1.", "sourceNoteId": "note1"}], "sourceNotes": ["note1"]}\n\nNOTES:\n---\n${notesContent}\n---
+`;
+
+      const response = await fetch('/.netlify/functions/generate', {
+        method: 'POST',
+        body: JSON.stringify({ prompt })
+      });
+
+      if (!response.ok) {
+        throw new Error('API request failed');
+      }
+
+      const result = await response.json();
+      if (result && Array.isArray(result.answerSegments) && Array.isArray(result.sourceNotes)) {
+        setGeneratedAnswer({ data: result, isLoading: false, error: null });
+      } else {
+        throw new Error('Invalid JSON structure received');
+      }
+    } catch (error) {
+      console.error("Failed to generate answer:", error);
+      setGeneratedAnswer({ data: null, isLoading: false, error: '답변을 생성하는 데 실패했습니다.' });
+    }
+  };
+
+  generateAnswer();
+}, [q, finalResults]);
+
 return (
 
   <div className="bg-slate-50 dark:bg-slate-900 min-h-screen transition-colors duration-300" style={{ fontSize: `${fontSize}px` }}>
@@ -129,6 +189,19 @@ return (
         suggestedQuestions={suggestedQuestions}
         isLoadingSuggestions={isLoadingSuggestions}
       />
+    </div>
+
+    {/* AI 답변 영역 */}
+    <div className="mb-4 px-4 sm:px-0">
+      {generatedAnswer.isLoading && (
+        <div className="text-center text-slate-500 animate-pulse">AI가 답변을 생성 중입니다...</div>
+      )}
+      {generatedAnswer.error && (
+        <div className="text-center text-red-500">{generatedAnswer.error}</div>
+      )}
+      {generatedAnswer.data && !generatedAnswer.isLoading && (
+        <GeneratedAnswer data={generatedAnswer.data} />
+      )}
     </div>
 
     {/* Main (Editor 영역) */}
