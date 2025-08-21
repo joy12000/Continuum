@@ -149,11 +149,11 @@ export default function TodayCanvasScreen({
         />
       </div>
 
-      <main className="px-4 sm:px-10 pb-20">
-        <div className="max-w-4xl mx-auto">
-          {/* --- 검색 결과 표시 영역 --- */}
+      <main className="p-4 sm:px-6 pb-20"> {/* 전반적인 여백 조정 */}
+        <div className="max-w-4xl mx-auto space-y-4"> {/* 컴포넌트 간 간격 추가 */}
+          {/* 검색 결과 표시 영역을 카드 스타일로 감싸기 */}
           {query.length > 0 && (
-            <div className="mb-4">
+            <div className="card p-6"> {/* card 클래스 적용 및 내부 패딩 조정 */}
               {/* AI 요약 답변 */}
               {generatedAnswer.isLoading && <div className="text-center text-slate-500 animate-pulse">AI가 답변을 생성 중입니다...</div>}
               {generatedAnswer.error && <div className="text-center text-red-500">{generatedAnswer.error}</div>}
@@ -170,7 +170,7 @@ export default function TodayCanvasScreen({
                   <section className="space-y-2">
                     {notes.map(note => (
                       <article key={note.id} className="card bg-white dark:bg-slate-800 p-4 rounded-lg shadow">
-                         <div className="text-xs opacity-70 mb-2">{new Date(note.updatedAt).toLocaleString()}</div>
+                         <div className="text-xs text-slate-500 dark:text-slate-400 mb-2">{new Date(note.updatedAt).toLocaleString()}</div>
                          <div className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: note.content }} />
                       </article>
                     ))}
@@ -183,17 +183,18 @@ export default function TodayCanvasScreen({
               )}
             </div>
           )}
-        </div>
         
-        <div className="max-w-4xl mx-auto bg-white dark:bg-slate-800 rounded-lg p-10 shadow-sm mt-4">
-          <RichNoteEditor 
-            autoFocus 
-            onSave={setEditorContent}
-          />
-        </div>
-        <div className="max-w-4xl mx-auto mt-2 px-2 flex justify-between text-xs text-slate-400 dark:text-slate-500">
-            <span>자동 저장됨</span>
-            <span>{wordCount} 단어 / {charCount} 글자</span>
+          {/* RichNoteEditor를 감싸는 div에 card 스타일 적용 및 기존 스타일 조정 */}
+          <div className="card p-6"> {/* 기존 bg-white dark:bg-slate-800 rounded-lg p-10 shadow-sm mt-4 제거 */}
+            <RichNoteEditor 
+              autoFocus 
+              onSave={setEditorContent}
+            />
+          </div>
+          <div className="mt-2 px-2 flex justify-between text-xs text-slate-400 dark:text-slate-400">
+              <span>자동 저장됨</span>
+              <span>{wordCount} 단어 / {charCount} 글자</span>
+          </div>
         </div>
       </main>
 

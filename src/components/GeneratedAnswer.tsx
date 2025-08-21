@@ -49,7 +49,7 @@ export function GeneratedAnswer({ data }: GeneratedAnswerProps) {
       {/* Reference Notes Section */}
       {data.sourceNotes.length > 0 && (
         <div className="mt-6 border-t border-slate-200 dark:border-slate-700 pt-4">
-          <h4 className="text-md font-semibold text-slate-600 dark:text-slate-400 mb-2">참고 자료</h4>
+          <h4 className="text-md font-semibold text-slate-600 dark:text-slate-300 mb-2">참고 자료</h4>
           <ul className="space-y-3">
             {data.sourceNotes.map((noteId) => {
               const sourceNumber = sourceIdToNumberMap.get(noteId);
