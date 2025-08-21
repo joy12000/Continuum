@@ -105,10 +105,10 @@ export function RichNoteEditor({ note: initialNote, onNoteLinkClick, onSaved, on
   }
 
   return (
-    <div className="card space-y-3">
+    <div className="card space-y-3 h-full flex flex-col">
       <div className="text-sm opacity-80">{initialNote ? "노트 편집" : "리치 텍스트 입력"}</div>
       <Toolbar editor={editor} />
-      <div className="rounded-xl bg-slate-800/50 border border-slate-700 p-3">
+      <div className="rounded-xl bg-slate-800/50 border border-slate-700 p-3 flex-grow overflow-y-auto">
         <EditorContent editor={editor} />
       </div>
       {suggestedNotes && suggestedNotes.length > 0 && (

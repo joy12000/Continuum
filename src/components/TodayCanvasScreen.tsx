@@ -51,6 +51,25 @@ export function TodayCanvasScreen() {
     loadNote();
   }, []);
 
+  const editorContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const container = editorContainerRef.current;
+    if (!container) return;
+
+    const handleWheel = (event: WheelEvent) => {
+      // 에디터 내용이 스크롤될 게 없거나, 이미 최상단에 있을 때 위로 스크롤하면 검색창 열기
+      if (container.scrollTop === 0 && event.deltaY < 0) {
+        setIsSearchVisible(true);
+      }
+    };
+
+    container.addEventListener('wheel', handleWheel);
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+    };
+  }, [note]); // note가 로드된 후 ref가 설정되므로 의존성 배열에 추가
+
   const handleNoteChange = (content: string) => {
     if (note) {
       const updatedNote = { ...note, content, updatedAt: Date.now() };
@@ -94,13 +113,12 @@ export function TodayCanvasScreen() {
         </button>
       </header>
 
-      {isSearchVisible && (
-        <div className="mb-4">
-          <SearchBar q={q} setQ={setQ} />
-        </div>
-      )}
+      {/* Animated SearchBar */}
+      <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isSearchVisible ? 'max-h-40 mb-4' : 'max-h-0'}`}>
+        <SearchBar q={q} setQ={setQ} />
+      </div>
 
-      <div className="flex-grow" style={{ display: note ? 'block' : 'none' }}>
+      <div ref={editorContainerRef} className="flex-grow flex flex-col overflow-y-auto" style={{ display: note ? 'flex' : 'none' }}>
         {note && (
           <RichNoteEditor
             note={note}
@@ -115,7 +133,7 @@ export function TodayCanvasScreen() {
       {/* FAB */}
       <button 
         onClick={() => setIsMenuOpen(true)}
-        className="fixed bottom-8 right-8 bg-indigo-600 text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg"
+        className="fixed bottom-8 right-8 bg-indigo-600 text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg z-50"
       >
         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -123,12 +141,14 @@ export function TodayCanvasScreen() {
       </button>
 
       {/* BottomSheet */}
-      {isMenuOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-40" onClick={() => setIsMenuOpen(false)}>
-          <div 
-            className="fixed bottom-0 left-0 right-0 bg-slate-800 p-4 rounded-t-lg z-50"
-            onClick={(e) => e.stopPropagation()}
-          >
+      <div 
+        className={`fixed inset-0 bg-black z-40 transition-opacity duration-300 ease-in-out ${isMenuOpen ? 'bg-opacity-50' : 'bg-opacity-0 pointer-events-none'}`}
+        onClick={() => setIsMenuOpen(false)}
+      >
+        <div 
+          className={`fixed bottom-0 left-0 right-0 bg-slate-800 p-4 rounded-t-lg z-50 transition-transform duration-300 ease-in-out ${isMenuOpen ? 'translate-y-0' : 'translate-y-full'}`}
+          onClick={(e) => e.stopPropagation()}
+        >
             <ul className="space-y-2">
               <li>
                 <button className="w-full text-left p-2 rounded hover:bg-slate-700">새 노트 작성</button>
