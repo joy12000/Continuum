@@ -24,8 +24,11 @@ function Toolbar({ editor }: { editor: any }) {
  * @param {Note} [props.note] - The note to be edited. If not provided, a new note will be created.
  * @param {(noteId: string) => void} [props.onNoteLinkClick] - Callback for when a suggested note is clicked.
  * @param {() => void} [props.onSaved] - Callback function to be executed after a note is saved.
+ * @param {(content: string) => void} [props.onSave] - Callback for autosaving.
+ * @param {boolean} [props.autoFocus] - Whether to autofocus the editor.
  */
-export function RichNoteEditor({ note: initialNote, onNoteLinkClick, onSaved }: { note?: Note, onNoteLinkClick?: (noteId: string) => void, onSaved?: () => void }) {
+export function RichNoteEditor({ note: initialNote, onNoteLink
+Click, onSaved, onSave, autoFocus, hideSaveButton }: { note?: Note, onNoteLinkClick?: (noteId: string) => void, onSaved?: () => void, onSave?: (content: string) => void, autoFocus?: boolean, hideSaveButton?: boolean }) {
   const [tags, setTags] = useState(initialNote?.tags?.join(", ") || "");
   const [suggestedNotes, setSuggestedNotes] = useState<Note[] | null>(null);
   const debounceTimeout = useRef<number | null>(null);
@@ -49,8 +52,12 @@ export function RichNoteEditor({ note: initialNote, onNoteLinkClick, onSaved }: 
   const editor = useEditor({
     extensions: [StarterKit],
     content: initialNote?.content || "",
+    autofocus: autoFocus,
     editorProps: { attributes: { class: "prose prose-invert max-w-none min-h-[96px] focus:outline-none" } },
     onUpdate: ({ editor }) => {
+      const html = editor.getHTML();
+      onSave?.(html);
+
       if (debounceTimeout.current) {
         clearTimeout(debounceTimeout.current);
       }
@@ -121,11 +128,15 @@ export function RichNoteEditor({ note: initialNote, onNoteLinkClick, onSaved }: 
           </ul>
         </div>
       )}
-      <input className="input" placeholder="태그: 쉼표로 구분" value={tags} onChange={e => setTags(e.target.value)} />
-      <div className="flex gap-2">
-        <button className="btn" onClick={save}>저장</button>
-        <span className="text-sm text-slate-400 self-center">Tip: 볼드, 리스트 등 서식 사용 가능</span>
-      </div>
+      {!hideSaveButton && (
+        <>
+          <input className="input" placeholder="태그: 쉼표로 구분" value={tags} onChange={e => setTags(e.target.value)} />
+          <div className="flex gap-2">
+            <button className="btn" onClick={save}>저장</button>
+            <span className="text-sm text-slate-400 self-center">Tip: 볼드, 리스트 등 서식 사용 가능</span>
+          </div>
+        </>
+      )}
     </div>
   );
 }
