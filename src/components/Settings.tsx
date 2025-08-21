@@ -90,9 +90,99 @@ export function Settings({ onChange, onNavigateToDiagnostics }: { onChange?: (e:
     }
   };
 
+  const handleExportNotes = async () => {
+    try {
+      const allNotes = await db.notes.toArray();
+      const dataStr = JSON.stringify(allNotes, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `continuum_notes_backup_${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('노트가 성공적으로 내보내졌습니다!');
+    } catch (err) {
+      console.error('Failed to export notes:', err);
+      toast.error('노트 내보내기에 실패했습니다.');
+    }
+  };
+
+  const handleImportNotes = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      toast.warn('가져올 파일을 선택해주세요.');
+      return;
+    }
+
+    try {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const importedNotes: Note[] = JSON.parse(e.target?.result as string);
+          if (!Array.isArray(importedNotes) || !importedNotes.every(note => 'content' in note && 'createdAt' in note)) {
+            throw new Error('유효하지 않은 JSON 파일 형식입니다. 노트 배열이 필요합니다.');
+          }
+
+          // 기존 노트와 충돌 시 업데이트, 없으면 추가
+          await db.notes.bulkPut(importedNotes);
+          toast.success(`${importedNotes.length}개의 노트가 성공적으로 가져와졌습니다!`);
+          fetchNotes(); // 노트 목록 새로고침
+        } catch (parseError) {
+          console.error('Failed to parse imported file:', parseError);
+          toast.error(`파일 파싱 오류: ${(parseError as Error).message}`);
+        }
+      };
+      reader.readAsText(file);
+    } catch (err) {
+      console.error('Failed to import notes:', err);
+      toast.error('노트 가져오기에 실패했습니다.');
+    }
+  };
+
   return (
     <>
-      {/* ... (Engine selection and Snapshot management UI remains the same) ... */}
+      <div className="card mt-4">
+        <h2 className="text-lg font-semibold mb-3">스냅샷 관리</h2>
+        <button onClick={handleCreateSnapshot} disabled={loading} className="btn btn-primary mb-4">
+          {loading ? '스냅샷 생성 중...' : '현재 상태 스냅샷 생성'}
+        </button>
+        {error && <div className="text-red-500 mb-4">{error}</div>}
+        {snapshots.length === 0 ? (
+          <p className="text-slate-500">저장된 스냅샷이 없습니다.</p>
+        ) : (
+          <ul className="space-y-2">
+            {snapshots.map(snapshot => (
+              <li key={snapshot.id} className="flex justify-between items-center p-2 bg-slate-700/50 rounded-md">
+                <span>{new Date(snapshot.createdAt).toLocaleString()} ({snapshot.noteCount} 노트)</span>
+                <button onClick={() => handleRestoreClick(snapshot)} className="btn btn-sm">복원</button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* 새로운 데이터 백업 및 복원 섹션 */}
+      <div className="card mt-4">
+        <h2 className="text-lg font-semibold mb-3">데이터 백업 및 복원</h2>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <button onClick={handleExportNotes} className="btn btn-outline flex-1">
+            모든 노트 내보내기 (JSON)
+          </button>
+          <input
+            type="file"
+            accept=".json"
+            onChange={handleImportNotes}
+            className="hidden"
+            id="import-notes-file-input"
+          />
+          <label htmlFor="import-notes-file-input" className="btn btn-outline flex-1 cursor-pointer text-center">
+            노트 가져오기 (JSON)
+          </label>
+        </div>
+      </div>
 
       <div className="card mt-4">
         <h2 className="text-lg font-semibold mb-3">중복 노트 관리</h2>
