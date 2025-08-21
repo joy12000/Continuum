@@ -6,6 +6,8 @@ export interface Config {
   autoBackup: boolean;
   backupIntervalDays: number;
   lastBackupTimestamp?: number;
+  genEnabled?: boolean; // 다시 추가
+  genEndpoint?: string; // 다시 추가
 }
 
 const CONFIG_KEY = 'continuum-config';
