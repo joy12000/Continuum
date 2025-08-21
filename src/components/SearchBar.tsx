@@ -8,6 +8,7 @@ interface SearchBarProps {
   onFocus: () => void;
   suggestedQuestions: string[];
   isLoadingSuggestions: boolean;
+  suggestionError: string | null;
 }
 
 export function SearchBar({
@@ -16,6 +17,7 @@ export function SearchBar({
   onFocus,
   suggestedQuestions,
   isLoadingSuggestions,
+  suggestionError,
 }: SearchBarProps) {
   // 2. 내부 상태/로직 제거: 이 컴포넌트는 상태를 관리하거나 API를 호출하지 않습니다.
   return (
@@ -55,6 +57,9 @@ export function SearchBar({
               </button>
             ))}
           </div>
+        )}
+        {suggestionError && !isLoadingSuggestions && (
+          <div className="text-sm text-red-500">{suggestionError}</div>
         )}
       </div>
     </div>

@@ -1,4 +1,4 @@
-import type { AnswerData } from "../../components/GeneratedAnswer";
+import type { AnswerData } from "../../types/common";
 
 export async function generateWithFallback(prompt: string, apiBase: string = "/api"): Promise<AnswerData> {
   try {

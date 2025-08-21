@@ -1,12 +1,5 @@
 import React from 'react';
-
-export interface AnswerData {
-  answerSegments: {
-    sentence: string;
-    sourceNoteId: string;
-  }[];
-  sourceNotes: string[];
-}
+import { AnswerData } from '../types/common';
 
 interface GeneratedAnswerProps {
   data: AnswerData;

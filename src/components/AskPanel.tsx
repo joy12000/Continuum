@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { AnswerCard } from "./AnswerCard";
 import { GeneratedAnswer } from "./GeneratedAnswer";
+import { AnswerData } from '../types/common';
 import { loadSettings } from "../lib/config";
 import { generateWithFallback } from "../lib/gen/generate";
 
@@ -32,13 +33,7 @@ class RAGClient {
   }
 }
 
-interface AnswerData {
-  answerSegments: {
-    sentence: string;
-    sourceNoteId: string;
-  }[];
-  sourceNotes: string[];
-}
+
 
 export function AskPanel({ engine, setQuery, notes }: { engine: "auto" | "remote"; setQuery: (q: string) => void; notes?: any[] }) {
   const rag = useMemo(() => new RAGClient(), []);
