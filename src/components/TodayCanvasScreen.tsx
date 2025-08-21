@@ -71,17 +71,27 @@ export default function TodayCanvasScreen({
   // --- 이벤트 핸들러 ---
   const handleScroll = useCallback(() => {
     setScrollY(window.scrollY);
-    if (window.scrollY > 20 && !isSearchVisible) {
+    // 스크롤을 내리면 검색창 숨기기 (임계값 50px)
+    if (window.scrollY > 50 && isSearchVisible) {
+      setIsSearchVisible(false);
+    }
+  }, [isSearchVisible]);
+
+  const handleWheel = useCallback((e: WheelEvent) => {
+    // 최상단에서 위로 스와이프(휠을 아래로 굴림)하면 검색창 띄우기
+    if (window.scrollY === 0 && e.deltaY < 0 && !isSearchVisible) {
       setIsSearchVisible(true);
     }
   }, [isSearchVisible]);
 
   useEffect(() => {
     window.addEventListener('scroll', handleScroll);
+    window.addEventListener('wheel', handleWheel); // wheel 이벤트 리스너 다시 추가
     return () => {
       window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('wheel', handleWheel); // wheel 이벤트 리스너 제거 함수 다시 추가
     };
-  }, [handleScroll]);
+  }, [handleScroll, handleWheel]); // 의존성 배열에 handleWheel 추가
 
   // --- 렌더링 로직 ---
   const charCount = editorContent.length;
