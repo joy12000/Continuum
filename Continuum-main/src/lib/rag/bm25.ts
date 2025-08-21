@@ -1,5 +1,0 @@
-import { tokenize } from "./chunker";
-export type BM25Doc = { id: string; tokens: string[]; };
-export type BM25Index = { df: Map<string, number>; avgdl: number; N: number; docs: BM25Doc[] };
-export function buildBM25(docs: BM25Doc[]): BM25Index { const df=new Map<string,number>(); let total=0; for(const d of docs){ total+=d.tokens.length; const uniq=new Set(d.tokens); for(const t of uniq) df.set(t,(df.get(t)||0)+1);} return { df, avgdl: total/Math.max(1,docs.length), N: docs.length, docs}; }
-export function bm25Score(q: string, docTokens: string[], idx: BM25Index, k1=1.2, b=0.75){ const qTokens=tokenize(q); const tf=new Map<string,number>(); for(const t of docTokens) tf.set(t,(tf.get(t)||0)+1); const dl=docTokens.length; let score=0; for (const t of qTokens){ const n=idx.df.get(t)||0; if(n===0) continue; const idf=Math.log(((idx.N - n + 0.5)/(n+0.5))+1); const freq=tf.get(t)||0; const denom=freq + k1*(1 - b + b*(dl/Math.max(1, idx.avgdl))); score += idf * ((freq * (k1 + 1)) / denom); } return score; }
