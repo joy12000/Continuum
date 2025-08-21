@@ -6,46 +6,41 @@ export interface Config {
   autoBackup: boolean;
   backupIntervalDays: number;
   lastBackupTimestamp?: number;
-  genEnabled?: boolean; // 추가
-  genEndpoint?: string; // 추가
 }
-
-// 🛡️ 추가: 안정적인 기본 설정값 정의
-const DEFAULT_CONFIG: Config = {
-  isGenerativeMode: true,
-  apiUrl: '/.netlify/functions/generate', // 기본 API URL 설정
-  autoBackup: true,
-  backupIntervalDays: 3,
-  lastBackupTimestamp: undefined,
-};
 
 const CONFIG_KEY = 'continuum-config';
 
+// 항상 일관된 기본값을 제공하는 상수
+const DEFAULT_CONFIG: Config = {
+  isGenerativeMode: true,
+  apiUrl: '/.netlify/functions/generate',
+  autoBackup: true,
+  backupIntervalDays: 3,
+};
+
 /**
- * Retrieves the configuration from localStorage.
- * If no configuration is found, returns a stable default configuration.
- * @returns {Config} The configuration object.
+ * localStorage에서 설정을 안전하게 불러옵니다.
+ * 설정이 없거나 파싱 오류가 발생하면, 항상 안정적인 기본값을 반환합니다.
+ * @returns {Config} - 유효한 설정 객체
  */
 export function getConfig(): Config {
   try {
     const storedConfig = localStorage.getItem(CONFIG_KEY);
     if (storedConfig) {
-      // 🛡️ 수정: 저장된 설정과 기본 설정을 병합하여 새로운 키가 추가되어도 문제 없도록 함
-      const parsedConfig = JSON.parse(storedConfig);
-      return { ...DEFAULT_CONFIG, ...parsedConfig };
+      // 저장된 설정과 기본 설정을 병합하여, 나중에 추가될 수 있는 새로운 설정 키에도 대비합니다.
+      return { ...DEFAULT_CONFIG, ...JSON.parse(storedConfig) };
     }
-    // 🛡️ 수정: 설정이 없으면 항상 기본값을 반환
-    return DEFAULT_CONFIG;
   } catch (error) {
-    console.error('Failed to parse config from localStorage', error);
-    // 파싱 실패 시에도 안정적인 기본값 반환
-    return DEFAULT_CONFIG;
+    console.error('Failed to parse config. Returning default.', error);
   }
+  // 설정이 없거나 오류 발생 시, 항상 기본값을 반환합니다.
+  return DEFAULT_CONFIG;
 }
 
 /**
- * Saves the configuration to localStorage.
- * @param {Partial<Config>} newConfig - The configuration settings to save.
+ * 새로운 설정을 저장하고 업데이트된 전체 설정을 반환합니다.
+ * @param {Partial<Config>} newConfig - 업데이트할 설정 항목
+ * @returns {Config} - 저장 후의 전체 설정 객체
  */
 export function saveConfig(newConfig: Partial<Config>): Config {
   try {
@@ -55,8 +50,9 @@ export function saveConfig(newConfig: Partial<Config>): Config {
     toast.success('설정이 저장되었습니다.');
     return updatedConfig;
   } catch (error) {
-    console.error('Failed to save config to localStorage', error);
+    console.error('Failed to save config.', error);
     toast.error('설정 저장에 실패했습니다.');
-    return getConfig(); // 저장 실패 시 현재 설정 반환
+    // 저장 실패 시에도 현재 메모리에 로드된 설정을 반환합니다.
+    return getConfig();
   }
 }
