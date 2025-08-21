@@ -10,6 +10,7 @@ import { Settings } from './components/Settings'; // 명명된 가져오기로 �
 import Diagnostics from './components/Diagnostics'; // 기본 가져오기 유지
 import { Toasts } from './components/Toasts';
 import { AnswerData, SearchResult } from './types/common';
+import { loadSettings } from './lib/config'; // loadSettings 가져오기
 
 // --- 타입 정의 ---
 type View = 'today' | 'settings' | 'diagnostics';
@@ -53,11 +54,11 @@ export default function App() {
   const [suggestionError, setSuggestionError] = useState<string | null>(null);
 
   // AI 요약 답변 관련 상태 (명시적 타입 지정)
-  const [generatedAnswer, setGeneratedAnswer] = useState<{
-    data: AnswerData | null;
-    isLoading: boolean;
-    error: string | null;
-  }>({ data: null, isLoading: false, error: null } as { data: AnswerData | null; isLoading: boolean; error: string | null });
+  const [generatedAnswer, setGeneratedAnswer] = useState({
+    data: null,
+    isLoading: false,
+    error: null
+  } as { data: AnswerData | null; isLoading: boolean; error: string | null });
 
   // 시맨틱 검색 결과 상태
   const [semanticResults, setSemanticResults] = useState<SearchResult[]>([]);
@@ -153,11 +154,34 @@ export default function App() {
         const relevantNotes = finalResults.slice(0, 5); // 상위 5개 노트를 컨텍스트로 사용
         const notesContent = relevantNotes.map(n => n.content.replace(/<[^>]+>/g, '')).join('\n\n---\n\n');
         
-        const result: AnswerData = await callGenerateApi({
-          context: notesContent,
-          question: debouncedQ
+        // =================================================================
+        // == 🕵️‍♂️ 진단 코드 추가 (START) ==
+        // =================================================================
+        const settings = await loadSettings();
+        const isGenerativeMode = settings.genEnabled; // Assuming genEnabled indicates generative mode
+        const apiUrl = settings.genEndpoint; // Assuming genEndpoint is the API URL
+
+        console.log('%c[API Call Diagnosis]', 'color: skyblue; font-weight: bold;', {
+          isGenerativeMode: isGenerativeMode,
+          isApiUrlSet: !!apiUrl,
+          queryExists: !!debouncedQ,
+          hasContextNotes: finalResults.length > 0
         });
-        setGeneratedAnswer({ data: result, isLoading: false, error: null });
+        // =================================================================
+        // == 🕵️‍♂️ 진단 코드 추가 (END) ==
+        // =================================================================
+
+        if (isGenerativeMode && apiUrl && debouncedQ && finalResults.length > 0) {
+          const result: AnswerData = await callGenerateApi({
+            context: notesContent,
+            question: debouncedQ,
+            type: 'generate_answer' // API 타입 추가
+          });
+          setGeneratedAnswer({ data: result, isLoading: false, error: null });
+        } else {
+          // API 호출 조건이 충족되지 않으면 로딩 상태를 해제하고 오류 메시지를 표시하지 않음
+          setGeneratedAnswer({ data: null, isLoading: false, error: null });
+        }
 
       } catch (error: any) {
         console.error("Failed to generate answer:", error);
@@ -166,7 +190,7 @@ export default function App() {
     };
 
     generateAnswer();
-  }, [debouncedQ, finalResults]);
+  }, [debouncedQ, finalResults]); // config.isGenerativeMode, config.apiUrl 대신 debouncedQ, finalResults만 의존성으로 유지
 
   // --- 핸들러 함수 ---
   // 제안 질문 생성 로직 (callGenerateApi 사용)
@@ -179,11 +203,21 @@ export default function App() {
       const recentNotes = notes.slice(0, 5);
       const notesContent = recentNotes.map(n => n.content.replace(/<[^>]+>/g, '')).join('\n\n');
       
-      const result = await callGenerateApi({
-        context: notesContent,
-        question: "Suggest 3 interesting questions based on the notes above."
-      });
-      setSuggestedQuestions(result.questions || []);
+      const settings = await loadSettings();
+      const isGenerativeMode = settings.genEnabled; // Assuming genEnabled indicates generative mode
+      const apiUrl = settings.genEndpoint; // Assuming genEndpoint is the API URL
+
+      if (isGenerativeMode && apiUrl) {
+        const result = await callGenerateApi({
+          context: notesContent,
+          question: "Suggest 3 interesting questions based on the notes above.",
+          type: 'generate_questions' // API 타입 추가
+        });
+        setSuggestedQuestions(result.questions || []);
+      } else {
+        // API 호출 조건이 충족되지 않으면 로딩 상태를 해제하고 오류 메시지를 표시하지 않음
+        setSuggestedQuestions([]);
+      }
 
     } catch (error: any) {
       console.error("Failed to fetch suggestions:", error);
@@ -209,9 +243,9 @@ export default function App() {
   const renderView = () => {
     switch (view) {
       case 'settings':
-        return <Settings onNavigateToDiagnostics={() => setView('diagnostics')} />; 
+        return <Settings onNavigateToDiagnostics={() => setView('diagnostics')} />;
       case 'diagnostics':
-        return <Diagnostics onBack={() => setView('settings')} />; 
+        return <Diagnostics onBack={() => setView('settings')} />;
       case 'today':
       default:
         return (
