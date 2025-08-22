@@ -1,85 +1,81 @@
-import { pipeline, env, AutoTokenizer } from '@xenova/transformers';
+// Semantic Worker (overwrite by assistant)
+// Robust init: local models + safer messaging protocol
+
+import { AutoTokenizer } from '@xenova/transformers';
 import { InferenceSession, Tensor } from 'onnxruntime-web';
 
-// Vite/Webpack 환경에서 WASM 파일 경로를 올바르게 찾도록 명시적으로 설정
-env.backends.onnx.wasm.wasmPaths = '/';
+type EmbedResult = number[];
 
 class SemanticPipeline {
-  private static instance: SemanticPipeline | null = null;
+  private static _instance: SemanticPipeline | null = null;
+  private ready = false;
   private session: InferenceSession | null = null;
-  private tokenizer: AutoTokenizer | null = null;
-  private ready: boolean = false;
+  private tokenizer: any | null = null;
 
-  private constructor() {}
-
-  // 싱글턴 인스턴스를 가져오는 표준 방식
-  public static getInstance(): SemanticPipeline {
-    if (!SemanticPipeline.instance) {
-      SemanticPipeline.instance = new SemanticPipeline();
-    }
-    return SemanticPipeline.instance;
+  static getInstance() {
+    if (!this._instance) this._instance = new SemanticPipeline();
+    return this._instance;
   }
 
-  // 모델과 토크나이저를 비동기적으로 초기화하는 함수
   async init() {
-    if (this.ready) return; // 이미 초기화되었다면 중복 실행 방지
+    if (this.ready) return;
+    // eslint-disable-next-line no-restricted-globals
+    const ORIGIN = (self as any)?.location?.origin || '';
+    const MODEL_BASE = ORIGIN + '/models';
 
     console.log('[SemanticWorker] Initializing pipeline...');
     try {
-      this.session = await InferenceSession.create('/models/ko-sroberta-multitask_quantized.onnx');
-      this.tokenizer = await AutoTokenizer.from_pretrained('Xenova/bge-m3');
+      // Local ONNX session
+      this.session = await InferenceSession.create(
+        MODEL_BASE + '/ko-sroberta-multitask_quantized.onnx'
+      );
+
+      // Local tokenizer
+      this.tokenizer = await AutoTokenizer.from_pretrained(
+        MODEL_BASE + '/bge-m3/'
+      );
+
       this.ready = true;
       console.log('[SemanticWorker] Pipeline initialized successfully.');
-    } catch (error) {
-      console.error('[SemanticWorker] Initialization failed:', error);
-      this.ready = false; // 실패 시 상태를 명확히 함
-      throw error;
+    } catch (err) {
+      console.error('[SemanticWorker] Initialization failed:', err);
+      this.ready = false;
+      throw err;
     }
   }
 
-  // 텍스트를 임베딩 벡터로 변환하는 함수
-  async embed(text: string) {
-    if (!this.ready || !this.session || !this.tokenizer) {
-      console.error('[SemanticWorker] Pipeline not ready. Attempting to initialize...');
-      await this.init(); // 만약 초기화되지 않았다면 재시도
-      if (!this.ready || !this.session || !this.tokenizer) {
-        throw new Error("Semantic pipeline could not be initialized or is not ready.");
-      }
-    }
+  async embed(text: string): Promise<EmbedResult> {
+    if (!this.ready) await this.init();
+    if (!this.session || !this.tokenizer) throw new Error('Pipeline not ready');
+    // Tokenize
+    const encoded = await this.tokenizer(text, { return_tensors: 'np' });
+    const input_ids = encoded.input_ids.data;
+    const attention_mask = encoded.attention_mask.data;
 
-    const encoded = (this.tokenizer as any)(text, { padding: true, truncation: true });
+    const inputIdsTensor = new Tensor('int64', BigInt64Array.from(input_ids.map(BigInt)), encoded.input_ids.shape);
+    const attnMaskTensor = new Tensor('int64', BigInt64Array.from(attention_mask.map(BigInt)), encoded.attention_mask.shape);
 
-    // ONNX 모델이 요구하는 int64 타입으로 텐서 생성
-    const feeds = {
-      input_ids: new Tensor('int64', BigInt64Array.from(encoded.input_ids.data.map(BigInt)), encoded.input_ids.dims),
-      attention_mask: new Tensor('int64', BigInt64Array.from(encoded.attention_mask.data.map(BigInt)), encoded.attention_mask.dims),
-      token_type_ids: new Tensor('int64', BigInt64Array.from(encoded.token_type_ids.data.map(BigInt)), encoded.token_type_ids.dims),
-    };
-
-    const output = await this.session.run(feeds);
-    const embedding = (output.last_hidden_state.data as Float32Array);
-    
-    // 벡터 정규화 (검색 품질 향상)
-    const magnitude = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
-    const normalized = magnitude === 0 ? embedding : embedding.map(val => val / magnitude);
-
-    return Array.from(normalized);
+    const outputs = await this.session.run({ input_ids: inputIdsTensor, attention_mask: attnMaskTensor });
+    const last = outputs[Object.keys(outputs)[0]];
+    const data = Array.from(last.data as Float32Array);
+    return data;
   }
 }
 
-// 워커 메시지 핸들러
-self.onmessage = async (event) => {
-  const { type, payload } = event.data;
-  
+// Structured messaging protocol
+self.onmessage = async (event: MessageEvent) => {
+  const { id, type, payload } = (event.data || {});
   try {
     const pipeline = SemanticPipeline.getInstance();
-    
     if (type === 'embed') {
-      await pipeline.init(); // embed 호출 전에 항상 초기화 보장
-      const embedding = await pipeline.embed(payload);
-      self.postMessage({ type: 'embed_result', payload: [embedding] });
+      await pipeline.init();
+      const texts: string[] = Array.isArray(payload?.texts) ? payload.texts : [String(payload?.text ?? payload ?? '')];
+      const results = await Promise.all(texts.map(t => pipeline.embed(t)));
+      (self as any).postMessage({ id, ok: true, result: results });
+      return;
     }
-  } catch (error) {
-    self.postMessage({ type: 'error', payload: (error as Error).message });
+    (self as any).postMessage({ id, ok: false, error: `Unknown type: ${type}` });
+  } catch (error: any) {
+    (self as any).postMessage({ id, ok: false, error: error?.message || String(error) });
   }
 };
