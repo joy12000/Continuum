@@ -1,20 +1,19 @@
 /// <reference lib="webworker" />
 /**
- * Patched Semantic Worker
+ * Semantic Worker (TS) - GitHub overwrite build
  * - Local tokenizer only (/models/ko-sroberta)
- * - Robust ONNX/WASM setup
- * - Batch tokenization to ensure [batch, seq] shape
- * - Auto add token_type_ids when required
- * - Mean pooling when model returns [1, seq, hidden]
- * - Guard checks to avoid HTML-instead-of-JSON issues
+ * - Robust ONNX/WASM
+ * - Batch tokenization -> [1, seq]
+ * - token_type_ids auto fill
+ * - Mean pooling for [1, seq, hidden]
+ * - Guard checks to avoid HTML instead of JSON
  */
-
 import * as ort from 'onnxruntime-web';
 import { AutoTokenizer, env } from '@xenova/transformers';
 
-// Force local-only loading for Transformers.js (avoid HF calls)
+// Transformers.js: local only
 ;(env as any).allowRemoteModels = false;
-;(env as any).localModelPath = '/models'; // /models/<repoId>
+;(env as any).localModelPath = '/models';
 
 type EmbedVec = number[];
 
@@ -30,7 +29,6 @@ class SemanticPipeline {
   async init() {
     if (this.ready) return;
 
-    // Quick resource guards (detect SPA HTML)
     async function assertJSON(url: string, optional = false) {
       const r = await fetch(url, { cache: 'no-store' });
       if (!r.ok) { if (optional) return; throw new Error(`MISS ${url} -> ${r.status}`); }
@@ -52,7 +50,7 @@ class SemanticPipeline {
       }
     }
 
-    // ORT WASM location (files must exist under public/ort/)
+    // ORT WASM in /public/ort
     ort.env.wasm.wasmPaths = {
       mjs:  '/ort/ort-wasm-simd-threaded.mjs',
       wasm: '/ort/ort-wasm-simd-threaded.wasm',
@@ -62,13 +60,11 @@ class SemanticPipeline {
     const MODEL_DIR = '/models/ko-sroberta';
     console.log('[SemanticWorker] Initializing...', { MODEL_DIR });
 
-    // Guard tokenizer sidecars (fail early if missing)
     await assertJSON(`${MODEL_DIR}/tokenizer.json`);
     await assertText(`${MODEL_DIR}/vocab.txt`);
     await assertJSON(`${MODEL_DIR}/tokenizer_config.json`, true);
     await assertJSON(`${MODEL_DIR}/special_tokens_map.json`, true);
 
-    // Try multiple ONNX filenames
     const candidates = [
       `${MODEL_DIR}/ko-sroberta-multitask_quantized.onnx`,
       `${MODEL_DIR}/model_qint8_avx512_vnni.onnx`,
@@ -83,10 +79,8 @@ class SemanticPipeline {
     }
     if (!this.session) throw lastErr || new Error('ONNX model not loaded');
 
-    // Load tokenizer from local repo id (env.localModelPath controls the root)
     this.tokenizer = await AutoTokenizer.from_pretrained('ko-sroberta');
 
-    // Record input names
     this.inputNames = (this.session as any).inputNames || [];
     this.ready = true;
     console.log('[SemanticWorker] Pipeline initialized.', { inputNames: this.inputNames });
@@ -116,45 +110,36 @@ class SemanticPipeline {
     if (!this.ready) await this.init();
     if (!this.session || !this.tokenizer) throw new Error('Pipeline not ready');
 
-    // ✅ Batch tokenize to guarantee [1, seq] shapes
+    // Batch tokenize: [text] => shapes [1, seq]
     const enc: any = await this.tokenizer([text], {
       return_tensors: 'np',
       padding: true,
       truncation: true,
     });
 
-    const idsData  = enc.input_ids.data as any;
-    const maskData = enc.attention_mask.data as any;
-
-    // Force 2D if any runtime returns 1D
     let idsShape  = enc.input_ids.shape as number[];
     let maskShape = enc.attention_mask.shape as number[];
     if (idsShape.length === 1)  idsShape  = [1, idsShape[0]];
     if (maskShape.length === 1) maskShape = [1, maskShape[0]];
 
-    const ids64  = BigInt64Array.from(Array.from(idsData,  (x: number) => BigInt(x)));
-    const mask64 = BigInt64Array.from(Array.from(maskData, (x: number) => BigInt(x)));
+    const ids64  = BigInt64Array.from(Array.from(enc.input_ids.data as any,  (x: number) => BigInt(x)));
+    const mask64 = BigInt64Array.from(Array.from(enc.attention_mask.data as any, (x: number) => BigInt(x)));
 
     const inputs: Record<string, ort.Tensor> = {
       input_ids:      new ort.Tensor('int64', ids64,  idsShape),
       attention_mask: new ort.Tensor('int64', mask64, maskShape),
     };
-
     if (this.inputNames.includes('token_type_ids') && !('token_type_ids' in inputs)) {
       inputs.token_type_ids = this.ensureTokenType(idsShape);
     }
 
     const outMap = await this.session.run(inputs);
-    const firstKey = Object.keys(outMap)[0];
-    const out = outMap[firstKey];
+    const out = outMap[Object.keys(outMap)[0]];
     const data = out.data as Float32Array;
 
-    if (out.dims.length === 2) {
-      return Array.from(data); // [1, hidden]
-    } else if (out.dims.length === 3) {
-      // [1, seq, hidden] → mean pooling
-      const seq = out.dims[1];
-      const hidden = out.dims[2];
+    if (out.dims.length === 2) return Array.from(data);
+    if (out.dims.length === 3) {
+      const seq = out.dims[1], hidden = out.dims[2];
       const acc = new Float32Array(hidden);
       let denom = 0;
       for (let t = 0; t < seq; t++) {
@@ -171,7 +156,6 @@ class SemanticPipeline {
   }
 }
 
-// Message handler
 self.onmessage = async (event: MessageEvent) => {
   const { id, type, payload } = (event.data || {}) as any;
   try {
