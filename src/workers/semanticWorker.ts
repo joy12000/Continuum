@@ -30,6 +30,10 @@ class SemanticPipeline {
     const origin = (self as any)?.location?.origin || '';
     const MODEL_DIR = `${origin}/models/ko-sroberta`;
 
+    
+
+    
+
     console.log('[SemanticWorker] Initializing...', { MODEL_DIR });
 
     // ONNX 파일명 후보들을 순차 시도 (배포된 파일명에 맞게 자동 픽)
@@ -49,7 +53,7 @@ class SemanticPipeline {
     if (!this.session) throw lastErr || new Error('ONNX model not loaded');
 
     // ko-sroberta 폴더에서 토크나이저 로드 (tokenizer.json + vocab.txt 필요)
-    this.tokenizer = await AutoTokenizer.from_pretrained(`${MODEL_DIR}/`);
+    this.tokenizer = await AutoTokenizer.from_pretrained('/models/ko-sroberta');
 
     this.inputNames = (this.session as any).inputNames || [];
     this.ready = true;

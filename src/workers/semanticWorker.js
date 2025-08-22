@@ -44,7 +44,7 @@ class SemanticPipeline {
         if (!this.session)
             throw lastErr || new Error('ONNX model not loaded');
         // ko-sroberta 폴더에서 토크나이저 로드 (tokenizer.json + vocab.txt 필요)
-        this.tokenizer = await AutoTokenizer.from_pretrained(`${MODEL_DIR}/`);
+        this.tokenizer = await AutoTokenizer.from_pretrained('/models/ko-sroberta');
         this.inputNames = this.session.inputNames || [];
         this.ready = true;
         console.log('[SemanticWorker] Pipeline initialized.', { inputNames: this.inputNames });

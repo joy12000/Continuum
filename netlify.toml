@@ -3,3 +3,8 @@
   [headers.values]
     Cross-Origin-Opener-Policy = "same-origin"
     Cross-Origin-Embedder-Policy = "require-corp"
+
+[[redirects]]
+  from = "/models/:repo/resolve/main/:file"
+  to   = "/models/:repo/:file"
+  status = 200
