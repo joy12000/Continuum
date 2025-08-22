@@ -1,6 +1,13 @@
 /// <reference lib="webworker" />
 import * as ort from 'onnxruntime-web';
-import { AutoTokenizer } from '@xenova/transformers';
+// ❗ @xenova/transformers' AutoTokenizer는 이제 /models/ko-sroberta 에서만 로드
+import { AutoTokenizer, env } from '@xenova/transformers';
+
+// ❗ @xenova/transformers의 외부 모델 다운로드 비활성화
+//    - 로컬(/models/ko-sroberta)에 토크나이저가 없으면 바로 실패
+//    - HF_ENDPOINT 등 외부 URL 접근 코드 제거
+env.allowRemoteModels = false;
+env.allowLocalModels = true;
 
 type EmbedVec = number[];
 
@@ -16,31 +23,50 @@ class SemanticPipeline {
   async init() {
     if (this.ready) return;
 
-    // 🔧 최신 ORT: mjs/wasm 파일명을 객체로 명시
-    // public/ort 에 복사한 파일명에 맞춰 수정 가능:
-    // - mjs: ort-wasm-simd-threaded.mjs
-    // - wasm: ort-wasm-simd-threaded.wasm (JSEP 쓰면 *.jsep.wasm)
+    // 헬퍼: URL 리소스가 JSON인지 확인 (아니면 HTML 등 실패)
+    async function assertJSON(url: string, optional = false) {
+      const r = await fetch(url, { cache: 'no-store' });
+      if (!r.ok) { if (optional) return; throw new Error(`MISS ${url} -> ${r.status}`); }
+      const ct = r.headers.get('content-type') || '';
+      if (!ct.includes('json')) {
+        const head = (await r.text()).slice(0, 60).replace(/\n/g, ' ');
+        if (optional) return;
+        throw new Error(`HTML/Non-JSON at ${url} (${ct}) head="${head}"`);
+      }
+    }
+    // 헬퍼: URL 리소스가 Plain Text인지 확인
+    async function assertText(url: string, optional = false) {
+      const r = await fetch(url, { cache: 'no-store' });
+      if (!r.ok) { if (optional) return; throw new Error(`MISS ${url} -> ${r.status}`); }
+      const ct = r.headers.get('content-type') || '';
+      if (!/text\/plain|octet-stream/.test(ct)) {
+        const head = (await r.text()).slice(0, 60).replace(/\n/g, ' ');
+        if (optional) return;
+        throw new Error(`Not text at ${url} (${ct}) head="${head}"`);
+      }
+    }
+
+    // 🔧 ORT 최신: mjs/wasm 파일명을 객체로 명시 (public/ort에 복사된 파일)
     ort.env.wasm.wasmPaths = {
       mjs:  '/ort/ort-wasm-simd-threaded.mjs',
       wasm: '/ort/ort-wasm-simd-threaded.wasm'
     };
-    // 보수적 스레드 설정(전역 COEP 없어도 동작)
     ort.env.wasm.numThreads = Math.min(4, (self as any).navigator?.hardwareConcurrency || 1);
 
-    const origin = (self as any)?.location?.origin || '';
-    const MODEL_DIR = `${origin}/models/ko-sroberta`;
-
-    
-
-    
-
+    // ❗ 모델/토크나이저 경로는 /models/ko-sroberta로 고정
+    const MODEL_DIR = '/models/ko-sroberta';
     console.log('[SemanticWorker] Initializing...', { MODEL_DIR });
 
-    // ONNX 파일명 후보들을 순차 시도 (배포된 파일명에 맞게 자동 픽)
+    // 사전 점검: 토크나이저 파일이 없거나 HTML이면 여기서 즉시 중단
+    await assertJSON(`${MODEL_DIR}/tokenizer.json`);
+    await assertText(`${MODEL_DIR}/vocab.txt`);
+    await assertJSON(`${MODEL_DIR}/tokenizer_config.json`, true);
+    await assertJSON(`${MODEL_DIR}/special_tokens_map.json`, true);
+
+    // ONNX 파일명 후보들을 순차 시도 (배포된 파일명에 맞게 자동 선택)
     const candidates = [
       `${MODEL_DIR}/ko-sroberta-multitask_quantized.onnx`,
       `${MODEL_DIR}/model_qint8_avx512_vnni.onnx`,
-      `${MODEL_DIR}/model.onnx`,
     ];
     let lastErr: any = null;
     for (const url of candidates) {
@@ -52,8 +78,8 @@ class SemanticPipeline {
     }
     if (!this.session) throw lastErr || new Error('ONNX model not loaded');
 
-    // ko-sroberta 폴더에서 토크나이저 로드 (tokenizer.json + vocab.txt 필요)
-    this.tokenizer = await AutoTokenizer.from_pretrained('/models/ko-sroberta');
+    // ❗ ko-sroberta 폴더에서 토크나이저 로드 (절대 URL 금지)
+    this.tokenizer = await AutoTokenizer.from_pretrained(MODEL_DIR);
 
     this.inputNames = (this.session as any).inputNames || [];
     this.ready = true;
