@@ -1,27 +1,43 @@
+// Minimal Semantic Worker client (TS only)
+let _w: Worker | null = null;
+let _seq = 0;
 
-export class SemWorkerClient {
-  private worker: Worker;
-  private pending = new Map<string, { resolve: (v: any)=>void; reject: (e:any)=>void }>();
-
-  constructor() {
-    this.worker = new Worker(new URL("../workers/semanticWorker.ts?worker", import.meta.url), { type: "module" });
-    this.worker.addEventListener("message", (e: MessageEvent) => {
-      const { id, ok, result, error } = e.data || {};
-      const p = this.pending.get(id);
-      if (!p) return;
-      this.pending.delete(id);
-      ok ? p.resolve(result) : p.reject(new Error(error || "Worker error"));
-    });
+function getWorker(): Worker {
+  if (!_w) {
+    _w = new Worker(new URL('../workers/semanticWorker.ts', import.meta.url), { type: 'module' });
   }
+  return _w;
+}
 
-  private call(type: "ensure"|"embed", payload: any): Promise<any> {
-    const id = crypto.randomUUID();
-    return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
-      this.worker.postMessage({ id, type, payload });
-    });
+function rpc<T = any>(type: string, payload?: any, timeoutMs = 10000): Promise<T> {
+  const w = getWorker();
+  const id = ++_seq;
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(`semantic worker timeout: ${type}`)), timeoutMs);
+    const onMsg = (ev: MessageEvent) => {
+      const d = ev.data || {};
+      if (d.id !== id) return;
+      w.removeEventListener('message', onMsg);
+      clearTimeout(t);
+      if (d.ok) resolve(d.result as T);
+      else reject(new Error(d.error || 'semantic worker error'));
+    };
+    w.addEventListener('message', onMsg);
+    w.postMessage({ id, type, payload });
+  });
+}
+
+export async function ensureLocalReady(): Promise<boolean> {
+  try {
+    await rpc('ensure', {});
+    return true;
+  } catch {
+    return false;
   }
+}
 
-  ensure(pref: "auto"|"remote") { return this.call("ensure", { pref }); }
-  embed(pref: "auto"|"remote", texts: string[]) { return this.call("embed", { pref, texts }); }
+export async function embedLocal(texts: string[]): Promise<number[][]> {
+  const ready = await ensureLocalReady();
+  if (!ready) throw new Error('local semantic worker not ready');
+  return rpc('embed', { texts }, 15000);
 }

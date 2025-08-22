@@ -1,23 +1,18 @@
-
-import { API_BASE } from "../../config";
-
-export class RemoteAdapter {
-  name = "remote-api";
-  constructor(private base = API_BASE) {}
-
-  async ensureReady() { return true; }
-
-  async embed(texts: string[]): Promise<number[][]> {
-    // 간단한 배치 호출
-    const r = await fetch(`${this.base}/embed`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ texts, output_dimensionality: 384 })
-    });
-    if (!r.ok) throw new Error(`Remote embed failed: ${r.status}`);
-    const data = await r.json();
-    if (Array.isArray(data.vectors)) return data.vectors as number[][];
-    if (Array.isArray(data.vector)) return [data.vector as number[]];
-    return texts.map(() => []);
+export async function embedRemote(texts: string[], opts: { endpoint?: string, dims?: number } = {}) {
+  const endpoint = opts.endpoint || '/api/embed';
+  const body = JSON.stringify({
+    texts,
+    ...(opts.dims ? { output_dimensionality: opts.dims } : {}),
+  });
+  const r = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body
+  });
+  if (!r.ok) {
+    const t = await r.text().catch(()=>''); 
+    throw new Error(`remote ${endpoint} ${r.status}: ${t || r.statusText}`);
   }
+  const j = await r.json();
+  return (j.vectors || []) as number[][];
 }
