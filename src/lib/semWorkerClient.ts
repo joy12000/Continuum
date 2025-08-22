@@ -28,26 +28,24 @@ function rpc<T = any>(type: string, payload?: any, timeoutMs = 10000): Promise<T
 }
 
 export async function ensureLocalReady(): Promise<boolean> {
-  try {
-    await rpc('ensure', {});
-    return true;
-  } catch {
-    return false;
-  }
+  try { await rpc('ensure', {}); return true; } catch { return false; }
 }
 
-export async function embedLocal(texts: string[], _opts?: any): Promise<number[][]> {
+export async function embedLocal(texts: string[] | string, _opts?: any): Promise<number[][]> {
+  const arr = Array.isArray(texts) ? texts : [texts];
   const ready = await ensureLocalReady();
   if (!ready) throw new Error('local semantic worker not ready');
-  return rpc('embed', { texts }, 20000);
+  return rpc('embed', { texts: arr }, 20000);
 }
 
-// ✅ Backward-compat shim: some code imports { SemWorkerClient } and calls .ensure() / .embed(texts, opts)
+// ✅ Backward-compat shim
 export class SemWorkerClient {
-  async ensure() { return ensureLocalReady(); }
+  async ensure(_?: any) { return ensureLocalReady(); }
+  async ensureReady(_?: any) { return ensureLocalReady(); }
   async ensureLocalReady() { return ensureLocalReady(); }
-  async embed(texts: string[], opts?: any) { return embedLocal(texts, opts); }
-  static async ensure() { return ensureLocalReady(); }
+  async embed(texts: string[] | string, opts?: any) { return embedLocal(texts, opts); }
+  static async ensure(_?: any) { return ensureLocalReady(); }
+  static async ensureReady(_?: any) { return ensureLocalReady(); }
   static async ensureLocalReady() { return ensureLocalReady(); }
-  static async embed(texts: string[], opts?: any) { return embedLocal(texts, opts); }
+  static async embed(texts: string[] | string, opts?: any) { return embedLocal(texts, opts); }
 }

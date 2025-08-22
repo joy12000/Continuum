@@ -2,7 +2,7 @@
 import { embedLocal } from '../semWorkerClient';
 import { embedRemote } from './remote';
 import { getEmbeddingMode } from './mode';
-export type HybridMode = 'local-only' | 'local-first' | 'remote-only';
+import type { HybridMode } from './mode';
 
 const CACHE_PREFIX = 'emb:v1:';
 type V = number[];

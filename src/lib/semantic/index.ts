@@ -1,18 +1,22 @@
 // src/lib/semantic/index.ts
 import { embedHybrid } from './hybrid';
 import { getEmbeddingMode } from './mode';
-export * from './remote';
-export * from './hybrid';
-export * from './mode';
+import type { HybridMode } from './mode';
 
-// ✅ Backward-compat facade: getSemanticAdapter()
-// returns an adapter with .ensure() and .embed(texts, opts?) so old code keeps working.
-export function getSemanticAdapter() {
+export { embedRemote, RemoteAdapter } from './remote';
+export { embedHybrid } from './hybrid';
+export { getEmbeddingMode, setEmbeddingMode } from './mode';
+export type { HybridMode } from './mode';
+
+// ✅ Backward-compat facade: accept any args to match old signatures
+export function getSemanticAdapter(..._args: any[]) {
   return {
-    async ensure() { return true; }, // local readiness is lazily handled in worker on first embed
-    async embed(texts: string[], opts?: { mode?: 'local-only'|'local-first'|'remote-only', dims?: number, endpoint?: string }) {
+    async ensure(_?: any) { return true; },
+    async ensureReady(_?: any) { return true; },
+    async embed(texts: string[] | string, opts?: { mode?: HybridMode, dims?: number, endpoint?: string }) {
+      const arr = Array.isArray(texts) ? texts : [texts];
       const m = (opts && opts.mode) || getEmbeddingMode() || 'local-first';
-      return embedHybrid(texts, m as any, { dims: opts?.dims, endpoint: opts?.endpoint });
+      return embedHybrid(arr, m, { dims: opts?.dims, endpoint: opts?.endpoint });
     }
   };
 }
