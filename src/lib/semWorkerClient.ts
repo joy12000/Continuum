@@ -36,16 +36,18 @@ export async function ensureLocalReady(): Promise<boolean> {
   }
 }
 
-export async function embedLocal(texts: string[]): Promise<number[][]> {
+export async function embedLocal(texts: string[], _opts?: any): Promise<number[][]> {
   const ready = await ensureLocalReady();
   if (!ready) throw new Error('local semantic worker not ready');
   return rpc('embed', { texts }, 20000);
 }
 
-// ✅ Backward-compat shim: some code imports { SemWorkerClient }
+// ✅ Backward-compat shim: some code imports { SemWorkerClient } and calls .ensure() / .embed(texts, opts)
 export class SemWorkerClient {
+  async ensure() { return ensureLocalReady(); }
   async ensureLocalReady() { return ensureLocalReady(); }
-  async embed(texts: string[]) { return embedLocal(texts); }
+  async embed(texts: string[], opts?: any) { return embedLocal(texts, opts); }
+  static async ensure() { return ensureLocalReady(); }
   static async ensureLocalReady() { return ensureLocalReady(); }
-  static async embed(texts: string[]) { return embedLocal(texts); }
+  static async embed(texts: string[], opts?: any) { return embedLocal(texts, opts); }
 }

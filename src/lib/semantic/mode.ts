@@ -6,7 +6,6 @@ export function getEmbeddingMode(): HybridMode {
   const v = typeof localStorage !== 'undefined' ? localStorage.getItem(KEY) : null;
   return (v === 'local-only' || v === 'remote-only' || v === 'local-first') ? v : 'local-first';
 }
-
 export function setEmbeddingMode(m: HybridMode) {
   try { localStorage.setItem(KEY, m); } catch {}
 }

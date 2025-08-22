@@ -23,7 +23,7 @@ export async function embedRemote(texts: string[], opts: RemoteOptions = {}) {
   return (j.vectors || []) as number[][];
 }
 
-// ✅ Backward-compat: some code expects a class RemoteAdapter with .embed(texts)
+// Backward-compat class
 export class RemoteAdapter {
   endpoint: string;
   dims?: number;
