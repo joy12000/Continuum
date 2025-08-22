@@ -1,10 +1,20 @@
 /// <reference lib="webworker" />
+/**
+ * Patched Semantic Worker
+ * - Local tokenizer only (/models/ko-sroberta)
+ * - Robust ONNX/WASM setup
+ * - Batch tokenization to ensure [batch, seq] shape
+ * - Auto add token_type_ids when required
+ * - Mean pooling when model returns [1, seq, hidden]
+ * - Guard checks to avoid HTML-instead-of-JSON issues
+ */
+
 import * as ort from 'onnxruntime-web';
 import { AutoTokenizer, env } from '@xenova/transformers';
 
-// 외부 허브 접근 차단 + 로컬 모델 루트 지정
-env.allowRemoteModels = false;
-env.localModelPath = '/models'; // <-- 로컬 모델 루트
+// Force local-only loading for Transformers.js (avoid HF calls)
+;(env as any).allowRemoteModels = false;
+;(env as any).localModelPath = '/models'; // /models/<repoId>
 
 type EmbedVec = number[];
 
@@ -20,47 +30,45 @@ class SemanticPipeline {
   async init() {
     if (this.ready) return;
 
-    // 헬퍼: URL 리소스가 JSON인지 확인 (아니면 HTML 등 실패)
+    // Quick resource guards (detect SPA HTML)
     async function assertJSON(url: string, optional = false) {
       const r = await fetch(url, { cache: 'no-store' });
       if (!r.ok) { if (optional) return; throw new Error(`MISS ${url} -> ${r.status}`); }
       const ct = r.headers.get('content-type') || '';
       if (!ct.includes('json')) {
-        const head = (await r.text()).slice(0, 60).replace(/\n/g, ' ');
+        const head = (await r.text()).slice(0, 80).replace(/\n/g, ' ');
         if (optional) return;
-        throw new Error(`HTML/Non-JSON at ${url} (${ct}) head="${head}"`);
+        throw new Error(`NON-JSON ${url} (${ct}) head="${head}"`);
       }
     }
-    // 헬퍼: URL 리소스가 Plain Text인지 확인
     async function assertText(url: string, optional = false) {
       const r = await fetch(url, { cache: 'no-store' });
       if (!r.ok) { if (optional) return; throw new Error(`MISS ${url} -> ${r.status}`); }
       const ct = r.headers.get('content-type') || '';
       if (!/text\/plain|octet-stream/.test(ct)) {
-        const head = (await r.text()).slice(0, 60).replace(/\n/g, ' ');
+        const head = (await r.text()).slice(0, 80).replace(/\n/g, ' ');
         if (optional) return;
-        throw new Error(`Not text at ${url} (${ct}) head="${head}"`);
+        throw new Error(`NON-TEXT ${url} (${ct}) head="${head}"`);
       }
     }
 
-    // ORT wasm 경로(우리가 public/ort에 복사한 파일 기준)
+    // ORT WASM location (files must exist under public/ort/)
     ort.env.wasm.wasmPaths = {
       mjs:  '/ort/ort-wasm-simd-threaded.mjs',
-      wasm: '/ort/ort-wasm-simd-threaded.wasm'
+      wasm: '/ort/ort-wasm-simd-threaded.wasm',
     };
     ort.env.wasm.numThreads = Math.min(4, (self as any).navigator?.hardwareConcurrency || 1);
 
-    // 모델/토크나이저 폴더
     const MODEL_DIR = '/models/ko-sroberta';
     console.log('[SemanticWorker] Initializing...', { MODEL_DIR });
 
-    // 사전 점검
+    // Guard tokenizer sidecars (fail early if missing)
     await assertJSON(`${MODEL_DIR}/tokenizer.json`);
     await assertText(`${MODEL_DIR}/vocab.txt`);
     await assertJSON(`${MODEL_DIR}/tokenizer_config.json`, true);
     await assertJSON(`${MODEL_DIR}/special_tokens_map.json`, true);
 
-    // ONNX 파일명 후보
+    // Try multiple ONNX filenames
     const candidates = [
       `${MODEL_DIR}/ko-sroberta-multitask_quantized.onnx`,
       `${MODEL_DIR}/model_qint8_avx512_vnni.onnx`,
@@ -75,9 +83,10 @@ class SemanticPipeline {
     }
     if (!this.session) throw lastErr || new Error('ONNX model not loaded');
 
-    // 토크나이저 로컬 로드(리포 ID만 넘김 → /models/ko-sroberta에서 탐색)
+    // Load tokenizer from local repo id (env.localModelPath controls the root)
     this.tokenizer = await AutoTokenizer.from_pretrained('ko-sroberta');
 
+    // Record input names
     this.inputNames = (this.session as any).inputNames || [];
     this.ready = true;
     console.log('[SemanticWorker] Pipeline initialized.', { inputNames: this.inputNames });
@@ -90,9 +99,11 @@ class SemanticPipeline {
   }
 
   private meanPool(hidden: Float32Array, mask: BigInt64Array, seq: number, hiddenDim: number): number[] {
-    const out = new Float32Array(hiddenDim); let denom = 0;
+    const out = new Float32Array(hiddenDim);
+    let denom = 0;
     for (let t = 0; t < seq; t++) {
-      if (mask[t] === 0n) continue; denom++;
+      if (mask[t] === 0n) continue;
+      denom++;
       const base = t * hiddenDim;
       for (let h = 0; h < hiddenDim; h++) out[h] += hidden[base + h];
     }
@@ -105,17 +116,30 @@ class SemanticPipeline {
     if (!this.ready) await this.init();
     if (!this.session || !this.tokenizer) throw new Error('Pipeline not ready');
 
-    const enc = await this.tokenizer(text, { return_tensors: 'np', padding: true, truncation: true });
-    const idsShape  = enc.input_ids.shape as number[];
-    const maskShape = enc.attention_mask.shape as number[];
+    // ✅ Batch tokenize to guarantee [1, seq] shapes
+    const enc: any = await this.tokenizer([text], {
+      return_tensors: 'np',
+      padding: true,
+      truncation: true,
+    });
 
-    const ids64  = BigInt64Array.from(Array.from(enc.input_ids.data as any, (x: number) => BigInt(x)));
-    const mask64 = BigInt64Array.from(Array.from(enc.attention_mask.data as any, (x: number) => BigInt(x)));
+    const idsData  = enc.input_ids.data as any;
+    const maskData = enc.attention_mask.data as any;
+
+    // Force 2D if any runtime returns 1D
+    let idsShape  = enc.input_ids.shape as number[];
+    let maskShape = enc.attention_mask.shape as number[];
+    if (idsShape.length === 1)  idsShape  = [1, idsShape[0]];
+    if (maskShape.length === 1) maskShape = [1, maskShape[0]];
+
+    const ids64  = BigInt64Array.from(Array.from(idsData,  (x: number) => BigInt(x)));
+    const mask64 = BigInt64Array.from(Array.from(maskData, (x: number) => BigInt(x)));
 
     const inputs: Record<string, ort.Tensor> = {
       input_ids:      new ort.Tensor('int64', ids64,  idsShape),
       attention_mask: new ort.Tensor('int64', mask64, maskShape),
     };
+
     if (this.inputNames.includes('token_type_ids') && !('token_type_ids' in inputs)) {
       inputs.token_type_ids = this.ensureTokenType(idsShape);
     }
@@ -125,14 +149,29 @@ class SemanticPipeline {
     const out = outMap[firstKey];
     const data = out.data as Float32Array;
 
-    if (out.dims.length === 2) return Array.from(data);        // [1, hidden]
-    if (out.dims.length === 3) {                                // [1, seq, hidden]
-      const [, seq, hidden] = out.dims; return this.meanPool(data, mask64, seq, hidden);
+    if (out.dims.length === 2) {
+      return Array.from(data); // [1, hidden]
+    } else if (out.dims.length === 3) {
+      // [1, seq, hidden] → mean pooling
+      const seq = out.dims[1];
+      const hidden = out.dims[2];
+      const acc = new Float32Array(hidden);
+      let denom = 0;
+      for (let t = 0; t < seq; t++) {
+        if (mask64[t] === 0n) continue;
+        denom++;
+        const base = t * hidden;
+        for (let h = 0; h < hidden; h++) acc[h] += data[base + h];
+      }
+      const d = Math.max(1, denom);
+      for (let h = 0; h < hidden; h++) acc[h] /= d;
+      return Array.from(acc);
     }
     return Array.from(data);
   }
 }
 
+// Message handler
 self.onmessage = async (event: MessageEvent) => {
   const { id, type, payload } = (event.data || {}) as any;
   try {
