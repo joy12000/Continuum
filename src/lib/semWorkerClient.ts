@@ -1,4 +1,4 @@
-// Minimal Semantic Worker client (TS only)
+// src/lib/semWorkerClient.ts
 let _w: Worker | null = null;
 let _seq = 0;
 
@@ -39,5 +39,5 @@ export async function ensureLocalReady(): Promise<boolean> {
 export async function embedLocal(texts: string[]): Promise<number[][]> {
   const ready = await ensureLocalReady();
   if (!ready) throw new Error('local semantic worker not ready');
-  return rpc('embed', { texts }, 15000);
+  return rpc('embed', { texts }, 20000);
 }

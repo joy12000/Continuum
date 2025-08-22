@@ -1,3 +1,4 @@
+// src/lib/semantic/remote.ts
 export async function embedRemote(texts: string[], opts: { endpoint?: string, dims?: number } = {}) {
   const endpoint = opts.endpoint || '/api/embed';
   const body = JSON.stringify({

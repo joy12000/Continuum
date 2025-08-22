@@ -1,5 +1,7 @@
+// src/lib/semantic/hybrid.ts
 import { embedLocal } from '../semWorkerClient';
 import { embedRemote } from './remote';
+import type { HybridMode } from './mode';
 
 const CACHE_PREFIX = 'emb:v1:'; // bump when model changes
 type V = number[];
@@ -17,8 +19,6 @@ function putCache(key: string, vec: V) {
 function getCache(key: string): V | null {
   try { const s = localStorage.getItem(CACHE_PREFIX + key); return s ? JSON.parse(s) : null; } catch { return null; }
 }
-
-export type HybridMode = 'local-only' | 'local-first' | 'remote-only';
 
 export async function embedHybrid(texts: string[], mode: HybridMode = 'local-first', opts: { dims?: number, endpoint?: string } = {}) {
   // 0) de-dup + read cache
@@ -60,7 +60,7 @@ export async function embedHybrid(texts: string[], mode: HybridMode = 'local-fir
   try {
     if (missing1.length) await tryLocal(missing1);
   } catch (e) {
-    // Local failed — fall back entirely for missing ones
+    // Local failed — fall back for whatever remained missing
     const stillMissing = texts.map((_, i) => (!out[i] || out[i].length === 0) ? i : -1).filter(i => i >= 0);
     if (stillMissing.length) await tryRemote(stillMissing);
   }
