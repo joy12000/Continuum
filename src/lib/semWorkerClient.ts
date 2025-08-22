@@ -41,3 +41,11 @@ export async function embedLocal(texts: string[]): Promise<number[][]> {
   if (!ready) throw new Error('local semantic worker not ready');
   return rpc('embed', { texts }, 20000);
 }
+
+// ✅ Backward-compat shim: some code imports { SemWorkerClient }
+export class SemWorkerClient {
+  async ensureLocalReady() { return ensureLocalReady(); }
+  async embed(texts: string[]) { return embedLocal(texts); }
+  static async ensureLocalReady() { return ensureLocalReady(); }
+  static async embed(texts: string[]) { return embedLocal(texts); }
+}

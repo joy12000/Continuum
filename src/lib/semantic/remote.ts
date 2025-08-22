@@ -1,5 +1,10 @@
 // src/lib/semantic/remote.ts
-export async function embedRemote(texts: string[], opts: { endpoint?: string, dims?: number } = {}) {
+export interface RemoteOptions {
+  endpoint?: string;
+  dims?: number;
+}
+
+export async function embedRemote(texts: string[], opts: RemoteOptions = {}) {
   const endpoint = opts.endpoint || '/api/embed';
   const body = JSON.stringify({
     texts,
@@ -16,4 +21,17 @@ export async function embedRemote(texts: string[], opts: { endpoint?: string, di
   }
   const j = await r.json();
   return (j.vectors || []) as number[][];
+}
+
+// ✅ Backward-compat: some code expects a class RemoteAdapter with .embed(texts)
+export class RemoteAdapter {
+  endpoint: string;
+  dims?: number;
+  constructor(opts: RemoteOptions = {}) {
+    this.endpoint = opts.endpoint || '/api/embed';
+    this.dims = opts.dims;
+  }
+  async embed(texts: string[]) {
+    return embedRemote(texts, { endpoint: this.endpoint, dims: this.dims });
+  }
 }
