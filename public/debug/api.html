@@ -1,0 +1,25 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>API Debug</title>
+<style>body{font:14px/1.45 system-ui, sans-serif;padding:24px;max-width:720px;margin:auto} code{background:#f3f4f6;padding:2px 4px;border-radius:4px}</style>
+<h1>API Debug — /api/embed</h1>
+<p>Click to test your Netlify function. Open DevTools → Network to see the call.</p>
+<button id="btn">Run test</button>
+<pre id="out"></pre>
+<script>
+document.getElementById('btn').onclick = async () => {
+  const out = document.getElementById('out');
+  out.textContent = 'Calling /api/embed...';
+  try {
+    const r = await fetch('/api/embed', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ texts: ['hello continuum'] })
+    });
+    const t = await r.text();
+    out.textContent = 'Status ' + r.status + '\n' + t.slice(0, 500);
+  } catch (e) {
+    out.textContent = 'ERR: ' + e;
+  }
+};
+</script>
