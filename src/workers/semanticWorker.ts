@@ -1,13 +1,10 @@
 /// <reference lib="webworker" />
 import * as ort from 'onnxruntime-web';
-// ❗ @xenova/transformers' AutoTokenizer는 이제 /models/ko-sroberta 에서만 로드
 import { AutoTokenizer, env } from '@xenova/transformers';
 
-// ❗ @xenova/transformers의 외부 모델 다운로드 비활성화
-//    - 로컬(/models/ko-sroberta)에 토크나이저가 없으면 바로 실패
-//    - HF_ENDPOINT 등 외부 URL 접근 코드 제거
+// 외부 허브 접근 차단 + 로컬 모델 루트 지정
 env.allowRemoteModels = false;
-env.allowLocalModels = true;
+env.localModelPath = '/models'; // <-- 로컬 모델 루트
 
 type EmbedVec = number[];
 
@@ -46,24 +43,24 @@ class SemanticPipeline {
       }
     }
 
-    // 🔧 ORT 최신: mjs/wasm 파일명을 객체로 명시 (public/ort에 복사된 파일)
+    // ORT wasm 경로(우리가 public/ort에 복사한 파일 기준)
     ort.env.wasm.wasmPaths = {
       mjs:  '/ort/ort-wasm-simd-threaded.mjs',
       wasm: '/ort/ort-wasm-simd-threaded.wasm'
     };
     ort.env.wasm.numThreads = Math.min(4, (self as any).navigator?.hardwareConcurrency || 1);
 
-    // ❗ 모델/토크나이저 경로는 /models/ko-sroberta로 고정
+    // 모델/토크나이저 폴더
     const MODEL_DIR = '/models/ko-sroberta';
     console.log('[SemanticWorker] Initializing...', { MODEL_DIR });
 
-    // 사전 점검: 토크나이저 파일이 없거나 HTML이면 여기서 즉시 중단
+    // 사전 점검
     await assertJSON(`${MODEL_DIR}/tokenizer.json`);
     await assertText(`${MODEL_DIR}/vocab.txt`);
     await assertJSON(`${MODEL_DIR}/tokenizer_config.json`, true);
     await assertJSON(`${MODEL_DIR}/special_tokens_map.json`, true);
 
-    // ONNX 파일명 후보들을 순차 시도 (배포된 파일명에 맞게 자동 선택)
+    // ONNX 파일명 후보
     const candidates = [
       `${MODEL_DIR}/ko-sroberta-multitask_quantized.onnx`,
       `${MODEL_DIR}/model_qint8_avx512_vnni.onnx`,
@@ -78,8 +75,8 @@ class SemanticPipeline {
     }
     if (!this.session) throw lastErr || new Error('ONNX model not loaded');
 
-    // ❗ ko-sroberta 폴더에서 토크나이저 로드 (절대 URL 금지)
-    this.tokenizer = await AutoTokenizer.from_pretrained(MODEL_DIR);
+    // 토크나이저 로컬 로드(리포 ID만 넘김 → /models/ko-sroberta에서 탐색)
+    this.tokenizer = await AutoTokenizer.from_pretrained('ko-sroberta');
 
     this.inputNames = (this.session as any).inputNames || [];
     this.ready = true;

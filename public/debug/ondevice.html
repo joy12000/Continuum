@@ -1,0 +1,44 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>On-device Debug</title>
+<style>body{font:14px/1.4 system-ui, sans-serif;padding:20px;} code{background:#f3f4f6;padding:2px 4px;border-radius:4px}</style>
+<h1>On-device Debug</h1>
+<p>Checks that tokenizer and ONNX files are deployed (not HTML).</p>
+<ul id="list"></ul>
+<script>
+const files = [
+  '/models/ko-sroberta/tokenizer.json',
+  '/models/ko-sroberta/vocab.txt',
+  '/models/ko-sroberta/tokenizer_config.json',
+  '/models/ko-sroberta/special_tokens_map.json',
+  '/models/ko-sroberta/ko-sroberta-multitask_quantized.onnx',
+  '/models/ko-sroberta/model_qint8_avx512_vnni.onnx',
+  '/ort/ort-wasm-simd-threaded.mjs',
+  '/ort/ort-wasm-simd-threaded.wasm'
+];
+const ul = document.getElementById('list');
+(async () => {
+  for (const url of files) {
+    const li = document.createElement('li');
+    li.innerHTML = `<code>${url}</code> ...`;
+    ul.appendChild(li);
+    try {
+      const r = await fetch(url, { cache: 'no-store' });
+      const ct = r.headers.get('content-type')||'';
+      let ok = r.ok;
+      let note = ct;
+      if (url.endsWith('.json') && !ct.includes('json')) ok = false;
+      if (url.endsWith('.txt') && !/text\/plain|octet-stream/.test(ct)) ok = false;
+      if (url.endsWith('.onnx') && !/octet-stream|application/.test(ct)) ok = false;
+      if (url.endsWith('.mjs') && !ct.includes('javascript')) ok = false;
+      if (url.endsWith('.wasm') && !ct.includes('wasm')) ok = false;
+      if (!ok) {
+        const head = await r.text(); note = head.slice(0, 80).replace(/\n/g,' ');
+      }
+      li.innerHTML = `${ok ? '✅' : '❌'} <code>${url}</code> — ${ok ? 'OK' : 'BAD'} (${note})`;
+    } catch (e) {
+      li.innerHTML = `❌ <code>${url}</code> — ERR: ${e}`;
+    }
+  }
+})();
+</script>
