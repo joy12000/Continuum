@@ -222,9 +222,13 @@ exports.handler = async (event) => {
     const model = genAI.getGenerativeModel({ model: modelName });
 
     const prompt = buildPrompt({ question, context: trimmed });
-    const resp = await model.generateContent([
-      { role: "user", parts: [{ text: prompt }] }
-    ]);
+
+    // ✅ 핵심 수정: 배열이 아니라 'contents' 요청 객체로 전달
+    const resp = await model.generateContent({
+      contents: [
+        { role: "user", parts: [{ text: prompt }] }
+      ]
+    });
 
     const raw = resp?.response?.text?.() ?? "";
     let json = tryParseJSON(raw);
