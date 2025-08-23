@@ -17,3 +17,9 @@
 
 [build.environment]
 SHARP_IGNORE_GLOBAL_LIBVIPS = "true"
+
+
+[[headers]]
+  for = "/models/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

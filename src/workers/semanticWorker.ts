@@ -11,6 +11,15 @@ class SemanticPipeline {
   private static _inst: SemanticPipeline | null = null;
   static getInstance() { return (this._inst ??= new SemanticPipeline()); }
 
+  private static _initPromise: Promise<void> | null = null;
+  static async ensureOnce() {
+    const pipe = this.getInstance();
+    if ((pipe as any).ready) return;
+    if (this._initPromise) return this._initPromise;
+    this._initPromise = (async()=>{ await SemanticPipeline.ensureOnce(); })();
+    return this._initPromise.finally(()=>{ this._initPromise = null; });
+  }
+
   private ready = false;
   private session: ort.InferenceSession | null = null;
   private tokenizer: any | null = null;
@@ -62,9 +71,6 @@ class SemanticPipeline {
     // ✅ batch tokenize -> Transformers.js returns Tensor with .data and .dims (not .shape)
     const enc: any = await this.tokenizer([text], { return_tensors: 'np', padding: true, truncation: true });
 
-    if (!enc.input_ids || !enc.attention_mask) {
-      throw new Error('Tokenizer did not return input_ids or attention_mask');
-    }
     const idsData  = enc.input_ids.data as any;
     const maskData = enc.attention_mask.data as any;
 
@@ -103,12 +109,12 @@ self.onmessage = async (event: MessageEvent) => {
   try {
     const pipe = SemanticPipeline.getInstance();
     if (type === 'ensure') {
-      await pipe.init();
+      await SemanticPipeline.ensureOnce();
       (self as any).postMessage({ id, ok: true, result: true });
       return;
     }
     if (type === 'embed') {
-      await pipe.init();
+      await SemanticPipeline.ensureOnce();
       const texts: string[] = Array.isArray(payload?.texts) ? payload.texts : [String(payload?.text ?? payload ?? '')];
       const vectors = await Promise.all(texts.map(t => pipe.embed(t)));
       (self as any).postMessage({ id, ok: true, result: vectors });
