@@ -16,9 +16,7 @@ import { getConfig } from './lib/config'; // getConfig 가져오기
 type View = 'today' | 'settings' | 'diagnostics';
 
 // --- 커스텀 훅 ---
-
-
-
+function useLiveNotes() {
   const [notes, setNotes] = useState<Note[]>([]);
   useEffect(() => {
     const sub = liveQuery(() => db.notes.orderBy('updatedAt').reverse().toArray())

@@ -23,7 +23,7 @@ function renderAnchoredSentences(answerObj: any, onClickRef: (id: string) => voi
   return <p className="whitespace-pre-wrap">{elems}</p>;
 }
 
-import { useMemo } from "react";
+
 
 export function AnswerCard({ kp, cites, onJump }:{ kp:string[]; cites:{ text:string; noteId:string; pos:number; tags:string[]; createdAt:number; }[]; onJump?:(id:string)=>void; }){
   const grouped = useMemo(()=>{
