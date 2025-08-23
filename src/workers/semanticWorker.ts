@@ -37,10 +37,22 @@ class SemanticPipeline {
     ort.env.wasm.numThreads = Math.min(4, (self as any).navigator?.hardwareConcurrency || 1);
 
     const MODEL_DIR = '/models/ko-sroberta';
+async function __fetchModelOnce(url: string): Promise<ArrayBuffer> {
+  // Use HTTP cache aggressively; SW may also cache by URL.
+  // Avoid multiple parallel downloads by memoizing the result in a self-scoped variable.
+  if ((self as any).__modelBuf) return (self as any).__modelBuf as ArrayBuffer;
+  const res = await fetch(url, { cache: 'force-cache' });
+  if (!res.ok) throw new Error('model fetch failed: ' + res.status);
+  const buf = await res.arrayBuffer();
+  (self as any).__modelBuf = buf;
+  return buf;
+}
+
     console.log('[SemanticWorker] Initializing...', { MODEL_DIR });
 
-    this.session = await ort.InferenceSession.create(`${MODEL_DIR}/ko-sroberta-multitask_quantized.onnx`).catch(async () => {
-      return await ort.InferenceSession.create(`${MODEL_DIR}/model_qint8_avx512_vnni.onnx`);
+    this.session = await ort.InferenceSession.create(await __fetchModelOnce(`${MODEL_DIR}/ko-sroberta-multitask_quantized.onnx`)).catch(async () => {
+  return await ort.InferenceSession.create(await __fetchModelOnce(`${MODEL_DIR}/model_qint8_avx512_vnni.onnx`));
+});
     });
     this.tokenizer = await AutoTokenizer.from_pretrained('ko-sroberta');
 

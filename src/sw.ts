@@ -14,8 +14,7 @@ function shouldBypass(req: Request): boolean {
 async function safeCachePut(cache: Cache, request: Request, response: Response) {
   try {
     if (request.method !== 'GET') return;
-    if (shouldBypass(request)) return;
-    const url = new URL(request.url);
+const url = new URL(request.url);
     const sameOrigin = self.location.origin === url.origin;
     const isOpaque = response.type === 'opaque';
     const isOpaqueRedirect = response.type === 'opaqueredirect';
