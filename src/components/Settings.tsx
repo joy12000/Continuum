@@ -8,8 +8,7 @@ import { Home } from 'lucide-react';
 
 type Engine = "auto" | "remote";
 
-export function Settings({ onNavigateHome, onNavigateToDiagnostics }: { onNavigateHome: () => void, onNavigateToDiagnostics: () => void }) {
-  const [engine, setEngine] = useState<Engine>(() => (localStorage.getItem("semanticEngine") as Engine) || "auto");
+export function Settings({ engine, setEngine, onNavigateHome, onNavigateToDiagnostics }: { engine: Engine, setEngine: (e: Engine) => void, onNavigateHome: () => void, onNavigateToDiagnostics: () => void }) {
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(false);
@@ -150,6 +149,21 @@ export function Settings({ onNavigateHome, onNavigateToDiagnostics }: { onNaviga
       </header>
 
       <div className="space-y-6">
+        <div className="card bg-gray-800/50">
+          <h2 className="text-lg font-semibold mb-3">임베딩 모드</h2>
+          <select 
+            value={engine} 
+            onChange={(e) => setEngine(e.target.value as Engine)}
+            className="select select-bordered w-full bg-gray-700 text-white"
+          >
+            <option value="auto">자동 (On-device)</option>
+            <option value="remote">원격 API</option>
+          </select>
+          <p className="text-sm text-gray-400 mt-2">
+            '자동'은 기기 내에서 임베딩을 처리하여 빠르고 프라이버시가 보호됩니다. '원격 API'는 더 강력한 모델을 사용하지만 인터넷 연결이 필요합니다.
+          </p>
+        </div>
+
         <div className="card bg-gray-800/50">
           <h2 className="text-lg font-semibold mb-3">데이터 관리</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">

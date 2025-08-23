@@ -266,7 +266,7 @@ React.useEffect(() => {
   const renderView = () => {
     switch (view) {
       case 'settings':
-        return <Settings onNavigateHome={() => setView('today')} onNavigateToDiagnostics={() => setView('diagnostics')} />;
+        return <Settings engine={engine} setEngine={setEngine} onNavigateHome={() => setView('today')} onNavigateToDiagnostics={() => setView('diagnostics')} />;
       case 'diagnostics':
         return <Diagnostics onBack={() => setView('settings')} />;
       case 'today':
