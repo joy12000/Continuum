@@ -1,8 +1,20 @@
+// === Continuum SW Hotfix: bypass heavy model assets and fix cache recursion ===
+const DO_NOT_CACHE_REGEX = /\.(onnx|wasm|bin)$/i;
+function shouldBypass(req: Request): boolean {
+  try {
+    const u = new URL(req.url);
+    if (u.pathname.startsWith('/models/')) return true;
+    if (DO_NOT_CACHE_REGEX.test(u.pathname)) return true;
+    return false;
+  } catch { return false; }
+}
+
 
 // ---- Safe Cache.put helper to avoid 'Cache.put() encountered a network error' ----
 async function safeCachePut(cache: Cache, request: Request, response: Response) {
   try {
     if (request.method !== 'GET') return;
+    if (shouldBypass(request)) return;
     const url = new URL(request.url);
     const sameOrigin = self.location.origin === url.origin;
     const isOpaque = response.type === 'opaque';
@@ -10,9 +22,9 @@ async function safeCachePut(cache: Cache, request: Request, response: Response) 
     if (isOpaqueRedirect) return;
     if (!isOpaque && !response.ok) return;
     if (!sameOrigin && !isOpaque) return;
-    await safeCachePut(cache, request, response);
+    await cache.put(request, response.clone ? response.clone() : response);
   } catch (e) {
-    console.warn('[SW] safeCachePut skipped:', request.url, e);
+    console.warn('[SW] safeCachePut skipped:', (request as any)?.url || request, e);
   }
 }
 
