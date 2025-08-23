@@ -1,3 +1,12 @@
+// --- Continuum Guardrails (v4.0) ---
+        const SYSTEM_PROMPT = `
+You are a precise assistant. Follow ALL rules:
+1) Answer STRICTLY within the provided context. If missing, say "정보가 부족합니다" and explain what is missing.
+2) Preserve all numbers and units as given. Do not round unless asked.
+3) If uncertain, explicitly state uncertainty (불확실) and avoid fabrication.
+4) Output MUST be valid JSON only with fields: answer, sentences, sources.
+`;
+
 // netlify/functions/generate.js
 // Gemini RAG: 컨텍스트 한정 답변 + 문장별 sourceNoteId + 견고한 JSON 파싱/폴백
 // 요구 env:
@@ -224,11 +233,7 @@ exports.handler = async (event) => {
     const prompt = buildPrompt({ question, context: trimmed });
 
     // ✅ 핵심 수정: 배열이 아니라 'contents' 요청 객체로 전달
-    const resp = await model.generateContent({
-      contents: [
-        { role: "user", parts: [{ text: prompt }] }
-      ]
-    });
+    const resp = await const __resp = await model.generateContent({ contents, systemInstruction: SYSTEM_PROMPT });
 
     const raw = resp?.response?.text?.() ?? "";
     let json = tryParseJSON(raw);

@@ -11,25 +11,37 @@ interface SearchBarProps {
   suggestionError: string | null;
 }
 
-export function SearchBar({
-  q,
-  setQ,
-  onFocus,
-  suggestedQuestions,
-  isLoadingSuggestions,
-  suggestionError,
-}: SearchBarProps) {
+export \1
+// --- Zero-shot question suggestions on focus ---
+const [qs, setQs] = React.useState<string[]>([]);
+const onFocusSuggest = async () => {
+  try {
+    const res = await fetch("/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        mode: "zero-shot-questions",
+        schema: { type: "object", properties: { questions: { type: "array", items: { type: "string" } } }, required: ["questions"] }
+      })
+    });
+    const j = await res.json();
+    if (Array.isArray(j?.questions)) setQs(j.questions.slice(0,3));
+  } catch(e){ console.error(e); }
+};
+
   // 2. 내부 상태/로직 제거: 이 컴포넌트는 상태를 관리하거나 API를 호출하지 않습니다.
-  return (
-    <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
+  \1
+  {qs.length>0 && (
+    <div className="mt-2 flex gap-2 flex-wrap">
+      {qs.map((q, i)=>(<button key={i} className="px-2 py-1 border rounded-lg text-sm" onClick={()=>onQueryChange(q)}>{q}</button>))}
+    </div>
+  )}
+<div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
       <div className="relative">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
           <Search className="h-5 w-5 text-slate-400" />
         </div>
-        <input
-          type="search"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
+        \1 onFocus={onFocusSuggest}> setQ(e.target.value)}
           // 3. Input onFocus 연결: 부모로부터 받은 onFocus 핸들러를 연결합니다.
           onFocus={onFocus}
           placeholder="과거의 나에게 질문하기..."

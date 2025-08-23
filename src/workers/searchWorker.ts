@@ -145,3 +145,12 @@ self.addEventListener("message", async (e: MessageEvent)=>{
     self.postMessage({ id, ok:false, error: String(err?.message || err) });
   }
 });
+
+
+// --- date>= filter support (lightweight) ---
+function parseDateFilter(q:string){
+  const m = q.match(/date\s*>=\s*(\d{4}-\d{2}-\d{2})/i);
+  if(!m) return null;
+  const ts = new Date(m[1] + "T00:00:00Z").getTime();
+  return isNaN(ts) ? null : ts;
+}

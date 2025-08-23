@@ -1,3 +1,28 @@
+import React, { useEffect, useMemo, useState } from "react";
+import SourceNoteModal from "./SourceNoteModal";
+import { db } from "../lib/db";
+
+function renderAnchoredSentences(answerObj: any, onClickRef: (id: string) => void){
+  const sentences = answerObj?.sentences;
+  if(!Array.isArray(sentences) || sentences.length === 0) return null;
+  const elems: any[] = [];
+  let idx = 1;
+  for(const s of sentences){
+    const t = (s?.text ?? "").trim();
+    const sid = s?.sourceNoteId;
+    if(!t) continue;
+    elems.push(
+      <span key={`s-${idx}`} className="leading-relaxed">
+        {t}{" "}
+        {sid ? <a href={`#source-${sid}`} onClick={(e)=>{e.preventDefault(); onClickRef(sid);}}
+          className="text-blue-600 hover:underline align-super text-xs">[{idx}]</a> : null}{" "}
+      </span>
+    );
+    idx++;
+  }
+  return <p className="whitespace-pre-wrap">{elems}</p>;
+}
+
 import { useMemo } from "react";
 
 export function AnswerCard({ kp, cites, onJump }:{ kp:string[]; cites:{ text:string; noteId:string; pos:number; tags:string[]; createdAt:number; }[]; onJump?:(id:string)=>void; }){

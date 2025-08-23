@@ -16,7 +16,15 @@ import { getConfig } from './lib/config'; // getConfig 가져오기
 type View = 'today' | 'settings' | 'diagnostics';
 
 // --- 커스텀 훅 ---
-function useLiveNotes() {
+\1
+// --- Periodic Sync support check ---
+const [supportsPeriodic, setSupportsPeriodic] = React.useState<boolean>(true);
+React.useEffect(()=>{
+  const ok = typeof navigator !== 'undefined' && 'serviceWorker' in navigator && 'permissions' in navigator && 'periodicSync' in (navigator as any);
+  setSupportsPeriodic(!!ok);
+  (window as any).__SUPPORTS_PERIODIC_SYNC__ = !!ok;
+},[]);
+
   const [notes, setNotes] = useState<Note[]>([]);
   useEffect(() => {
     const sub = liveQuery(() => db.notes.orderBy('updatedAt').reverse().toArray())
