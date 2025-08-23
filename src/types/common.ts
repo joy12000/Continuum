@@ -9,6 +9,7 @@ export interface AnswerData {
 export interface Note {
   id: string;
   content: string;
+  title?: string;
   tags: string[];
   createdAt: number;
   updatedAt: number;

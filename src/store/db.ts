@@ -1,5 +1,5 @@
 import Dexie, { Table } from "dexie";
-export interface Note { id: string; content: string; createdAt: number; updatedAt: number; tags: string[]; }
+export interface Note { id: string; title?: string; content: string; createdAt: number; updatedAt: number; tags: string[]; }
 export interface Attachment { id: string; noteId: string; name: string; type: string; blob?: Blob; url?: string; createdAt: number; }
 export interface Embedding { id?: number; noteId: string; vec: number[]; updatedAt?: number; }
 export interface DedupLog { id?: number; ts: number; sim: number; accepted: boolean; }
