@@ -62,10 +62,10 @@ export function RichNoteEditor({ note: initialNote, onNoteLinkClick, onSaved, on
       }
       debounceTimeout.current = window.setTimeout(() => {
         const editorContent = editor.getText();
-        if (editorContent.length > 20 && initialNote?.id) {
+        if (editorContent.length > 20) {
           searchWorker.postMessage({
             type: 'FIND_SIMILAR',
-            payload: { text: editorContent, currentNoteId: initialNote.id, engine: 'auto' }
+            payload: { text: editorContent, currentNoteId: initialNote?.id || '', engine: 'auto' }
           });
         } else {
           setSuggestedNotes(null);

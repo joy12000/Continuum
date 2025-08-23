@@ -27,8 +27,8 @@ function useLiveNotes() {
 }
 
 // [추가] API 호출 추상화 함수
-async function callGenerateApi(payload: object): Promise<any> {
-  const response = await fetch('/.netlify/functions/generate', {
+async function callGenerateApi(payload: object, endpoint: string = '/.netlify/functions/generate'): Promise<any> {
+  const response = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -196,11 +196,7 @@ React.useEffect(() => {
         // =================================================================
 
         if (isGenerativeMode && apiUrl && debouncedQ && finalResults.length > 0) {
-          const result: AnswerData = await callGenerateApi({
-            context: notesContent,
-            question: debouncedQ,
-            type: 'generate_answer' // API 타입 추가
-          });
+          const result: AnswerData = await callGenerateApi({ type: 'generate_questions', context: recentNotes.map(n => ({ id: n.id, title: (n.title||'').slice(0,160), content: n.content })), question: '위 노트들을 바탕으로 사용자가 던질 만한 흥미로운 질문 3개를 JSON으로만 반환해 주세요.' }, apiUrl);
           setGeneratedAnswer({ data: result, isLoading: false, error: null });
         } else {
           // API 호출 조건이 충족되지 않으면 로딩 상태를 해제하고 오류 메시지를 표시하지 않음
@@ -232,11 +228,7 @@ React.useEffect(() => {
       const apiUrl = settings.genEndpoint; // Assuming genEndpoint is the API URL
 
       if (isGenerativeMode && apiUrl) {
-        const result = await callGenerateApi({
-          context: notesContent,
-          question: "Suggest 3 interesting questions based on the notes above.",
-          type: 'generate_questions' // API 타입 추가
-        });
+        const result = await callGenerateApi({ type: 'generate_questions', context: recentNotes.map(n => ({ id: n.id, title: (n.title||'').slice(0,160), content: n.content })), question: '위 노트들을 바탕으로 사용자가 던질 만한 흥미로운 질문 3개를 JSON으로만 반환해 주세요.' }, apiUrl);
         setSuggestedQuestions(result.questions || []);
       } else {
         // API 호출 조건이 충족되지 않으면 로딩 상태를 해제하고 오류 메시지를 표시하지 않음
