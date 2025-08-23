@@ -47,71 +47,72 @@ class SemanticPipeline {
     this.inputNames = (this.session as any).inputNames || [];
     this.ready = true;
     console.log('[SemanticWorker] Pipeline initialized.', { inputNames: this.inputNames });
+    __initDone = true;
+  } catch (e) {
+    console.error("Failed to initialize semantic worker", e);
+    throw e;
+  } finally {
+    __initInFlight = null;
   }
-
-  private ensureTokenType(idsDims: number[]): ort.Tensor {
-    const size = idsDims.reduce((a, b) => a * b, 1);
-    return new ort.Tensor('int64', new BigInt64Array(size), idsDims);
-  }
-
-  private meanPool(hidden: Float32Array, mask: BigInt64Array, seq: number, hiddenDim: number): number[] {
-    const out = new Float32Array(hiddenDim); let denom = 0;
-    for (let t = 0; t < seq; t++) {
-      if (mask[t] === 0n) continue; denom++;
-      const base = t * hiddenDim;
-      for (let h = 0; h < hiddenDim; h++) out[h] += hidden[base + h];
-    }
-    const d = Math.max(1, denom);
-    for (let h = 0; h < hiddenDim; h++) out[h] /= d;
-    return Array.from(out);
-  }
-
-  async embed(text: string): Promise<EmbedVec> {
-    if (!this.ready) await this.init();
-    if (!this.session || !this.tokenizer) throw new Error('Pipeline not ready');
-
-    // ✅ batch tokenize -> Transformers.js returns Tensor with .data and .dims (not .shape)
-    const enc: any = await this.tokenizer([text], { return_tensors: 'np', padding: true, truncation: true });
-
-    const idsData  = enc.input_ids.data as any;
-    const maskData = enc.attention_mask.data as any;
-
-    let idsDims  = enc.input_ids.dims as number[];
-    let maskDims = enc.attention_mask.dims as number[];
-    if (idsDims.length === 1)  idsDims  = [1, idsDims[0]];
-    if (maskDims.length === 1) maskDims = [1, maskDims[0]];
-
-    const ids64  = BigInt64Array.from(Array.from(idsData,  (x: number) => BigInt(x)));
-    const mask64 = BigInt64Array.from(Array.from(maskData, (x: number) => BigInt(x)));
-
-    const inputs: Record<string, ort.Tensor> = {
-      input_ids:      new ort.Tensor('int64', ids64,  idsDims),
-      attention_mask: new ort.Tensor('int64', mask64, maskDims),
-    };
-    if (this.inputNames.includes('token_type_ids') && !('token_type_ids' in inputs)) {
-      inputs.token_type_ids = this.ensureTokenType(idsDims);
-    }
-
-    const outMap = await this.session.run(inputs);
-    const firstKey = Object.keys(outMap)[0];
-    const out = outMap[firstKey];
-    const data = out.data as Float32Array;
-
-    if (out.dims.length === 2) return Array.from(data);
-    if (out.dims.length === 3) {
-      const seq = out.dims[1], hidden = out.dims[2];
-      return this.meanPool(data, mask64, seq, hidden);
-    }
-    return Array.from(data);
-  }
-      __initDone = true;
-    } finally {
-      __initInFlight = null;
-    }
   })();
   await __initInFlight;
-  return;
+}
 
+private ensureTokenType(idsDims: number[]): ort.Tensor {
+  const size = idsDims.reduce((a, b) => a * b, 1);
+  return new ort.Tensor('int64', new BigInt64Array(size), idsDims);
+}
+
+private meanPool(hidden: Float32Array, mask: BigInt64Array, seq: number, hiddenDim: number): number[] {
+  const out = new Float32Array(hiddenDim); let denom = 0;
+  for (let t = 0; t < seq; t++) {
+    if (mask[t] === 0n) continue; denom++;
+    const base = t * hiddenDim;
+    for (let h = 0; h < hiddenDim; h++) out[h] += hidden[base + h];
+  }
+  const d = Math.max(1, denom);
+  for (let h = 0; h < hiddenDim; h++) out[h] /= d;
+  return Array.from(out);
+}
+
+async embed(text: string): Promise<EmbedVec> {
+  if (!this.ready) await this.init();
+  if (!this.session || !this.tokenizer) throw new Error('Pipeline not ready');
+
+  // ✅ batch tokenize -> Transformers.js returns Tensor with .data and .dims (not .shape)
+  const enc: any = await this.tokenizer([text], { return_tensors: 'np', padding: true, truncation: true });
+
+  const idsData  = enc.input_ids.data as any;
+  const maskData = enc.attention_mask.data as any;
+
+  let idsDims  = enc.input_ids.dims as number[];
+  let maskDims = enc.attention_mask.dims as number[];
+  if (idsDims.length === 1)  idsDims  = [1, idsDims[0]];
+  if (maskDims.length === 1) maskDims = [1, maskDims[0]];
+
+  const ids64  = BigInt64Array.from(Array.from(idsData,  (x: number) => BigInt(x)));
+  const mask64 = BigInt64Array.from(Array.from(maskData, (x: number) => BigInt(x)));
+
+  const inputs: Record<string, ort.Tensor> = {
+    input_ids:      new ort.Tensor('int64', ids64,  idsDims),
+    attention_mask: new ort.Tensor('int64', mask64, maskDims),
+  };
+  if (this.inputNames.includes('token_type_ids') && !('token_type_ids' in inputs)) {
+    inputs.token_type_ids = this.ensureTokenType(idsDims);
+  }
+
+  const outMap = await this.session.run(inputs);
+  const firstKey = Object.keys(outMap)[0];
+  const out = outMap[firstKey];
+  const data = out.data as Float32Array;
+
+  if (out.dims.length === 2) return Array.from(data);
+  if (out.dims.length === 3) {
+    const seq = out.dims[1], hidden = out.dims[2];
+    return this.meanPool(data, mask64, seq, hidden);
+  }
+  return Array.from(data);
+}
 }
 
 self.onmessage = async (event: MessageEvent) => {
