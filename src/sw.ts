@@ -1,12 +1,10 @@
 
 // ---- Safe Cache.put helper to avoid 'Cache.put() encountered a network error' ----
-async function safeCachePut(cache: Cache, request: Request, response: Response) {
+async function safeCachePut(cache, request, response) {
   try {
-    // Only cache GET, same-origin (or opaque allowed), and successful/opaque responses
     if (request.method !== 'GET') return;
     const url = new URL(request.url);
     const sameOrigin = self.location.origin === url.origin;
-    // Allow opaque responses for cross-origin, but skip opaque-redirect and error responses
     const isOpaque = response.type === 'opaque';
     const isOpaqueRedirect = response.type === 'opaqueredirect';
     if (isOpaqueRedirect) return;
@@ -14,7 +12,6 @@ async function safeCachePut(cache: Cache, request: Request, response: Response) 
     if (!sameOrigin && !isOpaque) return;
     await safeCachePut(cache, request, response);
   } catch (e) {
-    // Swallow caching errors; serve network response anyway
     console.warn('[SW] safeCachePut skipped:', request.url, e);
   }
 }
