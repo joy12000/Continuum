@@ -196,7 +196,7 @@ React.useEffect(() => {
         // =================================================================
 
         if (isGenerativeMode && apiUrl && debouncedQ && finalResults.length > 0) {
-          const result: AnswerData = await callGenerateApi({ type: 'generate_answer', context: relevantNotes.map((n: Note) => ({ id: n.id, content: n.content }))}, apiUrl);
+          const result: AnswerData = await callGenerateApi({ question: debouncedQ, context: finalResults.map((n: Note) => ({ id: n.id, content: n.content })) }, apiUrl);
           setGeneratedAnswer({ data: result, isLoading: false, error: null });
         } else {
           // API 호출 조건이 충족되지 않으면 로딩 상태를 해제하고 오류 메시지를 표시하지 않음
