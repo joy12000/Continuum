@@ -1,14 +1,14 @@
 <!doctype html>
 <meta charset="utf-8">
-<title>API Debug (Hard Mode)</title>
+<title>API Debug</title>
 <style>body{font:14px/1.5 system-ui,sans-serif;padding:24px;max-width:820px;margin:auto}button{padding:8px 12px;border-radius:8px;margin-right:10px;border:1px solid #ccc;background:#f7f7f7}pre{background:#0b1020;color:#d5e0ff;padding:12px;border-radius:8px;white-space:pre-wrap;min-height:160px}</style>
-<h1>API Debug (Hard Mode)</h1>
-<p>버튼을 눌러 /api 라우팅과 함수 배포 상태를 확인하세요. (자동으로 1회 ping 실행)</p>
+<h1>API Debug</h1>
+<p>배포 후 다음을 순서대로 눌러 상태를 확인하세요.</p>
 <p>
   <button id="btnPing">GET /api/ping</button>
   <button id="btnPingDirect">GET /.netlify/functions/ping</button>
   <button id="btnEmbed">POST /api/embed</button>
+  <button id="btnGenerate">POST /api/generate</button>
 </p>
-<pre id="out">Loading JS...</pre>
+<pre id="out">Loading...</pre>
 <script src="/debug/api.js" defer></script>
-<noscript>JavaScript가 비활성화되어 있습니다.</noscript>

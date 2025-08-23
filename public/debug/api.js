@@ -1,42 +1,21 @@
 // public/debug/api.js
-(function(){'use strict';
-const Q = (s)=>document.querySelector(s);
-const out = Q('#out');
-function log(msg){ out.textContent += msg + '\n'; }
-function set(msg){ out.textContent = msg + '\n'; }
+(function(){
+  const out = document.querySelector('#out');
+  const log = (m)=> out.textContent += m + "\n";
+  const set = (m)=> out.textContent = m + "\n";
 
-function timeoutFetch(input, init, ms=10000){
-  const ctrl = new AbortController();
-  const t = setTimeout(()=>ctrl.abort(), ms);
-  return fetch(input, {...(init||{}), signal: ctrl.signal}).finally(()=>clearTimeout(t));
-}
+  async function f(url, init){ const r = await fetch(url, { cache:'no-store', ...(init||{}) }); const t = await r.text(); return { r, t }; }
 
-function showLoaded(){
-  set('JS loaded ✅\nPath: ' + location.pathname);
-}
+  async function ping(){ set('GET /api/ping ...'); try{ const {r,t} = await f('/api/ping'); log('Status '+r.status); log(t); }catch(e){ log('ERR '+e); } }
+  async function pingDirect(){ set('GET /.netlify/functions/ping ...'); try{ const {r,t} = await f('/.netlify/functions/ping'); log('Status '+r.status); log(t); }catch(e){ log('ERR '+e); } }
+  async function embed(){ set('POST /api/embed ...'); try{ const {r,t} = await f('/api/embed', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ texts:['hello continuum'] }) }); log('Status '+r.status); log(t.slice(0,1200)); }catch(e){ log('ERR '+e); } }
+  async function generate(){ set('POST /api/generate ...'); try{ const payload = { question:'What is Continuum?', context:[{id:'d1', content:'Continuum is offline-first.'}] }; const {r,t} = await f('/api/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) }); log('Status '+r.status); log(t.slice(0,1200)); }catch(e){ log('ERR '+e); } }
 
-async function testPing(){
-  try{ set('GET /api/ping ...'); const r = await timeoutFetch('/api/ping?v=1755856691', { cache:'no-store' }); const t = await r.text(); log('Status '+r.status); log(t); }
-  catch(e){ log('ERR '+e); }
-}
-async function testPingDirect(){
-  try{ set('GET /.netlify/functions/ping ...'); const r = await timeoutFetch('/.netlify/functions/ping?v=1755856691', { cache:'no-store' }); const t = await r.text(); log('Status '+r.status); log(t); }
-  catch(e){ log('ERR '+e); }
-}
-async function testEmbed(){
-  try{ 
-    set('POST /api/embed ...');
-    const r = await timeoutFetch('/api/embed?v=1755856691', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ texts: ['hello continuum'] }), cache:'no-store' });
-    const t = await r.text(); log('Status '+r.status); log(t.slice(0, 1200));
-  } catch(e){ log('ERR '+e); }
-}
-
-window.addEventListener('DOMContentLoaded', ()=>{
-  showLoaded();
-  Q('#btnPing').addEventListener('click', testPing);
-  Q('#btnPingDirect').addEventListener('click', testPingDirect);
-  Q('#btnEmbed').addEventListener('click', testEmbed);
-  // Auto-run a tiny check so user sees something immediately
-  setTimeout(testPing, 100);
-});
+  window.addEventListener('DOMContentLoaded', ()=>{
+    document.querySelector('#btnPing').onclick = ping;
+    document.querySelector('#btnPingDirect').onclick = pingDirect;
+    document.querySelector('#btnEmbed').onclick = embed;
+    document.querySelector('#btnGenerate').onclick = generate;
+    set('JS loaded ✅'); setTimeout(ping, 100);
+  });
 })();

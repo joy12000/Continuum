@@ -1,3 +1,4 @@
+// netlify/functions/ping.js
 exports.handler = async (event) => {
   const path = event.path || "/api/ping";
   return {

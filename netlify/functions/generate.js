@@ -1,103 +1,272 @@
+// netlify/functions/generate.js
+// Gemini RAG: 컨텍스트 한정 답변 + 문장별 sourceNoteId + 견고한 JSON 파싱/폴백
+// 요구 env:
+//   GEMINI_API_KEY (필수)
+//   GEMINI_MODEL   (선택, 기본: "gemini-1.5-flash")
+// 반환 JSON 스키마:
+//   {
+//     "answer": "string",
+//     "sentences": [{"text":"string","sourceNoteId":"string|null"}],
+//     "sources": [{"noteId":"string","snippet":"string"}]
+//   }
+
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-// Gemini API Key from environment variables
-const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization"
+};
 
-// Default system instruction
-let systemInstruction = `You are a helpful RAG (Retrieval-Augmented Generation) summarizer. Follow these rules strictly:
-1.  **Answer only within the provided context.** Do not use any external knowledge. If the context does not contain the answer, state "제공된 정보 내에서 답변을 찾을 수 없습니다."
-2.  **Preserve numerical values, units, and specific entities** (like names, locations) from the context accurately. Do not rephrase or approximate them.
-3.  **Express uncertainty.** If the answer is not clearly or directly supported by the context, use phrases like "~인 것으로 보입니다" or "~일 가능성이 있습니다."
-4.  **Output in the specified JSON format ONLY.** The output must be a single, valid JSON object.
-5.  The JSON object must contain an 'answerSegments' key, which is an array of objects.
-6.  Each object in the 'answerSegments' array must have two keys: a 'sentence' (a single, complete sentence) and a 'sourceNoteId' (the ID of the context document it came from, like "doc_0").
+function tryParseJSON(text) {
+  try {
+    return JSON.parse(text);
+  } catch (_) {
+    const m = text.match(/\{[\s\S]*\}/);
+    if (m) {
+      try { return JSON.parse(m[0]); } catch (_) {}
+    }
+  }
+  return null;
+}
 
-Example output format:
+function splitSentences(s) {
+  if (!s || typeof s !== "string") return [];
+  const hardSplit = s
+    .replace(/\n+/g, " ")
+    .split(/(?<=[\.\!\?])\s+|(?<=(다|요))\s+/g)
+    .map(x => (x || "").trim())
+    .filter(Boolean);
+  const merged = [];
+  for (const seg of hardSplit) {
+    if (!merged.length) { merged.push(seg); continue; }
+    if (seg.length < 8 && merged[merged.length - 1].length < 40) {
+      merged[merged.length - 1] = `${merged[merged.length - 1]} ${seg}`.trim();
+    } else {
+      merged.push(seg);
+    }
+  }
+  return merged;
+}
+
+function normalizeTokens(s) {
+  return (s || "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter(w => w && w.length > 1);
+}
+
+function jaccard(aArr, bArr) {
+  const a = new Set(aArr), b = new Set(bArr);
+  let inter = 0;
+  for (const t of a) if (b.has(t)) inter++;
+  const uni = a.size + b.size - inter || 1;
+  return inter / uni;
+}
+
+function mapSources(answerSentences, context) {
+  const results = [];
+  const srcSet = new Map();
+  const ctx = Array.isArray(context) ? context : [];
+  const ctxTokens = ctx.map(n => ({
+    id: String(n.id),
+    content: String(n.content || ""),
+    tokens: normalizeTokens(String(n.content || ""))
+  }));
+
+  for (const sent of answerSentences) {
+    const text = String(sent?.text || sent || "");
+    let srcId = sent?.sourceNoteId ?? null;
+
+    if (!srcId || !ctx.some(n => String(n.id) === String(srcId))) {
+      const t = normalizeTokens(text);
+      let best = { id: null, score: 0 };
+      for (const c of ctxTokens) {
+        const score = jaccard(t, c.tokens);
+        if (score > best.score) best = { id: c.id, score };
+      }
+      srcId = best.score >= 0.08 ? best.id : null;
+    }
+
+    results.push({ text, sourceNoteId: srcId });
+
+    if (srcId) {
+      const note = ctx.find(n => String(n.id) === String(srcId));
+      if (note && !srcSet.has(srcId)) {
+        const snippet = String(note.content || "").slice(0, 200);
+        srcSet.set(srcId, snippet);
+      }
+    }
+  }
+
+  const sources = Array.from(srcSet, ([noteId, snippet]) => ({ noteId, snippet }));
+  return { sentences: results, sources };
+}
+
+function trimContext(context, {
+  maxNotes = 20,
+  maxCharsPerNote = 1200,
+  maxTotalChars = 18000,
+} = {}) {
+  const ctx = Array.isArray(context) ? context.slice(0, maxNotes) : [];
+  const sliced = ctx.map(n => ({
+    id: String(n.id),
+    title: n.title ? String(n.title).slice(0, 160) : undefined,
+    content: String(n.content || "").slice(0, maxCharsPerNote),
+  }));
+  let total = 0;
+  const trimmed = [];
+  for (const n of sliced) {
+    const c = n.content;
+    if (total + c.length > maxTotalChars) break;
+    total += c.length;
+    trimmed.push(n);
+  }
+  return trimmed;
+}
+
+function buildPrompt({ question, context }) {
+  const header = `
+너는 철저한 근거주의 어시스턴트다. 반드시 아래 규칙을 지켜라.
+
+[규칙]
+1) "제공된 CONTEXT" 내부 정보만 사용해서 답변한다. 외부 지식 추측 금지.
+2) 수치·단위·고유명사는 그대로 보존한다.
+3) 확실하지 않거나 정보가 없으면 "불확실"을 명시한다.
+4) 출력은 반드시 "하나의 JSON 오브젝트"로만 한다. 마크다운/설명/코드블록 금지.
+5) 문장 배열(sentences[])의 각 원소에는 해당 문장의 근거 노트 ID(sourceNoteId)를 넣어라.
+   - ID는 아래 CONTEXT에 표시된 노트의 id 값 중 하나여야 한다.
+   - 확신이 없으면 null로 두고, 최대한 맞추도록 노력하라.
+
+[출력 JSON 스키마]
 {
-  "answerSegments": [
-    { "sentence": "The first key point derived from the context.", "sourceNoteId": "doc_0" },
-    { "sentence": "Another detail found in a different document.", "sourceNoteId": "doc_2" },
-    { "sentence": "A final summary point from the first document.", "sourceNoteId": "doc_0" }
+  "answer": "string",
+  "sentences": [{"text":"string","sourceNoteId":"string|null"}],
+  "sources": [{"noteId":"string","snippet":"string"}]
+}
+
+[예시]
+입력:
+QUESTION:
+"UI 프레임워크가 뭐야?"
+
+CONTEXT:
+- [n4] The UI is built with React and Vite.
+
+출력:
+{
+  "answer": "UI는 React와 Vite로 구성되어 있다.",
+  "sentences": [
+    {"text":"UI는 React와 Vite로 구성되어 있다.","sourceNoteId":"n4"}
   ],
-  "sourceNotes": ["doc_0", "doc_1", "doc_2"]
-}`;
+  "sources": [{"noteId":"n4","snippet":"The UI is built with React and Vite."}]
+}
+`.trim();
+
+  const ctxText = context.map(n => {
+    const title = n.title ? ` (${n.title})` : "";
+    return `- [${n.id}]${title} ${n.content}`;
+  }).join("\n");
+
+  const user = `
+QUESTION:
+${question}
+
+CONTEXT:
+${ctxText}
+`.trim();
+
+  return `${header}\n\n${user}`;
+}
 
 exports.handler = async (event) => {
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: 'Method Not Allowed' };
+  if (event.httpMethod === "OPTIONS") {
+    return { statusCode: 200, headers: CORS, body: "" };
+  }
+  if (event.httpMethod === "GET") {
+    return {
+      statusCode: 200,
+      headers: { ...CORS, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ok: true,
+        endpoint: "generate",
+        requires: ["GEMINI_API_KEY"],
+        note: "POST { question: string, context: [{id, title?, content}], options? }"
+      })
+    };
+  }
+  if (event.httpMethod !== "POST") {
+    return { statusCode: 405, headers: CORS, body: "Method Not Allowed" };
   }
 
   try {
-    const { query, contextNotes, type, recentNotes } = JSON.parse(event.body);
+    const payload = JSON.parse(event.body || "{}");
+    const question = String(payload.question || "");
+    const context = payload.context || [];
+    const options = payload.options || {};
 
-    // =================================================================
-    // == 🛡️ GUARD CLAUSE: 추가된 예외 처리 로직 (START) ==
-    // =================================================================
-    if (type === 'generate_answer' && (!contextNotes || contextNotes.length === 0)) {
-      console.log("Guard clause triggered: Empty context for generate_answer.");
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: "Cannot generate answer without context." }),
+    if (!question) {
+      return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: "question required" }) };
+    }
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: "Missing GEMINI_API_KEY" }) };
+    }
+
+    const trimmed = trimContext(context, options.trim || undefined);
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const modelName = process.env.GEMINI_MODEL || "gemini-1.5-flash";
+    const model = genAI.getGenerativeModel({ model: modelName });
+
+    const prompt = buildPrompt({ question, context: trimmed });
+    const resp = await model.generateContent([
+      { role: "user", parts: [{ text: prompt }] }
+    ]);
+
+    const raw = resp?.response?.text?.() ?? "";
+    let json = tryParseJSON(raw);
+
+    if (!json || typeof json !== "object") {
+      const fallbackAnswer = String(raw || "").trim();
+      const sentences = splitSentences(fallbackAnswer).map(t => ({ text: t, sourceNoteId: null }));
+      const mapped = mapSources(sentences, trimmed);
+      json = {
+        answer: fallbackAnswer,
+        sentences: mapped.sentences,
+        sources: mapped.sources
       };
+    } else {
+      const answer = typeof json.answer === "string" ? json.answer : "";
+      const sentencesArr = Array.isArray(json.sentences) ? json.sentences : splitSentences(answer).map(t => ({ text: t, sourceNoteId: null }));
+      const mapped = mapSources(sentencesArr, trimmed);
+      const srcs = Array.isArray(json.sources) && json.sources.length
+        ? json.sources.filter(s => s && s.noteId).slice(0, 20)
+        : mapped.sources;
+
+      json = { answer, sentences: mapped.sentences, sources: srcs };
     }
 
-    if (type === 'generate_questions' && (!recentNotes || recentNotes.length === 0)) {
-      console.log("Guard clause triggered: Empty recentNotes for generate_questions.");
-      // 추천 질문은 오류가 아닌 빈 배열을 반환하여 자연스럽게 처리
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ questions: [] }),
-      };
-    }
-    // =================================================================
-    // == 🛡️ GUARD CLAUSE: 추가된 예외 처리 로직 (END) ==
-    // =================================================================
+    if (typeof json.answer !== "string") json.answer = String(json.answer || "");
+    if (!Array.isArray(json.sentences)) json.sentences = [];
+    if (!Array.isArray(json.sources)) json.sources = [];
 
-
-    const model = gemini.getGenerativeModel({
-      model: "gemini-1.5-flash-latest",
-      systemInstruction: systemInstruction,
-    });
-
-    let userMessage = { role: "user", parts: [] };
-    let sourceNoteIds = [];
-
-    if (type === 'generate_answer') {
-      systemInstruction = systemInstruction.replace('summarizer', 'question answerer');
-      userMessage.parts.push({ text: `Context:n` });
-      contextNotes.forEach((note, index) => {
-        const docId = `doc_${index}`;
-        userMessage.parts.push({ text: `<document id="${docId}">n${note.content}n</document>n` });
-        sourceNoteIds.push(docId);
-      });
-      userMessage.parts.push({ text: `nQuestion: "${query}"nnBased on the context, answer the question.` });
-    } else if (type === 'generate_questions') {
-      systemInstruction = systemInstruction.replace('summarizer', 'question generator');
-      userMessage.parts.push({ text: `Recent notes:n` });
-      recentNotes.forEach((note, index) => {
-        userMessage.parts.push({ text: `- Note ${index + 1}: "${note.content.substring(0, 150)}..."n` });
-      });
-      userMessage.parts.push({ text: `nBased on these recent notes, generate 3 interesting and thought-provoking questions. Return a JSON object with a "questions" key containing an array of strings. Example: { "questions": ["...", "...", "..."] }` });
-    }
-
-    const result = await model.generateContent(JSON.stringify(userMessage));
-    const response = result.response;
-    const jsonString = response.text().replace(/```json/g, "").replace(/```/g, "").trim();
-    const jsonResponse = JSON.parse(jsonString);
-
-    if (type === 'generate_answer') {
-      jsonResponse.sourceNotes = sourceNoteIds;
-    }
-
-    return { 
+    return {
       statusCode: 200,
-      body: JSON.stringify(jsonResponse),
+      headers: { ...CORS, "Content-Type": "application/json" },
+      body: JSON.stringify(json)
     };
-  } catch (error) {
-    console.error("Error in generate function:", error);
+  } catch (err) {
+    console.error("[generate] error:", err);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: error.message }),
+      headers: CORS,
+      body: JSON.stringify({
+        error: "Failed to generate",
+        details: String(err?.message || err)
+      })
     };
   }
 };
