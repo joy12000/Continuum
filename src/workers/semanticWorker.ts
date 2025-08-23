@@ -62,6 +62,9 @@ class SemanticPipeline {
     // ✅ batch tokenize -> Transformers.js returns Tensor with .data and .dims (not .shape)
     const enc: any = await this.tokenizer([text], { return_tensors: 'np', padding: true, truncation: true });
 
+    if (!enc.input_ids || !enc.attention_mask) {
+      throw new Error('Tokenizer did not return input_ids or attention_mask');
+    }
     const idsData  = enc.input_ids.data as any;
     const maskData = enc.attention_mask.data as any;
 

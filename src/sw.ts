@@ -1,6 +1,6 @@
 
 // ---- Safe Cache.put helper to avoid 'Cache.put() encountered a network error' ----
-async function safeCachePut(cache, request, response) {
+async function safeCachePut(cache: Cache, request: Request, response: Response) {
   try {
     if (request.method !== 'GET') return;
     const url = new URL(request.url);
