@@ -225,7 +225,7 @@ React.useEffect(() => {
     setSuggestionError(null);
     try {
       const recentNotes = notes.slice(0, 5);
-      const notesContent = recentNotes.map(n => n.content.replace(/<[^>]+>/g, '')).join('\n\n');
+      const notesContent = recentNotes.map((n: Note) => n.content.replace(/<[^>]+>/g, '')).join('\n\n');
       
       const settings = getConfig();
       const isGenerativeMode = settings.genEnabled; // Assuming genEnabled indicates generative mode
