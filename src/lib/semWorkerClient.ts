@@ -9,7 +9,7 @@ function getWorker(): Worker {
   return _w;
 }
 
-function rpc<T = any>(type: string, payload?: any, timeoutMs = 10000): Promise<T> {
+function rpc<T = any>(type: string, payload?: any, timeoutMs = 25000): Promise<T> {
   const w = getWorker();
   const id = ++_seq;
   return new Promise((resolve, reject) => {
@@ -28,14 +28,17 @@ function rpc<T = any>(type: string, payload?: any, timeoutMs = 10000): Promise<T
 }
 
 export async function ensureLocalReady(): Promise<boolean> {
-  try { await rpc('ensure', {}); return true; } catch { return false; }
+  for (let i = 0; i < 3; i++) {
+    try { await rpc('ensure', {}, 30000); return true; } catch { await new Promise(r => setTimeout(r, 500 * (i + 1))); }
+  }
+  return false;
 }
 
 export async function embedLocal(texts: string[] | string, _opts?: any): Promise<number[][]> {
   const arr = Array.isArray(texts) ? texts : [texts];
   const ready = await ensureLocalReady();
   if (!ready) throw new Error('local semantic worker not ready');
-  return rpc('embed', { texts: arr }, 20000);
+  return rpc('embed', { texts: arr }, 60000);
 }
 
 // ✅ Backward-compat shim

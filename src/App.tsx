@@ -99,7 +99,7 @@ React.useEffect(() => {
   useEffect(() => {
     (async () => {
       if (notes.length === 0) return;
-      await semWorker.ensure(engine);
+      await semWorker.ensure();
       const existing = new Set((await db.embeddings.toArray()).map(e => e.noteId));
       const toEmbed = notes.filter(n => n.id && !existing.has(n.id));
       if (toEmbed.length === 0) return;
@@ -117,7 +117,7 @@ React.useEffect(() => {
       }
 
       try {
-        const queryVec = (await semWorker.embed(engine, [debouncedQ]))[0];
+        const queryVec = (await semWorker.embed([debouncedQ]))[0];
         const allEmbeddings = await db.embeddings.toArray();
         const semanticScores = allEmbeddings.map(e => ({
           id: e.noteId,
@@ -151,7 +151,7 @@ React.useEffect(() => {
   const finalResults = useMemo(() => {
     if (!debouncedQ.trim()) return notes;
     
-    const bm25Results = bm25Index.search(debouncedQ, 50).map(x => ({ id: x.id, score: x.score, text: notes.find(n => n.id === x.id)?.content || '', noteId: x.id }));
+    const bm25Results = bm25Index.search(debouncedQ, 50).map(x => ({ id: x.id, score: x.score }));
     
     // RRF 퓨전을 사용하여 BM25와 시맨틱 검색 결과 융합 (인수 수정)
     const fusedResults = rrfFuse([bm25Results, semanticResults]);
@@ -228,7 +228,7 @@ React.useEffect(() => {
       const apiUrl = settings.genEndpoint; // Assuming genEndpoint is the API URL
 
       if (isGenerativeMode && apiUrl) {
-        const result = await callGenerateApi({ type: 'generate_questions', context: recentNotes.map((n: Note) => ({ id: n.id, content: n.content })), question: '위 노트들을 바탕으로 사용자가 던질 만한 흥미로운 질문 3개를 JSON으로만 반환해 주세요.' }, apiUrl);
+        const result = await callGenerateApi({ type: 'generate_questions', context: recentNotes.map(n => ({ id: n.id, title: (n.title||'').slice(0,160), content: n.content })), question: '위 노트들을 바탕으로 사용자가 던질 만한 흥미로운 질문 3개를 JSON으로만 반환해 주세요.' }, apiUrl)), question: '위 노트들을 바탕으로 사용자가 던질 만한 흥미로운 질문 3개를 JSON으로만 반환해 주세요.' }, apiUrl);
         setSuggestedQuestions(result.questions || []);
       } else {
         // API 호출 조건이 충족되지 않으면 로딩 상태를 해제하고 오류 메시지를 표시하지 않음

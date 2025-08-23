@@ -1,3 +1,24 @@
+
+// ---- Safe Cache.put helper to avoid 'Cache.put() encountered a network error' ----
+async function safeCachePut(cache: Cache, request: Request, response: Response) {
+  try {
+    // Only cache GET, same-origin (or opaque allowed), and successful/opaque responses
+    if (request.method !== 'GET') return;
+    const url = new URL(request.url);
+    const sameOrigin = self.location.origin === url.origin;
+    // Allow opaque responses for cross-origin, but skip opaque-redirect and error responses
+    const isOpaque = response.type === 'opaque';
+    const isOpaqueRedirect = response.type === 'opaqueredirect';
+    if (isOpaqueRedirect) return;
+    if (!isOpaque && !response.ok) return;
+    if (!sameOrigin && !isOpaque) return;
+    await safeCachePut(cache, request, response);
+  } catch (e) {
+    // Swallow caching errors; serve network response anyway
+    console.warn('[SW] safeCachePut skipped:', request.url, e);
+  }
+}
+
 /// <reference lib="webworker" />
 import { precacheAndRoute } from 'workbox-precaching'
 import Dexie, { Table } from "dexie";
@@ -77,7 +98,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
       const cached = await cache.match(event.request);
       if (cached) return cached;
       const resp = await fetch(event.request);
-      if (resp.ok) { cache.put(event.request, resp.clone()); }
+      if (resp.ok) { await safeCachePut(cache, event.request, resp.clone()); }
       return resp;
     })());
     return;
