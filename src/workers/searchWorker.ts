@@ -89,7 +89,7 @@ async function findSimilar(text: string, currentNoteId: string, engine: "auto" |
     const [textVec] = await embed(engine, [text]);
     if (!textVec) return;
 
-    const otherEmbeddings = await db.embeddings.where('noteId').notEqual(currentNoteId).toArray();
+    const otherEmbeddings = currentNoteId ? await db.embeddings.where('noteId').notEqual(currentNoteId).toArray() : await db.embeddings.toArray();
 
     const similarities = otherEmbeddings.map(emb => ({
       noteId: emb.noteId,
