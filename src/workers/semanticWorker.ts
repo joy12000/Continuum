@@ -1,5 +1,12 @@
 /// <reference lib="webworker" />
 import * as ort from 'onnxruntime-web';
+
+// ---- Init lock & single-fetch cache ----
+let __initInFlight: Promise<void> | null = null;
+let __initDone = false;
+let __modelBuffer: ArrayBuffer | null = null;
+let __session: any | null = null;
+let __lastFailAt = 0;
 import { AutoTokenizer, env } from '@xenova/transformers';
 
 ;(env as any).allowRemoteModels = false;
@@ -11,21 +18,18 @@ class SemanticPipeline {
   private static _inst: SemanticPipeline | null = null;
   static getInstance() { return (this._inst ??= new SemanticPipeline()); }
 
-  private static _initPromise: Promise<void> | null = null;
-  static async ensureOnce() {
-    const pipe = this.getInstance();
-    if ((pipe as any).ready) return;
-    if (this._initPromise) return this._initPromise;
-    this._initPromise = (async()=>{ await SemanticPipeline.ensureOnce(); })();
-    return this._initPromise.finally(()=>{ this._initPromise = null; });
-  }
-
   private ready = false;
   private session: ort.InferenceSession | null = null;
   private tokenizer: any | null = null;
   private inputNames: string[] = [];
 
   async init() {
+  if (__initDone) return;
+  if (__initInFlight) { await __initInFlight; return; }
+  __initInFlight = (async () => {
+    try {
+      // existing init body starts
+
     if (this.ready) return;
 
     ort.env.wasm.wasmPaths = {
@@ -102,6 +106,18 @@ class SemanticPipeline {
     }
     return Array.from(data);
   }
+      // existing init body ends
+      __initDone = true;
+    } catch (e) {
+      __lastFailAt = Date.now();
+      throw e;
+    } finally {
+      __initInFlight = null;
+    }
+  })();
+  await __initInFlight;
+  return;
+
 }
 
 self.onmessage = async (event: MessageEvent) => {
@@ -109,12 +125,12 @@ self.onmessage = async (event: MessageEvent) => {
   try {
     const pipe = SemanticPipeline.getInstance();
     if (type === 'ensure') {
-      await SemanticPipeline.ensureOnce();
+      await pipe.init();
       (self as any).postMessage({ id, ok: true, result: true });
       return;
     }
     if (type === 'embed') {
-      await SemanticPipeline.ensureOnce();
+      await pipe.init();
       const texts: string[] = Array.isArray(payload?.texts) ? payload.texts : [String(payload?.text ?? payload ?? '')];
       const vectors = await Promise.all(texts.map(t => pipe.embed(t)));
       (self as any).postMessage({ id, ok: true, result: vectors });
