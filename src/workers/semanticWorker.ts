@@ -1,12 +1,17 @@
 /// <reference lib="webworker" />
 import * as ort from 'onnxruntime-web';
+
+// ---- Init lock & single-fetch cache ----
+let __initInFlight: Promise<void> | null = null;
+let __initDone = false;
+let __modelBuffer: ArrayBuffer | null = null;
+let __lastFailAt = 0;
 import { AutoTokenizer, env } from '@xenova/transformers';
 
 ;(env as any).allowRemoteModels = false;
 ;(env as any).localModelPath = '/models';
 
-let __initInFlight: Promise<void> | null = null;
-let __initDone = false;
+type EmbedVec = number[];
 
 class SemanticPipeline {
   private static _inst: SemanticPipeline | null = null;
@@ -18,36 +23,30 @@ class SemanticPipeline {
   private inputNames: string[] = [];
 
   async init() {
-    if (__initDone) return;
-    if (__initInFlight) { await __initInFlight; return; }
-    __initInFlight = (async () => {
-      try {
-        if (this.ready) return;
+  if (__initDone) return;
+  if (__initInFlight) { await __initInFlight; return; }
+  __initInFlight = (async () => {
+    try {
 
-        ort.env.wasm.wasmPaths = {
-          mjs:  '/ort/ort-wasm-simd-threaded.mjs',
-          wasm: '/ort/ort-wasm-simd-threaded.wasm',
-        };
-        ort.env.wasm.numThreads = Math.min(4, (self as any).navigator?.hardwareConcurrency || 1);
+    if (this.ready) return;
 
-        const MODEL_DIR = '/models/ko-sroberta';
-        console.log('[SemanticWorker] Initializing...', { MODEL_DIR });
+    ort.env.wasm.wasmPaths = {
+      mjs:  '/ort/ort-wasm-simd-threaded.mjs',
+      wasm: '/ort/ort-wasm-simd-threaded.wasm',
+    };
+    ort.env.wasm.numThreads = Math.min(4, (self as any).navigator?.hardwareConcurrency || 1);
 
-        this.session = await ort.InferenceSession.create(`${MODEL_DIR}/ko-sroberta-multitask_quantized.onnx`);
-        this.tokenizer = await AutoTokenizer.from_pretrained('ko-sroberta');
+    const MODEL_DIR = '/models/ko-sroberta';
+    console.log('[SemanticWorker] Initializing...', { MODEL_DIR });
 
-        this.inputNames = (this.session as any).inputNames || [];
-        this.ready = true;
-        console.log('[SemanticWorker] Pipeline initialized.', { inputNames: this.inputNames });
-        __initDone = true;
-      } catch (e) {
-        console.error("Failed to initialize semantic worker", e);
-        throw e;
-      } finally {
-        __initInFlight = null;
-      }
-    })();
-    await __initInFlight;
+    this.session = await ort.InferenceSession.create(`${MODEL_DIR}/ko-sroberta-multitask_quantized.onnx`).catch(async () => {
+      return await ort.InferenceSession.create(`${MODEL_DIR}/model_qint8_avx512_vnni.onnx`);
+    });
+    this.tokenizer = await AutoTokenizer.from_pretrained('ko-sroberta');
+
+    this.inputNames = (this.session as any).inputNames || [];
+    this.ready = true;
+    console.log('[SemanticWorker] Pipeline initialized.', { inputNames: this.inputNames });
   }
 
   private ensureTokenType(idsDims: number[]): ort.Tensor {
@@ -67,15 +66,13 @@ class SemanticPipeline {
     return Array.from(out);
   }
 
-  async embed(text: string): Promise<number[]> {
+  async embed(text: string): Promise<EmbedVec> {
     if (!this.ready) await this.init();
     if (!this.session || !this.tokenizer) throw new Error('Pipeline not ready');
 
+    // ✅ batch tokenize -> Transformers.js returns Tensor with .data and .dims (not .shape)
     const enc: any = await this.tokenizer([text], { return_tensors: 'np', padding: true, truncation: true });
 
-    if (!enc.input_ids || !enc.attention_mask) {
-      throw new Error('Tokenizer did not return input_ids or attention_mask');
-    }
     const idsData  = enc.input_ids.data as any;
     const maskData = enc.attention_mask.data as any;
 
@@ -107,6 +104,14 @@ class SemanticPipeline {
     }
     return Array.from(data);
   }
+      __initDone = true;
+    } finally {
+      __initInFlight = null;
+    }
+  })();
+  await __initInFlight;
+  return;
+
 }
 
 self.onmessage = async (event: MessageEvent) => {

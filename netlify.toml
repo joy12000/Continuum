@@ -19,7 +19,8 @@
 SHARP_IGNORE_GLOBAL_LIBVIPS = "true"
 
 
+# === Cache models aggressively ===
 [[headers]]
-  for = "/models/*"
+for = "/models/*"
   [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
+  Cache-Control = "public, max-age=31536000, immutable"

@@ -1,8 +1,20 @@
+// === Continuum SW Hotfix: bypass heavy model assets & fix cache recursion ===
+const DO_NOT_CACHE_REGEX = /\.(onnx|wasm|bin)$/i;
+function shouldBypass(req: Request): boolean {
+  try {
+    const u = new URL(req.url);
+    if (u.pathname.startsWith('/models/')) return true;
+    if (DO_NOT_CACHE_REGEX.test(u.pathname)) return true;
+    return false;
+  } catch { return false; }
+}
+
 
 // ---- Safe Cache.put helper to avoid 'Cache.put() encountered a network error' ----
 async function safeCachePut(cache: Cache, request: Request, response: Response) {
   try {
     if (request.method !== 'GET') return;
+    if (shouldBypass(request)) return;
     const url = new URL(request.url);
     const sameOrigin = self.location.origin === url.origin;
     const isOpaque = response.type === 'opaque';
@@ -12,7 +24,7 @@ async function safeCachePut(cache: Cache, request: Request, response: Response) 
     if (!sameOrigin && !isOpaque) return;
     await cache.put(request, response.clone ? response.clone() : response);
   } catch (e) {
-    console.warn('[SW] safeCachePut skipped:', request.url, e);
+    console.warn('[SW] safeCachePut skipped:', (request as any)?.url || request, e);
   }
 }
 
@@ -89,8 +101,15 @@ self.addEventListener('notificationclick', (event: any) => {
 
 self.addEventListener('fetch', (event: FetchEvent) => {
   const url = new URL(event.request.url);
-  if (event.request.method === 'GET' && (url.pathname.startsWith('/models/') || url.pathname.startsWith('/tokenizers/'))) {
-    // Bypass SW for heavy model assets; let browser HTTP cache handle them
+  if (event.request.method === "GET" && (url.pathname.startsWith("/models/") || url.pathname.startsWith("/tokenizers/"))) {
+    event.respondWith((async () => {
+      const cache = await caches.open("continuum-cache");
+      const cached = await cache.match(event.request);
+      if (cached) return cached;
+      const resp = await fetch(event.request);
+      if (resp.ok) { await safeCachePut(cache, event.request, resp.clone()); }
+      return resp;
+    })());
     return;
   }
   if (event.request.method === "POST" && url.pathname === "/share") {
