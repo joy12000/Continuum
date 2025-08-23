@@ -4,10 +4,11 @@ import { db, Snapshot, Note } from "../lib/db";
 import ConfirmModal from "./ConfirmModal";
 import { toast } from "../lib/toast";
 import { DedupSuggestions } from "./DedupSuggestions";
+import { Home } from 'lucide-react';
 
 type Engine = "auto" | "remote";
 
-export function Settings({ onChange, onNavigateToDiagnostics }: { onChange?: (e: Engine) => void, onNavigateToDiagnostics: () => void }) {
+export function Settings({ onNavigateHome, onNavigateToDiagnostics }: { onNavigateHome: () => void, onNavigateToDiagnostics: () => void }) {
   const [engine, setEngine] = useState<Engine>(() => (localStorage.getItem("semanticEngine") as Engine) || "auto");
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
@@ -17,7 +18,6 @@ export function Settings({ onChange, onNavigateToDiagnostics }: { onChange?: (e:
 
   useEffect(() => {
     localStorage.setItem("semanticEngine", engine);
-    onChange?.(engine);
   }, [engine]);
 
   const fetchSnapshots = useCallback(async () => {
@@ -71,6 +71,7 @@ export function Settings({ onChange, onNavigateToDiagnostics }: { onChange?: (e:
   const handleConfirmRestore = async () => {
     if (!modalState.snapshot) return;
     // Restore logic here...
+    toast.info("스냅샷 복원 기능은 아직 구현되지 않았습니다.");
     setModalState({ isOpen: false, snapshot: null });
   };
 
@@ -82,7 +83,6 @@ export function Settings({ onChange, onNavigateToDiagnostics }: { onChange?: (e:
     try {
       await db.mergeNotes(keep, remove);
       toast.success(`${remove.length}개의 노트가 병합되었습니다.`);
-      // Refresh notes after merging
       fetchNotes();
     } catch (error) {
       toast.error("노트 병합에 실패했습니다.");
@@ -125,11 +125,9 @@ export function Settings({ onChange, onNavigateToDiagnostics }: { onChange?: (e:
           if (!Array.isArray(importedNotes) || !importedNotes.every(note => 'content' in note && 'createdAt' in note)) {
             throw new Error('유효하지 않은 JSON 파일 형식입니다. 노트 배열이 필요합니다.');
           }
-
-          // 기존 노트와 충돌 시 업데이트, 없으면 추가
           await db.notes.bulkPut(importedNotes);
           toast.success(`${importedNotes.length}개의 노트가 성공적으로 가져와졌습니다!`);
-          fetchNotes(); // 노트 목록 새로고침
+          fetchNotes();
         } catch (parseError) {
           console.error('Failed to parse imported file:', parseError);
           toast.error(`파일 파싱 오류: ${(parseError as Error).message}`);
@@ -143,56 +141,59 @@ export function Settings({ onChange, onNavigateToDiagnostics }: { onChange?: (e:
   };
 
   return (
-    <>
-      <div className="card mt-4">
-        <h2 className="text-lg font-semibold mb-3">스냅샷 관리</h2>
-        <button onClick={handleCreateSnapshot} disabled={loading} className="btn btn-primary mb-4">
-          {loading ? '스냅샷 생성 중...' : '현재 상태 스냅샷 생성'}
+    <div className="p-4 bg-gray-900 text-white min-h-screen">
+      <header className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">설정</h1>
+        <button onClick={onNavigateHome} className="btn btn-ghost p-2">
+          <Home size={24} />
         </button>
-        {error && <div className="text-red-500 mb-4">{error}</div>}
-        {snapshots.length === 0 ? (
-          <p className="text-slate-500">저장된 스냅샷이 없습니다.</p>
-        ) : (
-          <ul className="space-y-2">
-            {snapshots.map(snapshot => (
-              <li key={snapshot.id} className="flex justify-between items-center p-2 bg-slate-700/50 rounded-md">
-                <span>{new Date(snapshot.createdAt).toLocaleString()} ({snapshot.noteCount} 노트)</span>
-                <button onClick={() => handleRestoreClick(snapshot)} className="btn btn-sm">복원</button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      </header>
 
-      {/* 새로운 데이터 백업 및 복원 섹션 */}
-      <div className="card mt-4">
-        <h2 className="text-lg font-semibold mb-3">데이터 백업 및 복원</h2>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <button onClick={handleExportNotes} className="btn btn-outline flex-1">
-            모든 노트 내보내기 (JSON)
-          </button>
-          <input
-            type="file"
-            accept=".json"
-            onChange={handleImportNotes}
-            className="hidden"
-            id="import-notes-file-input"
-          />
-          <label htmlFor="import-notes-file-input" className="btn btn-outline flex-1 cursor-pointer text-center">
-            노트 가져오기 (JSON)
-          </label>
+      <div className="space-y-6">
+        <div className="card bg-gray-800/50">
+          <h2 className="text-lg font-semibold mb-3">데이터 관리</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button onClick={handleExportNotes} className="btn btn-outline flex-1">
+              모든 노트 내보내기 (JSON)
+            </button>
+            <input type="file" accept=".json" onChange={handleImportNotes} className="hidden" id="import-notes-file-input" />
+            <label htmlFor="import-notes-file-input" className="btn btn-outline flex-1 cursor-pointer text-center">
+              노트 가져오기 (JSON)
+            </label>
+          </div>
         </div>
-      </div>
 
-      <div className="card mt-4">
-        <h2 className="text-lg font-semibold mb-3">중복 노트 관리</h2>
-        <DedupSuggestions notes={notes} engine={engine} onMerge={handleMerge} />
-      </div>
+        <div className="card bg-gray-800/50">
+          <h2 className="text-lg font-semibold mb-3">스냅샷 관리</h2>
+          <button onClick={handleCreateSnapshot} disabled={loading} className="btn btn-primary mb-4 w-full">
+            {loading ? '스냅샷 생성 중...' : '현재 상태 스냅샷 생성'}
+          </button>
+          {error && <div className="text-red-500 mb-4">{error}</div>}
+          {snapshots.length === 0 ? (
+            <p className="text-slate-400">저장된 스냅샷이 없습니다.</p>
+          ) : (
+            <ul className="space-y-2">
+              {snapshots.map(snapshot => (
+                <li key={snapshot.id} className="flex justify-between items-center p-2 bg-gray-700/50 rounded-md">
+                  <span>{new Date(snapshot.createdAt).toLocaleString()} ({snapshot.noteCount} 노트)</span>
+                  <button onClick={() => handleRestoreClick(snapshot)} className="btn btn-sm">복원</button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
 
-      <div className="card mt-4">
-        <button onClick={onNavigateToDiagnostics} className="w-full text-center py-2 text-blue-500 hover:underline">
-          개발자 도구
-        </button>
+        <div className="card bg-gray-800/50">
+          <h2 className="text-lg font-semibold mb-3">중복 노트 관리</h2>
+          <DedupSuggestions notes={notes} engine={engine} onMerge={handleMerge} />
+        </div>
+
+        <div className="card bg-gray-800/50">
+           <h2 className="text-lg font-semibold mb-3">개발자</h2>
+          <button onClick={onNavigateToDiagnostics} className="w-full text-left p-2 text-blue-400 hover:underline">
+            개발자 도구
+          </button>
+        </div>
       </div>
 
       <ConfirmModal
@@ -202,8 +203,6 @@ export function Settings({ onChange, onNavigateToDiagnostics }: { onChange?: (e:
         onConfirm={handleConfirmRestore}
         onCancel={handleCancelRestore}
       />
-    </>
+    </div>
   );
 }
-
-{/* Periodic Sync support flag: (window as any).__SUPPORTS_PERIODIC_SYNC__ */}

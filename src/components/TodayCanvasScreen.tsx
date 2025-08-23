@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { SearchBar } from './SearchBar';
 import { RichNoteEditor } from './RichNoteEditor';
-import { Plus, Sun, Moon, Search } from 'lucide-react';
+import { Plus, Sun, Moon, Search, FilePlus, PenSquare } from 'lucide-react';
 import { Note } from '../lib/db';
 import { AnswerData } from '../types/common';
 import { GeneratedAnswer } from './GeneratedAnswer';
+import { toast } from '../lib/toast';
 
 // --- 타입 정의 ---
 type Theme = 'light' | 'dark' | 'system';
@@ -48,6 +49,7 @@ export default function TodayCanvasScreen({
   const [theme, setTheme] = useState<Theme>('system');
   const [fontSize, setFontSize] = useState(16);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [isFabModalOpen, setIsFabModalOpen] = useState(false);
 
   // --- 테마 처리 로직 ---
   useEffect(() => {
@@ -71,14 +73,12 @@ export default function TodayCanvasScreen({
   // --- 이벤트 핸들러 ---
   const handleScroll = useCallback(() => {
     setScrollY(window.scrollY);
-    // 스크롤을 내리면 검색창 숨기기 (임계값 50px)
     if (window.scrollY > 50 && isSearchVisible) {
       setIsSearchVisible(false);
     }
   }, [isSearchVisible]);
 
   const handleWheel = useCallback((e: WheelEvent) => {
-    // 최상단에서 위로 스와이프(휠을 아래로 굴림)하면 검색창 띄우기
     if (window.scrollY === 0 && e.deltaY < 0 && !isSearchVisible) {
       setIsSearchVisible(true);
     }
@@ -86,12 +86,22 @@ export default function TodayCanvasScreen({
 
   useEffect(() => {
     window.addEventListener('scroll', handleScroll);
-    window.addEventListener('wheel', handleWheel); // wheel 이벤트 리스너 다시 추가
+    window.addEventListener('wheel', handleWheel);
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('wheel', handleWheel); // wheel 이벤트 리스너 제거 함수 다시 추가
+      window.removeEventListener('wheel', handleWheel);
     };
-  }, [handleScroll, handleWheel]); // 의존성 배열에 handleWheel 추가
+  }, [handleScroll, handleWheel]);
+
+  const handleNewNoteClick = () => {
+    onNewNote();
+    setIsFabModalOpen(false);
+  };
+
+  const handleAttachmentClick = () => {
+    toast.info('첨부파일 기능은 아직 구현되지 않았습니다.');
+    setIsFabModalOpen(false);
+  };
 
   // --- 렌더링 로직 ---
   const charCount = editorContent.length;
@@ -112,11 +122,11 @@ export default function TodayCanvasScreen({
       <header className="flex items-center justify-between p-4 sm:px-0">
         <h1 
           className="text-xl font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
-          onClick={() => onNavigate('today')} // 타이틀 클릭 시 홈으로
+          onClick={() => onNavigate('today')}
         >
           Continuum 🛡️
         </h1>
-        <div className="flex items-center gap-2"> {/* 기존 버튼들을 위한 래퍼 div */}
+        <div className="flex items-center gap-2">
           <button onClick={() => setFontSize(f => Math.max(12, f - 1))} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700">-</button>
           <button onClick={() => setFontSize(f => Math.min(24, f + 1))} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700">+</button>
           <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700">
@@ -131,7 +141,6 @@ export default function TodayCanvasScreen({
             className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
             aria-label="설정으로 이동"
           >
-            {/* SVG 아이콘을 사용하여 일관된 디자인 유지 */}
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-slate-600 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -151,17 +160,14 @@ export default function TodayCanvasScreen({
         />
       </div>
 
-      <main className="p-4 sm:px-6 pb-20"> {/* 전반적인 여백 조정 */}
-        <div className="max-w-4xl mx-auto space-y-4"> {/* 컴포넌트 간 간격 추가 */}
-          {/* 검색 결과 표시 영역을 카드 스타일로 감싸기 */}
+      <main className="p-4 sm:px-6 pb-20">
+        <div className="max-w-4xl mx-auto space-y-4">
           {query.length > 0 && (
-            <div className="card p-6"> {/* card 클래스 적용 및 내부 패딩 조정 */}
-              {/* AI 요약 답변 */}
+            <div className="card p-6">
               {generatedAnswer.isLoading && <div className="text-center text-slate-500 animate-pulse">AI가 답변을 생성 중입니다...</div>}
               {generatedAnswer.error && <div className="text-center text-red-500">{generatedAnswer.error}</div>}
               {generatedAnswer.data && !generatedAnswer.isLoading && <GeneratedAnswer data={generatedAnswer.data} />}
 
-              {/* 뷰 전환 및 노트 목록 */}
               {notes.length > 0 && (
                 <div className="mt-4">
                   <div className="flex items-center gap-2 mb-4">
@@ -186,8 +192,7 @@ export default function TodayCanvasScreen({
             </div>
           )}
         
-          {/* RichNoteEditor를 감싸는 div에 card 스타일 적용 및 기존 스타일 조정 */}
-          <div className="card p-6"> {/* 기존 bg-white dark:bg-slate-800 rounded-lg p-10 shadow-sm mt-4 제거 */}
+          <div className="card p-6">
             <RichNoteEditor 
               autoFocus 
               onSave={setEditorContent}
@@ -200,8 +205,31 @@ export default function TodayCanvasScreen({
         </div>
       </main>
 
+      {isFabModalOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 flex items-end justify-center"
+          onClick={() => setIsFabModalOpen(false)}
+        >
+          <div 
+            className="bg-gray-800 p-4 rounded-t-2xl w-full max-w-md animate-slideInUp"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="grid grid-cols-2 gap-4 text-center">
+              <button onClick={handleNewNoteClick} className="flex flex-col items-center p-4 rounded-lg hover:bg-gray-700 transition-colors">
+                <PenSquare size={28} className="mb-2" />
+                <span>새 노트 작성</span>
+              </button>
+              <button onClick={handleAttachmentClick} className="flex flex-col items-center p-4 rounded-lg hover:bg-gray-700 transition-colors">
+                <FilePlus size={28} className="mb-2" />
+                <span>첨부파일</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <button
-        onClick={onNewNote}
+        onClick={() => setIsFabModalOpen(true)}
         className={`fixed bottom-4 right-4 sm:bottom-14 sm:right-14 h-11 w-11 sm:h-14 sm:w-14 bg-indigo-600 text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-300 ease-out ${showFab ? 'scale-100 animate-zoomIn' : 'scale-0'}`}>
         <Plus className="h-7 w-7" />
       </button>
