@@ -1,6 +1,10 @@
 // src/components/Diagnostics.tsx
 import React, { useState } from 'react';
 
+type Props = {
+  onBack?: () => void;
+};
+
 const BENCHMARK_QUERIES = [
   "AI", "PWA", "React", "IndexedDB", "Web Worker",
   "semantic search", "RAG", "offline first", "Gemini API", "performance"
@@ -53,7 +57,7 @@ async function postJSON(url: string, body: any){
   catch { return { ok: r.ok, status: r.status, data: t }; }
 }
 
-export default function Diagnostics(){
+export default function Diagnostics({ onBack }: Props){
   const [bench, setBench] = useState<{query:string, avgMs:number}[] | null>(null);
   const [rag, setRag] = useState<any[] | null>(null);
   const [log, setLog] = useState<string>('');
@@ -113,7 +117,14 @@ export default function Diagnostics(){
 
   return (
     <div className="p-4 max-w-5xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">Diagnostics</h1>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-2xl font-bold">Diagnostics</h1>
+        {onBack && (
+          <button onClick={onBack} className="px-3 py-1 rounded-lg border">
+            ← 뒤로
+          </button>
+        )}
+      </div>
 
       <section className="mb-6">
         <h2 className="text-lg font-semibold mb-2">검색 속도 벤치마크</h2>
