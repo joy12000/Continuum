@@ -29,21 +29,23 @@ interface TodayCanvasScreenProps {
   onNavigate: (view: View) => void;
   activeNote: Note | undefined;
   onNoteSelect: (id: string) => void;
+  isModelReady: boolean;
+  modelStatus: string;
 }
 
 function NoteCard({ note, onSelect, isActive }: { note: Note, onSelect: (id: string) => void, isActive: boolean }) {
   return (
     <article 
       onClick={() => onSelect(note.id)} 
-      className={`bg-gray-800/50 p-4 rounded-lg shadow-md hover:bg-gray-700/50 transition-colors duration-200 cursor-pointer ${isActive ? 'ring-2 ring-indigo-500' : ''}`}>
-      <div className="text-xs text-gray-400 mb-2">{new Date(note.updatedAt).toLocaleString()}</div>
+      className={`bg-surface-2 p-4 rounded-lg shadow-md hover:bg-surface-2/50 transition-colors duration-200 cursor-pointer ${isActive ? 'ring-2 ring-accent' : ''}`}>
+      <div className="text-xs text-text-secondary mb-2">{new Date(note.updatedAt).toLocaleString()}</div>
       <div 
         className="prose prose-invert prose-sm max-h-24 overflow-hidden text-ellipsis"
         dangerouslySetInnerHTML={{ __html: note.content }}
       />
       <div className="mt-2 flex flex-wrap gap-1">
         {note.tags.map(tag => (
-          <span key={tag} className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded-full">{tag}</span>
+          <span key={tag} className="text-xs bg-surface text-text-secondary px-2 py-1 rounded-full">{tag}</span>
         ))}
       </div>
     </article>
@@ -63,6 +65,8 @@ export default function TodayCanvasScreen({
   onNavigate,
   activeNote,
   onNoteSelect,
+  isModelReady,
+  modelStatus,
 }: TodayCanvasScreenProps) {
   const [editorContent, setEditorContent] = useState('');
   const [isFabModalOpen, setIsFabModalOpen] = useState(false);
@@ -78,10 +82,10 @@ export default function TodayCanvasScreen({
   };
 
   return (
-    <div className="bg-gray-900 text-white min-h-screen flex flex-col">
-      <header className="flex items-center justify-between p-4 border-b border-gray-700">
+    <div className="bg-surface text-text-primary font-sans min-h-screen flex flex-col">
+      <header className="flex items-center justify-between p-4 border-b border-surface-2">
         <div className="flex items-center gap-2">
-            <Home onClick={() => onNavigate('today')} className="cursor-pointer" />
+            <Home onClick={() => onNavigate('today')} className="cursor-pointer hover:text-accent" />
             <h1 className="text-xl font-bold">Continuum</h1>
         </div>
         <div className="flex items-center gap-2">
@@ -92,8 +96,10 @@ export default function TodayCanvasScreen({
             suggestedQuestions={suggestedQuestions}
             isLoadingSuggestions={isLoadingSuggestions}
             suggestionError={suggestionError}
+            isModelReady={isModelReady}
+            modelStatus={modelStatus}
           />
-          <button onClick={() => onNavigate('settings')} className="p-2 rounded-full hover:bg-gray-700">
+          <button onClick={() => onNavigate('settings')} className="p-2 rounded-full hover:bg-surface-2">
             <Settings size={20} />
           </button>
         </div>
@@ -118,7 +124,7 @@ export default function TodayCanvasScreen({
 
         {/* Right Column: Editor */}
         <div className="h-full flex flex-col">
-            <div className="flex-1 rounded-lg bg-gray-800/50 p-1">
+            <div className="flex-1 rounded-lg bg-surface-2 p-1">
                  <RichNoteEditor note={activeNote} autoFocus onSave={setEditorContent} />
             </div>
         </div>
@@ -130,16 +136,16 @@ export default function TodayCanvasScreen({
           onClick={() => setIsFabModalOpen(false)}
         >
           <div 
-            className="bg-gray-800 p-4 rounded-t-2xl w-full max-w-md animate-slideInUp"
+            className="bg-surface-2 p-4 rounded-t-2xl w-full max-w-md animate-slideInUp"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="grid grid-cols-2 gap-4 text-center">
-              <button onClick={handleNewNoteClick} className="flex flex-col items-center p-4 rounded-lg hover:bg-gray-700 transition-colors">
-                <PenSquare size={28} className="mb-2" />
+              <button onClick={handleNewNoteClick} className="flex flex-col items-center p-4 rounded-lg hover:bg-surface transition-colors">
+                <PenSquare size={28} className="mb-2 text-accent" />
                 <span>새 노트 작성</span>
               </button>
-              <button onClick={handleAttachmentClick} className="flex flex-col items-center p-4 rounded-lg hover:bg-gray-700 transition-colors">
-                <FilePlus size={28} className="mb-2" />
+              <button onClick={handleAttachmentClick} className="flex flex-col items-center p-4 rounded-lg hover:bg-surface transition-colors">
+                <FilePlus size={28} className="mb-2 text-accent" />
                 <span>첨부파일</span>
               </button>
             </div>
@@ -149,7 +155,7 @@ export default function TodayCanvasScreen({
 
       <button
         onClick={() => setIsFabModalOpen(true)}
-        className={`fixed bottom-6 right-6 h-14 w-14 bg-indigo-600 text-white rounded-full shadow-lg flex items-center justify-center transition-transform duration-200 hover:scale-110`}>
+        className={`fixed bottom-6 right-6 h-14 w-14 bg-accent text-white rounded-full shadow-lg flex items-center justify-center transition-transform duration-200 hover:scale-110`}>
         <Plus size={28} />
       </button>
     </div>

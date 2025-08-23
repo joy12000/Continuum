@@ -8,31 +8,34 @@ interface SearchBarProps {
   suggestedQuestions: string[];
   isLoadingSuggestions: boolean;
   suggestionError: string | null;
+  isModelReady: boolean;
+  modelStatus: string;
 }
 
 export function SearchBar({
-  q, setQ, onFocus, suggestedQuestions, isLoadingSuggestions, suggestionError
+  q, setQ, onFocus, suggestedQuestions, isLoadingSuggestions, suggestionError, isModelReady, modelStatus
 }: SearchBarProps) {
   return (
-    <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
+    <div className="relative w-full max-w-md">
       <div className="relative">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <Search className="h-5 w-5 text-slate-400" />
+          <Search className="h-5 w-5 text-text-secondary" />
         </div>
         <input
           type="search"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onFocus={onFocus}
-          placeholder="과거의 나에게 질문하기..."
-          className="w-full p-3 pl-10 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition"
+          placeholder={isModelReady ? "Ask your past self..." : modelStatus}
+          className="w-full p-3 pl-10 bg-surface-2 text-text-primary rounded-lg shadow-sm focus:ring-2 focus:ring-accent focus:outline-none transition disabled:opacity-50"
+          disabled={!isModelReady}
         />
       </div>
 
       <div className="mt-2 text-center">
         {isLoadingSuggestions && (
-          <div className="text-sm text-slate-500 dark:text-slate-400 animate-pulse">
-            질문 제안 중...
+          <div className="text-sm text-text-secondary animate-pulse">
+            Generating suggestions...
           </div>
         )}
 
@@ -42,7 +45,7 @@ export function SearchBar({
               <button
                 key={index}
                 onClick={() => setQ(question)}
-                className="px-3 py-1 text-sm bg-indigo-100 text-indigo-900 rounded-lg hover:bg-indigo-200 dark:bg-indigo-900 dark:text-indigo-300 dark:hover:bg-indigo-800 transition"
+                className="px-3 py-1 text-sm bg-surface-2 text-text-secondary rounded-lg hover:bg-surface transition"
               >
                 {question}
               </button>

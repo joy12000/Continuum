@@ -11,6 +11,7 @@ import Diagnostics from './components/Diagnostics'; // 기본 가져오기 유�
 import { Toasts } from './components/Toasts';
 import { AnswerData, SearchResult } from './types/common';
 import { getConfig } from './lib/config'; // getConfig 가져오기
+import { getSemanticAdapter } from "./lib/semantic";
 
 // --- 타입 정의 ---
 type View = 'today' | 'settings' | 'diagnostics';
@@ -46,7 +47,7 @@ export default function App() {
 // --- Periodic Sync support check ---
 const [supportsPeriodic, setSupportsPeriodic] = React.useState<boolean>(true);
 React.useEffect(() => {
-  const ok =
+  const ok = 
     typeof navigator !== 'undefined' &&
     'serviceWorker' in navigator &&
     // @ts-ignore experimental
@@ -60,6 +61,8 @@ React.useEffect(() => {
   const [debouncedQ, setDebouncedQ] = useState(q);
   const [engine, setEngine] = useState<'auto' | 'remote'>((localStorage.getItem('semanticEngine') as any) || 'auto');
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
+  const [modelStatus, setModelStatus] = useState("확인 중…");
+  const [isModelReady, setIsModelReady] = useState(false);
   
   // 제안 질문 관련 상태
   const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
@@ -89,6 +92,41 @@ React.useEffect(() => {
 
   // --- useEffect 훅 ---
 
+  // 모델 상태 체크
+  useEffect(() => {
+    let dead = false;
+
+    const updateStatus = (message: string) => {
+      if (!dead) setModelStatus(message);
+    };
+
+    const checkLocalEngine = async () => {
+      updateStatus("로컬 엔진 준비 중…");
+      try {
+        const a = await getSemanticAdapter("auto");
+        const ok = await a.ensureReady();
+        
+        if (dead) return;
+        updateStatus(ok ? "로컬 임베딩 준비 완료(onnxruntime)" : "로컬 임베딩 없음(해시 사용)");
+        setIsModelReady(ok);
+
+      } catch (error) {
+        console.error("Failed to prepare local engine:", error);
+        updateStatus("로컬 엔진 준비 실패. 원격 API 사용.");
+        setIsModelReady(false);
+      }
+    };
+
+    if (engine === "remote") {
+      updateStatus("원격 API 사용");
+      setIsModelReady(true); // Remote API is always ready
+    } else {
+      checkLocalEngine();
+    }
+
+    return () => { dead = true; };
+  }, [engine]);
+
   // 검색어 디바운스 처리
   useEffect(() => {
     const handler = setTimeout(() => setDebouncedQ(q), 300);
@@ -111,7 +149,7 @@ React.useEffect(() => {
   // 시맨틱 검색 결과 계산 및 finalResults 융합
   useEffect(() => {
     const performSemanticSearch = async () => {
-      if (!debouncedQ.trim()) {
+      if (!debouncedQ.trim() || !isModelReady) {
         setSemanticResults([]);
         return;
       }
@@ -145,7 +183,7 @@ React.useEffect(() => {
     };
 
     performSemanticSearch();
-  }, [debouncedQ, engine, semWorker, notes]);
+  }, [debouncedQ, engine, semWorker, notes, isModelReady]);
 
   // 검색 결과 계산 (BM25와 시맨틱 결과 융합)
   const finalResults = useMemo(() => {
@@ -266,7 +304,7 @@ React.useEffect(() => {
   const renderView = () => {
     switch (view) {
       case 'settings':
-        return <Settings engine={engine} setEngine={setEngine} onNavigateHome={() => setView('today')} onNavigateToDiagnostics={() => setView('diagnostics')} />;
+        return <Settings engine={engine} setEngine={setEngine} onNavigateHome={() => setView('today')} onNavigateToDiagnostics={() => setView('diagnostics')} modelStatus={modelStatus} />;
       case 'diagnostics':
         return <Diagnostics onBack={() => setView('settings')} />;
       case 'today':
@@ -285,6 +323,8 @@ React.useEffect(() => {
             onNewNote={handleNewNote}
             activeNote={activeNote}
             onNoteSelect={setActiveNoteId}
+            isModelReady={isModelReady}
+            modelStatus={modelStatus}
           />
         );
     }

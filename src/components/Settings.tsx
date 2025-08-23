@@ -5,10 +5,11 @@ import ConfirmModal from "./ConfirmModal";
 import { toast } from "../lib/toast";
 import { DedupSuggestions } from "./DedupSuggestions";
 import { Home } from 'lucide-react';
+import { ModelStatus } from "./ModelStatus";
 
 type Engine = "auto" | "remote";
 
-export function Settings({ engine, setEngine, onNavigateHome, onNavigateToDiagnostics }: { engine: Engine, setEngine: (e: Engine) => void, onNavigateHome: () => void, onNavigateToDiagnostics: () => void }) {
+export function Settings({ engine, setEngine, onNavigateHome, onNavigateToDiagnostics, modelStatus }: { engine: Engine, setEngine: (e: Engine) => void, onNavigateHome: () => void, onNavigateToDiagnostics: () => void, modelStatus: string }) {
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(false);
@@ -140,71 +141,74 @@ export function Settings({ engine, setEngine, onNavigateHome, onNavigateToDiagno
   };
 
   return (
-    <div className="p-4 bg-gray-900 text-white min-h-screen">
+    <div className="p-4 bg-surface text-text-primary font-sans min-h-screen">
       <header className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">설정</h1>
-        <button onClick={onNavigateHome} className="btn btn-ghost p-2">
+        <button onClick={onNavigateHome} className="p-2 rounded-full hover:bg-surface-2">
           <Home size={24} />
         </button>
       </header>
 
       <div className="space-y-6">
-        <div className="card bg-gray-800/50">
+        <div className="card bg-surface-2 p-4 rounded-lg">
           <h2 className="text-lg font-semibold mb-3">임베딩 모드</h2>
           <select 
             value={engine} 
             onChange={(e) => setEngine(e.target.value as Engine)}
-            className="select select-bordered w-full bg-gray-700 text-white"
+            className="select select-bordered w-full bg-surface text-text-primary"
           >
             <option value="auto">자동 (On-device)</option>
             <option value="remote">원격 API</option>
           </select>
-          <p className="text-sm text-gray-400 mt-2">
+          <p className="text-sm text-text-secondary mt-2">
             '자동'은 기기 내에서 임베딩을 처리하여 빠르고 프라이버시가 보호됩니다. '원격 API'는 더 강력한 모델을 사용하지만 인터넷 연결이 필요합니다.
           </p>
+          <div className="mt-2">
+            <ModelStatus status={modelStatus} />
+          </div>
         </div>
 
-        <div className="card bg-gray-800/50">
+        <div className="card bg-surface-2 p-4 rounded-lg">
           <h2 className="text-lg font-semibold mb-3">데이터 관리</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <button onClick={handleExportNotes} className="btn btn-outline flex-1">
+            <button onClick={handleExportNotes} className="btn bg-accent text-white flex-1">
               모든 노트 내보내기 (JSON)
             </button>
             <input type="file" accept=".json" onChange={handleImportNotes} className="hidden" id="import-notes-file-input" />
-            <label htmlFor="import-notes-file-input" className="btn btn-outline flex-1 cursor-pointer text-center">
+            <label htmlFor="import-notes-file-input" className="btn bg-accent text-white flex-1 cursor-pointer text-center">
               노트 가져오기 (JSON)
             </label>
           </div>
         </div>
 
-        <div className="card bg-gray-800/50">
+        <div className="card bg-surface-2 p-4 rounded-lg">
           <h2 className="text-lg font-semibold mb-3">스냅샷 관리</h2>
-          <button onClick={handleCreateSnapshot} disabled={loading} className="btn btn-primary mb-4 w-full">
+          <button onClick={handleCreateSnapshot} disabled={loading} className="btn bg-accent text-white mb-4 w-full">
             {loading ? '스냅샷 생성 중...' : '현재 상태 스냅샷 생성'}
           </button>
           {error && <div className="text-red-500 mb-4">{error}</div>}
           {snapshots.length === 0 ? (
-            <p className="text-slate-400">저장된 스냅샷이 없습니다.</p>
+            <p className="text-text-secondary">저장된 스냅샷이 없습니다.</p>
           ) : (
             <ul className="space-y-2">
               {snapshots.map(snapshot => (
-                <li key={snapshot.id} className="flex justify-between items-center p-2 bg-gray-700/50 rounded-md">
+                <li key={snapshot.id} className="flex justify-between items-center p-2 bg-surface rounded-md">
                   <span>{new Date(snapshot.createdAt).toLocaleString()} ({snapshot.noteCount} 노트)</span>
-                  <button onClick={() => handleRestoreClick(snapshot)} className="btn btn-sm">복원</button>
+                  <button onClick={() => handleRestoreClick(snapshot)} className="btn btn-sm bg-accent text-white">복원</button>
                 </li>
               ))}
             </ul>
           )}
         </div>
 
-        <div className="card bg-gray-800/50">
+        <div className="card bg-surface-2 p-4 rounded-lg">
           <h2 className="text-lg font-semibold mb-3">중복 노트 관리</h2>
           <DedupSuggestions notes={notes} engine={engine} onMerge={handleMerge} />
         </div>
 
-        <div className="card bg-gray-800/50">
+        <div className="card bg-surface-2 p-4 rounded-lg">
            <h2 className="text-lg font-semibold mb-3">개발자</h2>
-          <button onClick={onNavigateToDiagnostics} className="w-full text-left p-2 text-blue-400 hover:underline">
+          <button onClick={onNavigateToDiagnostics} className="w-full text-left p-2 text-accent hover:underline">
             개발자 도구
           </button>
         </div>
