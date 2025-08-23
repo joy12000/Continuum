@@ -59,6 +59,7 @@ React.useEffect(() => {
   const [q, setQ] = useState('');
   const [debouncedQ, setDebouncedQ] = useState(q);
   const [engine, setEngine] = useState<'auto' | 'remote'>((localStorage.getItem('semanticEngine') as any) || 'auto');
+  const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
   
   // 제안 질문 관련 상태
   const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
@@ -252,15 +253,22 @@ React.useEffect(() => {
 
   const handleNewNote = useCallback(() => {
     const now = Date.now();
+    const newNoteId = crypto.randomUUID();
     db.notes.add({
-      id: crypto.randomUUID(),
+      id: newNoteId,
       content: '',
       createdAt: now,
       updatedAt: now,
       tags: [],
     });
     setQ('');
+    setActiveNoteId(newNoteId);
   }, []);
+
+  const activeNote = useMemo(() => {
+    if (!activeNoteId) return null;
+    return notes.find(n => n.id === activeNoteId) || null;
+  }, [notes, activeNoteId]);
 
   // --- 렌더링 ---
   const renderView = () => {
@@ -283,6 +291,8 @@ React.useEffect(() => {
             suggestionError={suggestionError}
             generatedAnswer={generatedAnswer}
             onNewNote={handleNewNote}
+            activeNote={activeNote}
+            onNoteSelect={setActiveNoteId}
           />
         );
     }
