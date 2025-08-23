@@ -27,7 +27,7 @@ interface TodayCanvasScreenProps {
   };
   onNewNote: () => void;
   onNavigate: (view: View) => void;
-  activeNote: Note | null;
+  activeNote: Note | undefined;
   onNoteSelect: (id: string) => void;
 }
 

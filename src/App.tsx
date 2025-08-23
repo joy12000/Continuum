@@ -266,8 +266,8 @@ React.useEffect(() => {
   }, []);
 
   const activeNote = useMemo(() => {
-    if (!activeNoteId) return null;
-    return notes.find(n => n.id === activeNoteId) || null;
+    if (!activeNoteId) return undefined;
+    return notes.find(n => n.id === activeNoteId) || undefined;
   }, [notes, activeNoteId]);
 
   // --- 렌더링 ---
