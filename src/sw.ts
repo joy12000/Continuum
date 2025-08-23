@@ -1,6 +1,6 @@
 
 // ---- Safe Cache.put helper to avoid 'Cache.put() encountered a network error' ----
-async function safeCachePut(cache, request, response) {
+async function safeCachePut(cache: Cache, request: Request, response: Response) {
   try {
     if (request.method !== 'GET') return;
     const url = new URL(request.url);
@@ -91,10 +91,6 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   const url = new URL(event.request.url);
   if (event.request.method === 'GET' && (url.pathname.startsWith('/models/') || url.pathname.startsWith('/tokenizers/'))) {
     // Bypass SW for heavy model assets; let browser HTTP cache handle them
-    return;
-  }
-return resp;
-    })());
     return;
   }
   if (event.request.method === "POST" && url.pathname === "/share") {

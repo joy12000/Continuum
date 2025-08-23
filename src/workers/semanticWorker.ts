@@ -1,18 +1,12 @@
 /// <reference lib="webworker" />
 import * as ort from 'onnxruntime-web';
-
-// ---- Init lock & single-fetch cache ----
-let __initInFlight: Promise<void> | null = null;
-let __initDone = false;
-let __modelBuffer: ArrayBuffer | null = null;
-let __session: any | null = null;
-let __lastFailAt = 0;
 import { AutoTokenizer, env } from '@xenova/transformers';
 
 ;(env as any).allowRemoteModels = false;
 ;(env as any).localModelPath = '/models';
 
-type EmbedVec = number[];
+let __initInFlight: Promise<void> | null = null;
+let __initDone = false;
 
 class SemanticPipeline {
   private static _inst: SemanticPipeline | null = null;
@@ -24,31 +18,36 @@ class SemanticPipeline {
   private inputNames: string[] = [];
 
   async init() {
-  if (__initDone) return;
-  if (__initInFlight) { await __initInFlight; return; }
-  __initInFlight = (async () => {
-    try {
-      // existing init body starts
+    if (__initDone) return;
+    if (__initInFlight) { await __initInFlight; return; }
+    __initInFlight = (async () => {
+      try {
+        if (this.ready) return;
 
-    if (this.ready) return;
+        ort.env.wasm.wasmPaths = {
+          mjs:  '/ort/ort-wasm-simd-threaded.mjs',
+          wasm: '/ort/ort-wasm-simd-threaded.wasm',
+        };
+        ort.env.wasm.numThreads = Math.min(4, (self as any).navigator?.hardwareConcurrency || 1);
 
-    ort.env.wasm.wasmPaths = {
-      mjs:  '/ort/ort-wasm-simd-threaded.mjs',
-      wasm: '/ort/ort-wasm-simd-threaded.wasm',
-    };
-    ort.env.wasm.numThreads = Math.min(4, (self as any).navigator?.hardwareConcurrency || 1);
+        const MODEL_DIR = '/models/ko-sroberta';
+        console.log('[SemanticWorker] Initializing...', { MODEL_DIR });
 
-    const MODEL_DIR = '/models/ko-sroberta';
-    console.log('[SemanticWorker] Initializing...', { MODEL_DIR });
+        this.session = await ort.InferenceSession.create(`${MODEL_DIR}/ko-sroberta-multitask_quantized.onnx`);
+        this.tokenizer = await AutoTokenizer.from_pretrained('ko-sroberta');
 
-    this.session = await ort.InferenceSession.create(`${MODEL_DIR}/ko-sroberta-multitask_quantized.onnx`).catch(async () => {
-      return await ort.InferenceSession.create(`${MODEL_DIR}/model_qint8_avx512_vnni.onnx`);
-    });
-    this.tokenizer = await AutoTokenizer.from_pretrained('ko-sroberta');
-
-    this.inputNames = (this.session as any).inputNames || [];
-    this.ready = true;
-    console.log('[SemanticWorker] Pipeline initialized.', { inputNames: this.inputNames });
+        this.inputNames = (this.session as any).inputNames || [];
+        this.ready = true;
+        console.log('[SemanticWorker] Pipeline initialized.', { inputNames: this.inputNames });
+        __initDone = true;
+      } catch (e) {
+        console.error("Failed to initialize semantic worker", e);
+        throw e;
+      } finally {
+        __initInFlight = null;
+      }
+    })();
+    await __initInFlight;
   }
 
   private ensureTokenType(idsDims: number[]): ort.Tensor {
@@ -68,13 +67,15 @@ class SemanticPipeline {
     return Array.from(out);
   }
 
-  async embed(text: string): Promise<EmbedVec> {
+  async embed(text: string): Promise<number[]> {
     if (!this.ready) await this.init();
     if (!this.session || !this.tokenizer) throw new Error('Pipeline not ready');
 
-    // ✅ batch tokenize -> Transformers.js returns Tensor with .data and .dims (not .shape)
     const enc: any = await this.tokenizer([text], { return_tensors: 'np', padding: true, truncation: true });
 
+    if (!enc.input_ids || !enc.attention_mask) {
+      throw new Error('Tokenizer did not return input_ids or attention_mask');
+    }
     const idsData  = enc.input_ids.data as any;
     const maskData = enc.attention_mask.data as any;
 
@@ -106,18 +107,6 @@ class SemanticPipeline {
     }
     return Array.from(data);
   }
-      // existing init body ends
-      __initDone = true;
-    } catch (e) {
-      __lastFailAt = Date.now();
-      throw e;
-    } finally {
-      __initInFlight = null;
-    }
-  })();
-  await __initInFlight;
-  return;
-
 }
 
 self.onmessage = async (event: MessageEvent) => {
