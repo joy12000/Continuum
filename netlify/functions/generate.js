@@ -233,7 +233,7 @@ exports.handler = async (event) => {
     const prompt = buildPrompt({ question, context: trimmed });
 
     // ✅ 핵심 수정: 배열이 아니라 'contents' 요청 객체로 전달
-    const resp = await const __resp = await model.generateContent({ contents, systemInstruction: SYSTEM_PROMPT });
+    const resp = await model.generateContent({ contents: [{ role: "user", parts: [{ text: prompt }] }] });
 
     const raw = resp?.response?.text?.() ?? "";
     let json = tryParseJSON(raw);
