@@ -205,3 +205,5 @@ export function Settings({ onChange, onNavigateToDiagnostics }: { onChange?: (e:
     </>
   );
 }
+
+{/* Periodic Sync support flag: (window as any).__SUPPORTS_PERIODIC_SYNC__ */}
