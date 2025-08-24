@@ -248,12 +248,12 @@ export default function App() {
     }
   }, [notes, suggestedQuestions, isLoadingSuggestions]);
 
-  const handleNewNote = useCallback(() => {
+  const handleNewNote = useCallback((content: string = '') => {
     const now = Date.now();
     const newNoteId = crypto.randomUUID();
     db.notes.add({
       id: newNoteId,
-      content: '',
+      content,
       createdAt: now,
       updatedAt: now,
       tags: [],
@@ -310,27 +310,21 @@ export default function App() {
         bottomBarSelector="#tabbar"
       />
       {renderView()}
-      {editorOpen && (
-        <OverlayEditor
-          note={activeNote}
-          onClose={() => setEditorOpen(false)}
-          onSave={() => {
-            setEditorOpen(false);
-            window.dispatchEvent(new CustomEvent('sky:record-complete'));
-          }}
-        />
-      )}
-      {answerOpen && generatedAnswer.data && (
-        <AnswerCardsModal
-          answer={generatedAnswer.data}
-          onClose={() => setAnswerOpen(false)}
-        />
-      )}
-      {generatedAnswer.data && !answerOpen && (
-        <div className="fixed bottom-20 right-4 z-50">
-            <GeneratedAnswer data={generatedAnswer.data} />
-        </div>
-      )}
+      <OverlayEditor
+        open={editorOpen}
+        onClose={() => setEditorOpen(false)}
+        onSubmit={(text) => {
+          handleNewNote(text);
+          setEditorOpen(false);
+          window.dispatchEvent(new CustomEvent('sky:record-complete'));
+        }}
+      />
+      <AnswerCardsModal
+        open={answerOpen}
+        onClose={() => setAnswerOpen(false)}
+      >
+        {generatedAnswer.data && <GeneratedAnswer data={generatedAnswer.data} />}
+      </AnswerCardsModal>
     </div>
   );
 }
