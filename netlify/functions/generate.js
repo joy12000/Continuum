@@ -214,31 +214,31 @@ exports.handler = async (event) => {
     const question = String(payload.question || "");
 
 // --- daily_summary (lenient) ---
-const reqType = String(payload.type || payload.mode || payload.action || "");
-const looksLikeQAContext = Array.isArray(payload.context) && payload.context.length && payload.context.every(x => typeof x?.q === "string");
-if (reqType === "daily_summary" || looksLikeQAContext) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  const tomorrow = String(payload.tomorrow || "");
-  const qa = Array.isArray(payload.context) ? payload.context : [];
+const __reqType = String(payload.type || payload.mode || payload.action || "");
+const __looksLikeQAContext = Array.isArray(payload.context) && payload.context.length && payload.context.every(x => typeof x?.q === "string");
+if (__reqType === "daily_summary" || __looksLikeQAContext) {
+  const __apiKey = process.env.GEMINI_API_KEY;
+  const __tomorrow = String(payload.tomorrow || "");
+  const __qa = Array.isArray(payload.context) ? payload.context : [];
   // If no key, do a local fallback summary so user never loses their diary
-  async function localFallback() {
-    const title = (qa.find(x => /뭐했/.test(x.q))?.a || "오늘의 일기").slice(0,30);
+  async function __localFallback() {
+    const title = (__qa.find(x => /뭐했/.test(x.q))?.a || "오늘의 일기").slice(0,30);
     const bullets = [];
     const pick = (kw, label) => {
-      const f = qa.find(x => x.q.includes(kw));
+      const f = __qa.find(x => x.q.includes(kw));
       if (f && String(f.a || "").trim()) bullets.push(`${label}: ${String(f.a).trim()}`);
     };
     pick("잘 된", "잘 된 것");
     pick("막힌", "막힌 것");
     pick("배운", "배운 것");
-    return { title, summary: qa.map(x => `${x.q} ${x.a || ""}`).join("\n").slice(0,800), bullets, tomorrow, tags: ["#daily"] };
+    return { title, summary: __qa.map(x => `${x.q} ${x.a || ""}`).join("\n").slice(0,800), bullets, tomorrow: __tomorrow, tags: ["#daily"] };
   }
 
   let out = null;
-  if (apiKey) {
+  if (__apiKey) {
     try {
       const { GoogleGenerativeAI } = require("@google/generative-ai");
-      const genAI = new GoogleGenerativeAI(apiKey);
+      const genAI = new GoogleGenerativeAI(__apiKey);
       const modelName = process.env.GEMINI_MODEL || "gemini-1.5-flash";
       const model = genAI.getGenerativeModel({ model: modelName });
       const prompt = [
@@ -246,7 +246,7 @@ if (reqType === "daily_summary" || looksLikeQAContext) {
         "반드시 순수 JSON만. 형식: { \"title\": \"...\", \"summary\": \"...\", \"bullets\": [\"...\"], \"tomorrow\": \"...\", \"tags\": [\"#daily\"] }",
         "사실/숫자 왜곡 금지. 한국어."
       ].join("\n");
-      const resp = await model.generateContent({ contents: [{ role: "user", parts: [{ text: prompt + "\n\n" + JSON.stringify({ qa, tomorrow }) }] }] } );
+      const resp = await model.generateContent({ contents: [{ role: "user", parts: [{ text: prompt + "\n\n" + JSON.stringify({ qa: __qa, tomorrow: __tomorrow }) }] }] } );
       const raw = (resp?.response?.text?.() || "").trim();
       try {
         out = JSON.parse(raw);
@@ -258,13 +258,13 @@ if (reqType === "daily_summary" || looksLikeQAContext) {
       console.error("[daily_summary] online gen failed:", e);
     }
   }
-  if (!out) out = await localFallback();
+  if (!out) out = await __localFallback();
 
   const normalized = {
     title: String(out.title || "오늘의 일기"),
     summary: String(out.summary || ""),
     bullets: Array.isArray(out.bullets) ? out.bullets.map(String).slice(0,6) : [],
-    tomorrow: String(out.tomorrow || tomorrow || ""),
+    tomorrow: String(out.tomorrow || __tomorrow || ""),
     tags: Array.isArray(out.tags) ? out.tags.map(String) : ["#daily"]
   };
   // Return both shapes for backward-compat
