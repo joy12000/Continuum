@@ -11,14 +11,75 @@ import { AutoTokenizer, env } from '@xenova/transformers';
 
 type EmbedVec = number[];
 
+class IDBCache {
+  private db: IDBDatabase | null = null;
+  private dbName: string;
+  private storeName: string;
+
+  constructor(dbName = "model-cache-db", storeName = "model-cache-store") {
+    this.dbName = dbName;
+    this.storeName = storeName;
+  }
+
+  private async open(): Promise<IDBDatabase> {
+    if (this.db) return this.db;
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.dbName, 1);
+      request.onupgradeneeded = () => {
+        request.result.createObjectStore(this.storeName);
+      };
+      request.onsuccess = () => {
+        this.db = request.result;
+        resolve(request.result);
+      };
+      request.onerror = () => {
+        reject(request.error);
+      };
+    });
+  }
+
+  async get(key: string): Promise<ArrayBuffer | null> {
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(this.storeName, "readonly");
+      const store = transaction.objectStore(this.storeName);
+      const request = store.get(key);
+      request.onsuccess = () => {
+        resolve(request.result);
+      };
+      request.onerror = () => {
+        reject(request.error);
+      };
+    });
+  }
+
+  async set(key: string, value: ArrayBuffer): Promise<void> {
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(this.storeName, "readwrite");
+      const store = transaction.objectStore(this.storeName);
+      const request = store.put(value, key);
+      request.onsuccess = () => {
+        resolve();
+      };
+      request.onerror = () => {
+        reject(request.error);
+      };
+    });
+  }
+}
+
+const idbCache = new IDBCache();
+
 async function __fetchModelOnce(url: string): Promise<ArrayBuffer> {
-  // Use HTTP cache aggressively; SW may also cache by URL.
-  // Avoid multiple parallel downloads by memoizing the result in a self-scoped variable.
-  if ((self as any).__modelBuf) return (self as any).__modelBuf as ArrayBuffer;
-  const res = await fetch(url, { cache: 'force-cache' });
-  if (!res.ok) throw new Error('model fetch failed: ' + res.status);
+  const cached = await idbCache.get(url);
+  if (cached) {
+    return cached;
+  }
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`model fetch failed: ${res.status}`);
   const buf = await res.arrayBuffer();
-  (self as any).__modelBuf = buf;
+  await idbCache.set(url, buf);
   return buf;
 }
 
