@@ -4,13 +4,17 @@ export interface Attachment { id: string; noteId: string; name: string; type: st
 export interface Embedding { id?: number; noteId: string; vec: number[]; updatedAt?: number; }
 export interface DedupLog { id?: number; ts: number; sim: number; accepted: boolean; }
 export interface Snapshot {
-  // existing
-
   id: string;
   createdAt: number;
   noteCount: number;
 }
-export interface DayIndex { date: string; noteId?: string; tomorrow?: string; notify?: boolean; updatedAt: number; }
+export interface DayIndex { date: string; noteId: string; tomorrow?: string; }
+export interface DayIndex { date: string; noteId: string; tomorrow?: string; }
+export class AppDB
+  id: string;
+  createdAt: number;
+  noteCount: number;
+}
 export class AppDB extends Dexie {
   notes!: Table<Note, string>;
   attachments!: Table<Attachment, string>;
@@ -27,15 +31,7 @@ export class AppDB extends Dexie {
       dedup_logs: "++id, ts, sim, accepted",
       snapshots: 'id, createdAt'
     });
-    this.version(2).stores({
-      notes: "id, createdAt, updatedAt, *tags",
-      attachments: "id, noteId, createdAt",
-      embeddings: "++id, noteId",
-      dedup_logs: "++id, ts, sim, accepted",
-      snapshots: "id, createdAt",
-      day_index: "date"
-    });
-
+    this.version(2).stores({ day_index: 'date' });
   }
 
   async mergeNotes(keepId: string, removeIds: string[]) {
@@ -71,6 +67,7 @@ export class AppDB extends Dexie {
       // Delete the removed notes
       await this.notes.bulkDelete(removeIds);
     });
+    this.version(2).stores({ day_index: 'date' });
   }
 }
 export const db = new AppDB();

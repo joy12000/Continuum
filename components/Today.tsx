@@ -5,8 +5,6 @@ import { db, Note } from "../lib/db";
 import { Attachment } from "../lib/db";
 import { toast } from "../lib/toast";
 import { GeneratedAnswer } from "./GeneratedAnswer";
-import RelatedFromPast from "./RelatedFromPast";
-import TomorrowBox from "./TomorrowBox";
 import { AnswerData } from "../types/common";
 import { Mic, Save, Calendar, MessageSquare } from "lucide-react";
 
@@ -71,6 +69,29 @@ function VoiceNoteButton({ noteId }: { noteId?: string }) {
 }
 
 /** Five daily questions -> single diary note via /api/generate (type: daily_summary) */
+
+/** Tomorrow promise box: save one-liner to day_index[YYYY-MM-DD] */
+function TomorrowBox(){
+  const [text, setText] = React.useState<string>(()=> localStorage.getItem("tomorrow_draft") || "");
+  const today = new Date();
+  const date = today.toISOString().slice(0,10);
+  const save = async () => {
+    localStorage.setItem("tomorrow_draft","");
+    const rec = await (db as any).day_index?.get(date);
+    const noteId = rec?.noteId || "";
+    await (db as any).day_index?.put({ date, noteId, tomorrow: text });
+  };
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold">Tomorrow</h3>
+        <button className="btn" onClick={save}>저장</button>
+      </div>
+      <input value={text} onChange={e=>{ setText(e.target.value); localStorage.setItem("tomorrow_draft", e.target.value);}}
+        placeholder="내일 한 줄 약속..." className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700" />
+    </div>
+  );
+}
 function DailyCheckin({ onDone }:{ onDone?: (noteId:string)=>void }) {
   const QUESTIONS = [
     { key: "what", label: "오늘 뭐했어?" },
@@ -156,12 +177,6 @@ export default function Today(props: Props){
 
       {/* Daily Check‑in */}
       <DailyCheckin onDone={onNoteSelect}/>
-
-      {/* Related from your past */}
-      <RelatedFromPast seedText={(activeNote?.content || q || '')} />
-
-      {/* Tomorrow */}
-      <TomorrowBox />
 
       {/* Search */}
       <section className="space-y-2">
