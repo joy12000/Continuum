@@ -71,47 +71,66 @@ function VoiceNoteButton({ noteId }: { noteId?: string }) {
 /** Five daily questions -> single diary note via /api/generate (type: daily_summary) */
 function DailyCheckin({ onDone }:{ onDone?: (noteId:string)=>void }) {
   const QUESTIONS = [
-    { key: "what", label: "오늘 뭐했어?" },
-    { key: "wins", label: "잘 된 3가지?" },
-    { key: "block", label: "막힌 건?" },
-    { key: "learn", label: "배운 1가지?" },
-    { key: "tomorrow", label: "내일 한 줄 약속?" }
+    { key: "what", q: "오늘 뭐했어?" },
+    { key: "wins", q: "잘 된 3가지?" },
+    { key: "block", q: "막힌 건?" },
+    { key: "learn", q: "배운 1가지?" },
+    { key: "tomorrow", q: "내일 한 줄 약속?" }
   ] as const;
   const [answers, setAnswers] = useState<Record<string,string>>({});
-  const [busy, setBusy] = useState(false);
+  const [making, setMaking] = useState(false);
 
   function set(key:string, v:string){ setAnswers(a=>({ ...a, [key]: v })); }
 
-  async function submit() {
-    setBusy(true);
-    try{
+  async function handleMakeDiary() {
+    setMaking(true);
+    try {
       const payload = {
-        type: "daily_summary",
-        context: QUESTIONS.map(q=>({ q: q.label, a: String(answers[q.key] || "") })),
-        tomorrow: String(answers["tomorrow"] || "")
+        type: 'daily_summary',
+        context: QUESTIONS.map(x => ({ q: x.q, a: answers[x.key] || '' })),
+        tomorrow: answers['tomorrow'] || ''
       };
-      const res = await fetch("/api/generate", { method:"POST", headers:{ "content-type":"application/json" }, body: JSON.stringify(payload) });
-      const j = await res.json();
-      const now = Date.now();
-      const dateTag = "#" + new Date(now).toISOString().slice(0,10);
-      const title = j?.title || "오늘의 일기";
-      const bullets: string[] = Array.isArray(j?.bullets) ? j.bullets : [];
-      const summary: string = j?.summary || "";
-      const tomorrow: string = j?.tomorrow || (answers["tomorrow"] || "");
-      const content = [
-        `<h2>${title}</h2>`,
-        `<p>${summary}</p>`,
-        bullets.length ? `<ul>${bullets.map(b=>`<li>${b}</li>`).join("")}</ul>` : "",
-        tomorrow ? `<p><strong>내일:</strong> ${tomorrow}</p>` : ""
-      ].join("\n");
+      const r = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const j = await r.json().catch(()=>null);
+      const daily = j?.daily || null;
+
+      const dateTag = '#' + new Date().toISOString().slice(0,10);
+      const tags = ['#daily', dateTag];
+      let title = '오늘의 일기', summary = '', bullets = [], tomorrow = payload.tomorrow;
+
+      if (daily) {
+        title = daily.title || title;
+        summary = daily.summary || '';
+        bullets = Array.isArray(daily.bullets) ? daily.bullets : [];
+        tomorrow = daily.tomorrow || tomorrow;
+        if (Array.isArray(daily.tags)) tags.push(...daily.tags.filter((t: string)=>t!=='#daily'));
+      } else {
+        // 로컬 fallback
+        summary = payload.context.map(x => `${x.q} ${x.a}`).join('\n');
+      }
+
+      const md = [
+        `# ${title}`,
+        '', summary, '',
+        ...bullets.map((b: string)=>`• ${b}`),
+        '', `내일: ${tomorrow}`
+      ].join('\n');
+
       const id = crypto.randomUUID();
-      await db.notes.add({ id, content, createdAt: now, updatedAt: now, tags: ["#daily", dateTag] });
-      toast.success("일기 생성 완료");
+      const now = Date.now();
+      await db.notes.add({ id, content: md, createdAt: now, updatedAt: now, tags });
+      await (db as any).embeddings.put({ noteId: id, vec: [] }).catch(()=>{}); // 임시
+      // try { await (db as any).day_index?.put({ date: dateTag.slice(1), noteId: id, tomorrow }); } catch {}
+      toast.success('오늘 완료 🎉');
       onDone?.(id);
-    }catch(e:any){
-      toast.error("일기 생성 실패: " + (e?.message || e));
-    }finally{
-      setBusy(false);
+    } catch (e) {
+      toast.error('일기 생성 실패 — 로컬 저장으로 대체해주세요.');
+    } finally {
+      setMaking(false);
     }
   }
 
@@ -120,13 +139,13 @@ function DailyCheckin({ onDone }:{ onDone?: (noteId:string)=>void }) {
       <header className="flex items-center gap-2 font-semibold text-slate-200"><MessageSquare size={16}/> Daily Check‑in</header>
       {QUESTIONS.map(q=>(
         <div key={q.key} className="space-y-1">
-          <label className="text-sm text-slate-400">{q.label}</label>
+          <label className="text-sm text-slate-400">{q.q}</label>
           <textarea className="w-full rounded-lg bg-slate-900/50 border border-slate-700 p-2 text-sm"
             rows={q.key==="wins"?2:2} value={answers[q.key] || ""} onChange={e=>set(q.key, e.target.value)} placeholder="간단히 적어줘"/>
         </div>
       ))}
       <div className="flex justify-end">
-        <button className="btn" onClick={submit} disabled={busy}><Save size={16}/> 일기 만들기</button>
+        <button className="btn" onClick={handleMakeDiary} disabled={making}><Save size={16}/> 일기 만들기</button>
       </div>
     </section>
   );
@@ -149,8 +168,9 @@ export default function Today(props: Props){
       {/* Quick Write */}
       <section className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
         <h3 className="font-semibold mb-2">Quick Write</h3>
-        <RichNoteEditor note={activeNote} onSaved={() => { /* TODO: fix this, onSaved should probably pass the note id */ }} />
+        <RichNoteEditor note={activeNote} onSaved={() => activeNote && onNoteSelect(activeNote.id)} />
       </section>
+
 
       {/* Daily Check‑in */}
       <DailyCheckin onDone={onNoteSelect}/>
