@@ -4,4 +4,4 @@ dist/
 .env
 .DS_Store
 src/**/*.js
-src/**/*.js.map
+src/**/*.js.maptsconfig.tsbuildinfo 

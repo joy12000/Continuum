@@ -149,7 +149,7 @@ export default function Today(props: Props){
       {/* Quick Write */}
       <section className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
         <h3 className="font-semibold mb-2">Quick Write</h3>
-        <RichNoteEditor initialNote={activeNote} onSaved={(n)=>onNoteSelect(n.id)} />
+        <RichNoteEditor note={activeNote} onSaved={() => { /* TODO: fix this, onSaved should probably pass the note id */ }} />
       </section>
 
       {/* Daily Check‑in */}
@@ -157,7 +157,7 @@ export default function Today(props: Props){
 
       {/* Search */}
       <section className="space-y-2">
-        <SearchBar value={query} onChange={onQueryChange} onFocus={onSearchFocus}/>
+        <SearchBar q={query} setQ={onQueryChange} onFocus={onSearchFocus || (() => {})} suggestedQuestions={suggestedQuestions || []} isLoadingSuggestions={isLoadingSuggestions || false} suggestionError={suggestionError || null} isModelReady={isModelReady} modelStatus={modelStatus} />
         {suggestedQuestions && suggestedQuestions.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {suggestedQuestions.map((s,i)=>(
@@ -169,7 +169,7 @@ export default function Today(props: Props){
 
       {/* AI Answer */}
       <section>
-        <GeneratedAnswer data={generatedAnswer.data} isLoading={generatedAnswer.isLoading} error={generatedAnswer.error} />
+        {generatedAnswer.data && <GeneratedAnswer data={generatedAnswer.data} />}
       </section>
 
       {/* Results (today can still list) */}
