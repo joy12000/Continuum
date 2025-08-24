@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import type { DailySummary } from './HomeSky';
+import type { DailySummary } from '../types/tasks';
 
 export default function SummaryModal({ open, summary, onClose }: {
   open: boolean;

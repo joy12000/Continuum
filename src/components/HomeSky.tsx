@@ -81,7 +81,7 @@ const HomeSky = forwardRef<HomeSkyHandle, Props>(({ answerSignal = 0 }, ref) => 
         if (hit) continue;
         const phase = (t / 1000 + s.tw) * 2 * Math.PI;
         const alpha = 0.65 + 0.35 * Math.sin(phase);
-        ctx.fillStyle = f"rgba(255,255,255,{alpha})";
+        ctx.fillStyle = `rgba(255,255,255,${alpha})`;
         ctx.fillRect(s.x, s.y, 1, 1);
       }
 
@@ -109,7 +109,7 @@ const HomeSky = forwardRef<HomeSkyHandle, Props>(({ answerSignal = 0 }, ref) => 
         const a = 0.6 * (1 - p);
         ctx.beginPath();
         ctx.arc(sp.x, sp.y, r, 0, Math.PI * 2);
-        ctx.fillStyle = f"rgba(200,230,255,{a})";
+        ctx.fillStyle = `rgba(200,230,255,${a})`;
         ctx.fill();
         if (p >= 1) sparkle.current = null;
       }
