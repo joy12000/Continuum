@@ -35,86 +35,102 @@ export default function HomeSky({ onOpenSettings, onOpenEditor, onOpenSummary, l
   const celebrateUntilRef = useRef<number>(0);
 
   useEffect(() => {
-    const canvas = canvasRef.current!;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
     const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) return;
 
-    const dpr = Math.max(1, Math.min(2, (globalThis.devicePixelRatio || 1)));
-    const prefersReduced = globalThis.matchMedia && globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const dpr = Math.max(1, Math.min(2, (window.devicePixelRatio || 1)));
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     let w = 0, h = 0;
-    function resize() {
-      const { clientWidth, clientHeight } = canvas.parentElement as HTMLElement;
-      w = Math.max(1, clientWidth);
-      h = Math.max(1, clientHeight);
+    let raf = 0;
+
+    const resize = () => {
+      if (!canvas.parentElement) return;
+      w = canvas.parentElement.clientWidth;
+      h = canvas.parentElement.clientHeight;
       canvas.width = Math.floor(w * dpr);
       canvas.height = Math.floor(h * dpr);
-      canvas.style.width = w + 'px';
-      canvas.style.height = h + 'px';
+      canvas.style.width = `${w}px`;
+      canvas.style.height = `${h}px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       initStars();
-      draw(0);
-    }
+    };
 
-    function initStars() {
+    const initStars = () => {
       const area = w * h;
       const count = Math.max(60, Math.min(320, Math.floor(area / 6500)));
       const arr: Star[] = [];
-      for (let i=0;i<count;i++) {
+      for (let i = 0; i < count; i++) {
         arr.push({
-          id: i+1,
-          x: Math.random()*w,
-          y: Math.random()*h,
-          r: Math.random()*1.4 + 0.3,
-          tw: Math.random()*1.2 + 0.4,
-          phase: Math.random() * Math.PI * 2
+          id: i + 1,
+          x: Math.random() * w,
+          y: Math.random() * h,
+          r: Math.random() * 1.4 + 0.3,
+          tw: Math.random() * 1.2 + 0.4,
+          phase: Math.random() * Math.PI * 2,
         });
       }
       starsRef.current = arr;
-    }
+    };
 
-    let raf = 0;
     let last = 0;
-    function draw(t: number) {
-      if (t - last < 1000/30) { raf = requestAnimationFrame(draw); return; }
+    const draw = (t: number) => {
+      raf = requestAnimationFrame(draw);
+      if (t - last < 1000 / 30) return;
       last = t;
 
-      ctx.clearRect(0, 0, w, h);
-      const cid = celebrateId;
-      const now = performance.now();
-      for (const s of starsRef.current) {
-        let alpha = 0.85;
-        if (!prefersReduced) {
-          alpha = 0.55 + 0.45 * Math.sin(s.phase + t/1000 * s.tw);
-        }
-        // celebration star highlight
-        let rr = s.r;
-        if (cid && s.id === cid && now < celebrateUntilRef.current) {
-          rr = s.r + 0.8 + 0.4*Math.sin(t/160);
+      try {
+        ctx.clearRect(0, 0, w, h);
+        const cid = celebrateId;
+        const now = performance.now();
+
+        for (const s of starsRef.current) {
+          let alpha = 0.85;
+          if (!prefersReduced) {
+            alpha = 0.55 + 0.45 * Math.sin(s.phase + t / 1000 * s.tw);
+          }
+
+          let rr = s.r;
+          if (cid && s.id === cid && now < celebrateUntilRef.current) {
+            rr = s.r + 0.8 + 0.4 * Math.sin(t / 160);
+            ctx.save();
+            ctx.globalAlpha = 0.35;
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, rr * 4, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(170,200,255,0.45)';
+            ctx.fill();
+            ctx.restore();
+          }
+
           ctx.save();
-          ctx.globalAlpha = 0.35;
+          ctx.globalAlpha = alpha;
           ctx.beginPath();
-          ctx.arc(s.x, s.y, rr*4, 0, Math.PI*2);
-          ctx.fillStyle = 'rgba(170,200,255,0.45)';
+          ctx.arc(s.x, s.y, rr, 0, Math.PI * 2);
+          ctx.fillStyle = '#cfe3ff';
           ctx.fill();
           ctx.restore();
         }
-        ctx.save();
-        ctx.globalAlpha = alpha;
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, rr, 0, Math.PI*2);
-        ctx.fillStyle = '#cfe3ff';
-        ctx.fill();
-        ctx.restore();
+      } catch (error) {
+        console.error("Error in canvas draw loop:", error);
+        cancelAnimationFrame(raf);
       }
-      raf = requestAnimationFrame(draw);
-    }
+    };
 
     const ro = new ResizeObserver(resize);
-    ro.observe(canvas.parentElement as Element);
+    if (canvas.parentElement) {
+      ro.observe(canvas.parentElement);
+    }
+
     resize();
     raf = requestAnimationFrame(draw);
-    return () => { ro.disconnect(); cancelAnimationFrame(raf); };
+
+    return () => {
+      ro.disconnect();
+      cancelAnimationFrame(raf);
+    };
   }, [celebrateId]);
 
   // pick a random celebration star when a new summary arrives
