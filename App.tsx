@@ -6,9 +6,6 @@ import { BM25 } from './lib/search/bm25';
 import { rrfFuse } from './lib/search/rrf';
 import { cosineSim } from './lib/search/cosine';
 import Today from './components/Today';
-import NotesScreen from './components/NotesScreen';
-import SearchScreen from './components/SearchScreen';
-import RecallScreen from './components/RecallScreen';
 import TabBar from './components/TabBar';
 import { Settings } from './components/Settings'; // 명명된 가져오기로 변경
 import Diagnostics from './components/Diagnostics'; // 기본 가져오기 유지
@@ -18,7 +15,7 @@ import { getConfig } from './lib/config'; // getConfig 가져오기
 import { getSemanticAdapter } from "./lib/semantic";
 
 // --- 타입 정의 ---
-type View = 'today' | 'notes' | 'recall' | 'search' | 'settings' | 'diagnostics';
+type View = 'today' | 'settings' | 'diagnostics';
 
 // --- 커스텀 훅 ---
 function useLiveNotes() {
@@ -334,29 +331,10 @@ React.useEffect(() => {
     }
   };
 
-  return (
-    <div>
+   className="pb-20 md:pb-24"r className="pb-20 md:pb-24"e className="pb-20 md:pb-24"t className="pb-20 md:pb-24"u className="pb-20 md:pb-24"r className="pb-20 md:pb-24"n className="pb-20 md:pb-24"  className="pb-20 md:pb-24"( className="pb-20 md:pb-24"
+ className="pb-20 md:pb-24"  className="pb-20 md:pb-24"  className="pb-20 md:pb-24"  className="pb-20 md:pb-24"  className="pb-20 md:pb-24"< className="pb-20 md:pb-24"d className="pb-20 md:pb-24"i className="pb-20 md:pb-24"v className="pb-20 md:pb-24">
       <Toasts />
-      {view==='notes' ? (
-        <NotesScreen onNoteSelect={onNoteSelect} onNewNote={handleNewNote} />
-      ) : view==='recall' ? (
-        <RecallScreen setQuery={setQ} />
-      ) : view==='search' ? (
-        <SearchScreen
-          query={q}
-          onQueryChange={setQ}
-          onSearchFocus={handleSearchFocus}
-          suggestedQuestions={suggestedQuestions}
-          isLoadingSuggestions={isLoadingSuggestions}
-          suggestionError={suggestionError}
-          generatedAnswer={generatedAnswer}
-          notes={finalResults}
-          onNoteSelect={onNoteSelect}
-        />
-      ) : (
-        renderView()
-      )}
-      <div className='h-14' />
+      {renderView()}
       <TabBar view={view as any} onChange={setView as any} />
     </div>
   );
