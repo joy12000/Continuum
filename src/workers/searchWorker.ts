@@ -82,29 +82,29 @@ async function findDuplicates(threshold: number) {
 /**
  * Finds notes similar to the given text, excluding the current note.
  * @param {string} text The text to find similarities for.
- * @param {string} currentNoteId The ID of the note currently being edited, to exclude from results.
+ * @param {number} topK The number of similar notes to return.
  */
-async function findSimilar(text: string, currentNoteId: string, engine: "auto" | "remote") {
+async function findSimilar(text: string, topK: number, engine: "auto" | "remote") {
   try {
     const [textVec] = await embed(engine, [text]);
     if (!textVec) return;
 
-    const otherEmbeddings = currentNoteId ? await db.embeddings.where('noteId').notEqual(currentNoteId).toArray() : await db.embeddings.toArray();
+    const allEmbeddings = await db.embeddings.toArray();
 
-    const similarities = otherEmbeddings.map(emb => ({
+    const similarities = allEmbeddings.map(emb => ({
       noteId: emb.noteId,
       score: cosineSim(textVec, emb.vec),
     }));
 
     similarities.sort((a, b) => b.score - a.score);
-    const top3 = similarities.slice(0, 3);
+    const topKResults = similarities.slice(0, topK);
 
-    if (top3.length > 0) {
-      const topNoteIds = top3.map(s => s.noteId);
+    if (topKResults.length > 0) {
+      const topNoteIds = topKResults.map(s => s.noteId);
       const notes = await db.notes.bulkGet(topNoteIds);
-      self.postMessage({ type: 'SIMILAR_FOUND', payload: { notes: notes.filter(Boolean) } });
+      self.postMessage({ type: 'SIMILAR_RESULT', payload: notes.filter(Boolean) });
     } else {
-      self.postMessage({ type: 'SIMILAR_FOUND', payload: { notes: [] } });
+      self.postMessage({ type: 'SIMILAR_RESULT', payload: [] });
     }
   } catch (error) {
     console.error("Error finding similar notes:", error);
@@ -136,8 +136,8 @@ self.addEventListener("message", async (e: MessageEvent)=>{
     } else if (type === 'FIND_DUPLICATES') {
       await findDuplicates(payload.threshold);
       return;
-    } else if (type === 'FIND_SIMILAR') {
-      await findSimilar(payload.text, payload.currentNoteId, payload.engine || 'auto');
+    } else if (type === 'SIMILAR') {
+      await findSimilar(payload.text, payload.topK, payload.engine || 'auto');
       return;
     }
     self.postMessage({ id, ok:false, error:"unknown" });

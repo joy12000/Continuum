@@ -62,6 +62,7 @@ export default function App() {
 
   // 시맨틱 검색 결과 상태
   const [semanticResults, setSemanticResults] = useState<SearchResult[]>([]);
+  const [similarNotes, setSimilarNotes] = useState<Note[]>([]);
 
   // --- 데이터 및 인스턴스 ---
   const notes = useLiveNotes();
@@ -76,6 +77,7 @@ export default function App() {
 
   // [추가] API 호출 추상화 함수
   async function callGenerateApi(payload: object, endpoint: string = '/.netlify/functions/generate'): Promise<any> {
+    console.debug('[API Call] to', endpoint, payload);
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -86,6 +88,7 @@ export default function App() {
       throw new Error(`API error: ${response.statusText || response.status}`);
     }
     const result = await response.json();
+    console.debug('[API Response]', result);
     setAnswerSignal(s => s + 1); // 답변 도착 시그널
     return result;
   }
@@ -222,7 +225,14 @@ export default function App() {
   }, [debouncedQ, finalResults]);
 
   // --- 핸들러 함수 ---
-  const handleSearchFocus = useCallback(async () => {
+  const handleGenerateSummary = useCallback(async () => {
+    const settings = getConfig();
+    if (!settings.genEnabled || !settings.genEndpoint) return;
+    const result = await callGenerateApi({ type: 'daily_summary' }, settings.genEndpoint);
+    // You might want to do something with the result here
+  }, []);
+
+  const handleEditorFocus = useCallback(async () => {
     if (suggestedQuestions.length > 0 || isLoadingSuggestions) return;
     
     setIsLoadingSuggestions(true);
@@ -247,6 +257,11 @@ export default function App() {
       setIsLoadingSuggestions(false);
     }
   }, [notes, suggestedQuestions, isLoadingSuggestions]);
+
+  const handleDebouncedEditorChange = useCallback(async (text: string) => {
+    const similar = await semWorker.similar(text, 3);
+    setSimilarNotes(similar);
+  }, [semWorker]);
 
   const handleNewNote = useCallback((content: string = '') => {
     const now = Date.now();
@@ -284,7 +299,7 @@ export default function App() {
             query={q}
             onQueryChange={setQ}
             notes={finalResults}
-            onSearchFocus={handleSearchFocus}
+            onSearchFocus={handleEditorFocus}
             suggestedQuestions={suggestedQuestions}
             isLoadingSuggestions={isLoadingSuggestions}
             suggestionError={suggestionError}
@@ -316,8 +331,11 @@ export default function App() {
         onSubmit={(text) => {
           handleNewNote(text);
           setEditorOpen(false);
-          window.dispatchEvent(new CustomEvent('sky:record-complete'));
         }}
+        onGenerateSummary={handleGenerateSummary}
+        onFocus={handleEditorFocus}
+        onDebouncedChange={handleDebouncedEditorChange}
+        similarNotes={similarNotes}
       />
       <AnswerCardsModal
         open={answerOpen}
@@ -328,3 +346,4 @@ export default function App() {
     </div>
   );
 }
+

@@ -41,14 +41,20 @@ export async function embedLocal(texts: string[] | string, _opts?: any): Promise
   return rpc('embed', { texts: arr }, 60000);
 }
 
+export async function findSimilar(text: string, topK: number): Promise<any> {
+    return rpc('SIMILAR', { text, topK });
+}
+
 // ✅ Backward-compat shim
 export class SemWorkerClient {
   async ensure(_?: any) { return ensureLocalReady(); }
   async ensureReady(_?: any) { return ensureLocalReady(); }
   async ensureLocalReady() { return ensureLocalReady(); }
   async embed(texts: string[] | string, opts?: any) { return embedLocal(texts, opts); }
+  async similar(text: string, topK: number) { return findSimilar(text, topK); }
   static async ensure(_?: any) { return ensureLocalReady(); }
   static async ensureReady(_?: any) { return ensureLocalReady(); }
   static async ensureLocalReady() { return ensureLocalReady(); }
   static async embed(texts: string[] | string, opts?: any) { return embedLocal(texts, opts); }
+  static async similar(text: string, topK: number) { return findSimilar(text, topK); }
 }
