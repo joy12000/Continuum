@@ -5,7 +5,7 @@
 async function safeCachePut(cache: Cache, request: Request, response: Response) {
   try {
     if (request.method !== 'GET') return;
-const url = new URL(request.url);
+    const url = new URL(request.url);
     const sameOrigin = self.location.origin === url.origin;
     const isOpaque = response.type === 'opaque';
     const isOpaqueRedirect = response.type === 'opaqueredirect';
@@ -13,8 +13,8 @@ const url = new URL(request.url);
     if (!isOpaque && !response.ok) return;
     if (!sameOrigin && !isOpaque) return;
     await cache.put(request, response.clone ? response.clone() : response);
-  } catch (e) {
-    console.warn('[SW] safeCachePut skipped:', (request as any)?.url || request, e);
+  } catch (e: any) {
+    console.warn('[SW] safeCachePut skipped:', (request as any)?.url || request, e.name, e.message, e);
   }
 }
 
