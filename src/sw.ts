@@ -1,13 +1,4 @@
-// === Continuum SW Hotfix: bypass heavy model assets & fix cache recursion ===
-const DO_NOT_CACHE_REGEX = /\.(onnx|wasm|bin)$/i;
-function shouldBypass(req: Request): boolean {
-  try {
-    const u = new URL(req.url);
-    if (u.pathname.startsWith('/models/')) return true;
-    if (DO_NOT_CACHE_REGEX.test(u.pathname)) return true;
-    return false;
-  } catch { return false; }
-}
+
 
 
 // ---- Safe Cache.put helper to avoid 'Cache.put() encountered a network error' ----
