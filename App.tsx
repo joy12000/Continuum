@@ -13,6 +13,10 @@ import { Toasts } from './components/Toasts';
 import { AnswerData, SearchResult } from './types/common';
 import { getConfig } from './lib/config'; // getConfig 가져오기
 import { getSemanticAdapter } from "./lib/semantic";
+import HomeSky from './components/HomeSky';
+import AnswerCardsModal from './components/AnswerCardsModal';
+import OverlayEditor from './components/OverlayEditor';
+import { GeneratedAnswer } from './components/GeneratedAnswer';
 
 // --- 타입 정의 ---
 type View = 'today' | 'settings' | 'diagnostics';
@@ -58,6 +62,9 @@ React.useEffect(() => {
 }, []);
 // --- 상태 관리 (State Management) ---
   const [view, setView] = useState<View>('today');
+  const [editorOpen, setEditorOpen] = useState(false)
+  const [answerOpen, setAnswerOpen] = useState(false)
+  const [answerSignal, setAnswerSignal] = useState(0)
   const [q, setQ] = useState('');
   const [debouncedQ, setDebouncedQ] = useState(q);
   const [engine, setEngine] = useState<'auto' | 'remote'>((localStorage.getItem('semanticEngine') as any) || 'auto');
@@ -237,6 +244,7 @@ React.useEffect(() => {
         if (isGenerativeMode && apiUrl && debouncedQ && finalResults.length > 0) {
           const result: AnswerData = await callGenerateApi({ question: debouncedQ, context: finalResults.map((n: Note) => ({ id: n.id, content: n.content })) }, apiUrl);
           setGeneratedAnswer({ data: result, isLoading: false, error: null });
+          setAnswerSignal(s => s + 1);
         } else {
           // API 호출 조건이 충족되지 않으면 로딩 상태를 해제하고 오류 메시지를 표시하지 않음
           setGeneratedAnswer({ data: null, isLoading: false, error: null });
@@ -311,16 +319,6 @@ React.useEffect(() => {
       case 'today':
       default:
         return (
-          <>
-            <HomeSky
-              onOpenSettings={() => setView('settings')}
-              onOpenEditor={() => setView('editor')}
-              onOpenAnswer={() => {
-                // Implement answer modal logic
-              }}
-              answerSignal={generatedAnswer.data ? 'new' : null}
-              bottomBarSelector="#tab-bar"
-            />
             <Today
               onNavigate={setView}
               query={q}
@@ -337,7 +335,6 @@ React.useEffect(() => {
               isModelReady={isModelReady}
               modelStatus={modelStatus}
             />
-          </>
         );
       case 'editor':
         return (
@@ -349,11 +346,40 @@ React.useEffect(() => {
     }
   };
 
-   className="pb-20 md:pb-24"r className="pb-20 md:pb-24"e className="pb-20 md:pb-24"t className="pb-20 md:pb-24"u className="pb-20 md:pb-24"r className="pb-20 md:pb-24"n className="pb-20 md:pb-24"  className="pb-20 md:pb-24"( className="pb-20 md:pb-24"
- className="pb-20 md:pb-24"  className="pb-20 md:pb-24"  className="pb-20 md:pb-24"  className="pb-20 md:pb-24"  className="pb-20 md:pb-24"< className="pb-20 md:pb-24"d className="pb-20 md:pb-24"i className="pb-20 md:pb-24"v className="pb-20 md:pb-24">
+  return (
+    <div>
       <Toasts />
+      <HomeSky
+        onOpenSettings={() => setView('settings')}
+        onOpenEditor={() => setEditorOpen(true)}
+        onOpenAnswer={() => setAnswerOpen(true)}
+        answerSignal={answerSignal}
+        bottomBarSelector="#tabbar"
+      />
+      <OverlayEditor
+        open={editorOpen}
+        onClose={() => setEditorOpen(false)}
+        onSubmit={async (text) => {
+          const now = Date.now();
+          const newNoteId = crypto.randomUUID();
+          await db.notes.add({
+            id: newNoteId,
+            content: text,
+            createdAt: now,
+            updatedAt: now,
+            tags: [],
+          });
+          window.dispatchEvent(new CustomEvent('sky:record-complete'));
+          setEditorOpen(false);
+        }}
+      />
+      <AnswerCardsModal open={answerOpen} onClose={() => setAnswerOpen(false)}>
+        <GeneratedAnswer data={generatedAnswer.data} />
+      </AnswerCardsModal>
       {renderView()}
-      <TabBar view={view as any} onChange={setView as any} />
+      <div id="tabbar">
+        <TabBar view={view as any} onChange={setView as any} />
+      </div>
     </div>
   );
 }

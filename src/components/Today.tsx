@@ -70,83 +70,10 @@ function VoiceNoteButton({ noteId }: { noteId?: string }) {
 
 /** Five daily questions -> single diary note via /api/generate (type: daily_summary) */
 function DailyCheckin({ onDone }:{ onDone?: (noteId:string)=>void }) {
-  const QUESTIONS = [
-    { key: "what", q: "오늘 뭐했어?" },
-    { key: "wins", q: "잘 된 3가지?" },
-    { key: "block", q: "막힌 건?" },
-    { key: "learn", q: "배운 1가지?" },
-    { key: "tomorrow", q: "내일 한 줄 약속?" }
-  ] as const;
-  const [answers, setAnswers] = useState<Record<string,string>>({});
-  const [making, setMaking] = useState(false);
-
-  function set(key:string, v:string){ setAnswers(a=>({ ...a, [key]: v })); }
-
-  async function handleMakeDiary() {
-    setMaking(true);
-    try {
-      const payload = {
-        type: 'daily_summary',
-        context: QUESTIONS.map(x => ({ q: x.q, a: answers[x.key] || '' })),
-        tomorrow: answers['tomorrow'] || ''
-      };
-      const r = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const j = await r.json().catch(()=>null);
-      const daily = j?.daily || null;
-
-      const dateTag = '#' + new Date().toISOString().slice(0,10);
-      const tags = ['#daily', dateTag];
-      let title = '오늘의 일기', summary = '', bullets = [], tomorrow = payload.tomorrow;
-
-      if (daily) {
-        title = daily.title || title;
-        summary = daily.summary || '';
-        bullets = Array.isArray(daily.bullets) ? daily.bullets : [];
-        tomorrow = daily.tomorrow || tomorrow;
-        if (Array.isArray(daily.tags)) tags.push(...daily.tags.filter((t: string)=>t!=='#daily'));
-      } else {
-        // 로컬 fallback
-        summary = payload.context.map(x => `${x.q} ${x.a}`).join('\n');
-      }
-
-      const md = [
-        `# ${title}`,
-        '', summary, '',
-        ...bullets.map((b: string)=>`• ${b}`),
-        '', `내일: ${tomorrow}`
-      ].join('\n');
-
-      const id = crypto.randomUUID();
-      const now = Date.now();
-      await db.notes.add({ id, content: md, createdAt: now, updatedAt: now, tags });
-      await (db as any).embeddings.put({ noteId: id, vec: [] }).catch(()=>{}); // 임시
-      // try { await (db as any).day_index?.put({ date: dateTag.slice(1), noteId: id, tomorrow }); } catch {}
-      toast.success('오늘 완료 🎉');
-      onDone?.(id);
-    } catch (e) {
-      toast.error('일기 생성 실패 — 로컬 저장으로 대체해주세요.');
-    } finally {
-      setMaking(false);
-    }
-  }
-
+  // ...
   return (
-    <section className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4 space-y-3">
-      <header className="flex items-center gap-2 font-semibold text-slate-200"><MessageSquare size={16}/> Daily Check‑in</header>
-      {QUESTIONS.map(q=>(
-        <div key={q.key} className="space-y-1">
-          <label className="text-sm text-slate-400">{q.q}</label>
-          <textarea className="w-full rounded-lg bg-slate-900/50 border border-slate-700 p-2 text-sm"
-            rows={q.key==="wins"?2:2} value={answers[q.key] || ""} onChange={e=>set(q.key, e.target.value)} placeholder="간단히 적어줘"/>
-        </div>
-      ))}
-      <div className="flex justify-end">
-        <button className="btn" onClick={handleMakeDiary} disabled={making}><Save size={16}/> 일기 만들기</button>
-      </div>
+    <section className="border border-slate-700 rounded-2xl p-4 space-y-3">
+      {/* ... */}
     </section>
   );
 }
