@@ -46,7 +46,7 @@ export default function SummaryModal({ open, summary, onClose }: {
         <p className="mt-3 whitespace-pre-wrap text-slate-800 leading-relaxed">{summary.summary}</p>
         {Array.isArray(summary.bullets) && summary.bullets.length > 0 && (
           <ul className="mt-4 list-disc pl-5 text-slate-800">
-            {summary.bullets.map((b, i) => <li key={i}>{b}</li>)}
+            {summary.bullets.map((b: string, i: number) => <li key={i}>{b}</li>)}
           </ul>
         )}
         {summary.tomorrow && (

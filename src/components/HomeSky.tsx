@@ -1,9 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLongPress } from '../hooks/useLongPress';
 
-type Star = { id:number; x:number; y:number; r:number; tw:number; phase:number };
-type Meteor = { x:number; y:number; vx:number; vy:number; life:number; maxLife:number };
+export type Star = { id:number; x:number; y:number; r:number; tw:number; phase:number };
+export type Meteor = { x:number; y:number; vx:number; vy:number; life:number; maxLife:number };
 const clamp = (v:number, min:number, max:number)=>Math.min(max, Math.max(min, v));
+
+export type DailySummary = {
+  title: string;
+  summary: string;
+  bullets: string[];
+  tomorrow?: string;
+  tags?: string[];
+};
 
 type Props = {
   onOpenSettings: () => void;
@@ -48,14 +56,31 @@ export default function HomeSky({ onOpenSettings, onOpenEditor, onOpenAnswer, an
 
   // 캔버스 드로잉
   useEffect(() => {
-    const canvas = canvasRef.current!;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
     const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) return;
-    const prefersReduced = globalThis.matchMedia && globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const dpr = Math.max(1, Math.min(2, (globalThis.devicePixelRatio || 1)));
-    let w = 0, h = 0;
 
-    function initStars() {
+    const dpr = Math.max(1, Math.min(2, (window.devicePixelRatio || 1)));
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    let w = 0, h = 0;
+    let raf = 0;
+
+    const resize = () => {
+      if (!canvas.parentElement) return;
+      w = canvas.parentElement.clientWidth;
+      h = canvas.parentElement.clientHeight;
+      canvas.width = Math.floor(w * dpr);
+      canvas.height = Math.floor(h * dpr);
+      canvas.style.width = `${w}px`;
+      canvas.style.height = `${h}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      initStars();
+    };
+
+    const initStars = () => {
       const base = Math.max(60, Math.min(320, Math.floor((w*h) / 6500)));
       const count = Math.max(20, Math.min(480, Math.floor(base * density)));
       const arr: Star[] = [];
@@ -70,85 +95,78 @@ export default function HomeSky({ onOpenSettings, onOpenEditor, onOpenAnswer, an
         });
       }
       starsRef.current = arr;
-    }
+    };
 
-    function resize() {
-      const { clientWidth, clientHeight } = canvas.parentElement as HTMLElement;
-      w = Math.max(1, clientWidth);
-      h = Math.max(1, clientHeight);
-      canvas.width = Math.floor(w * dpr);
-      canvas.height = Math.floor(h * dpr);
-      canvas.style.width = w + 'px';
-      canvas.style.height = h + 'px';
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      initStars();
-      draw(0);
-    }
-
-    let raf = 0;
     let last = 0;
-    function draw(t: number) {
-      if (t - last < 1000/30) { raf = requestAnimationFrame(draw); return; }
+    const draw = (t: number) => {
+      raf = requestAnimationFrame(draw);
+      if (t - last < 1000 / 30) return;
       last = t;
-      ctx.clearRect(0, 0, w, h);
 
-      const now = performance.now();
-      const cid = celebrateId;
+      try {
+        ctx.clearRect(0, 0, w, h);
 
-      // 별들
-      for (const s of starsRef.current) {
-        let alpha = 0.85;
-        if (!prefersReduced) alpha = 0.55 + 0.45 * Math.sin(s.phase + t/1000 * s.tw);
-        let rr = s.r;
-        if (cid && s.id === cid && now < celebrateUntilRef.current) {
-          rr = s.r + 0.8 + 0.4*Math.sin(t/160);
-          // halo
+        const now = performance.now();
+        const cid = celebrateId;
+
+        // 별들
+        for (const s of starsRef.current) {
+          let alpha = 0.85;
+          if (!prefersReduced) alpha = 0.55 + 0.45 * Math.sin(s.phase + t/1000 * s.tw);
+          let rr = s.r;
+          if (cid && s.id === cid && now < celebrateUntilRef.current) {
+            rr = s.r + 0.8 + 0.4*Math.sin(t/160);
+            // halo
+            ctx.save();
+            ctx.globalAlpha = 0.35;
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, rr*4, 0, Math.PI*2);
+            ctx.fillStyle = 'rgba(170,200,255,0.45)';
+            ctx.fill();
+            ctx.restore();
+          }
           ctx.save();
-          ctx.globalAlpha = 0.35;
+          ctx.globalAlpha = alpha;
           ctx.beginPath();
-          ctx.arc(s.x, s.y, rr*4, 0, Math.PI*2);
-          ctx.fillStyle = 'rgba(170,200,255,0.45)';
+          ctx.arc(s.x, s.y, rr, 0, Math.PI*2);
+          ctx.fillStyle = '#cfe3ff';
           ctx.fill();
           ctx.restore();
         }
-        ctx.save();
-        ctx.globalAlpha = alpha;
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, rr, 0, Math.PI*2);
-        ctx.fillStyle = '#cfe3ff';
-        ctx.fill();
-        ctx.restore();
-      }
 
-      // 별똥별
-      for (let i=meteorsRef.current.length-1; i>=0; i--) {
-        const m = meteorsRef.current[i];
-        m.x += m.vx;
-        m.y += m.vy;
-        m.life += 1;
-        // tail
-        const tail = 20;
-        const grad = ctx.createLinearGradient(m.x - m.vx*tail, m.y - m.vy*tail, m.x, m.y);
-        grad.addColorStop(0, 'rgba(180,210,255,0)');
-        grad.addColorStop(1, 'rgba(200,220,255,0.9)');
-        ctx.save();
-        ctx.strokeStyle = grad;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(m.x - m.vx*tail, m.y - m.vy*tail);
-        ctx.lineTo(m.x, m.y);
-        ctx.stroke();
-        ctx.restore();
-        if (m.life > m.maxLife || m.x < -50 || m.y > h+50 || m.y < -50 || m.x > w+50) {
-          meteorsRef.current.splice(i,1);
+        // 별똥별
+        for (let i=meteorsRef.current.length-1; i>=0; i--) {
+          const m = meteorsRef.current[i];
+          m.x += m.vx;
+          m.y += m.vy;
+          m.life += 1;
+          // tail
+          const tail = 20;
+          const grad = ctx.createLinearGradient(m.x - m.vx*tail, m.y - m.vy*tail, m.x, m.y);
+          grad.addColorStop(0, 'rgba(180,210,255,0)');
+          grad.addColorStop(1, 'rgba(200,220,255,0.9)');
+          ctx.save();
+          ctx.strokeStyle = grad;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(m.x - m.vx*tail, m.y - m.vy*tail);
+          ctx.lineTo(m.x, m.y);
+          ctx.stroke();
+          ctx.restore();
+          if (m.life > m.maxLife || m.x < -50 || m.y > h+50 || m.y < -50 || m.x > w+50) {
+            meteorsRef.current.splice(i,1);
+          }
         }
+      } catch (e) {
+        console.error(e);
+        cancelAnimationFrame(raf);
       }
-
-      raf = requestAnimationFrame(draw);
-    }
+    };
 
     const ro = new ResizeObserver(resize);
-    ro.observe(canvas.parentElement as Element);
+    if (canvas.parentElement) {
+        ro.observe(canvas.parentElement);
+    }
     resize();
     raf = requestAnimationFrame(draw);
 
@@ -169,7 +187,8 @@ export default function HomeSky({ onOpenSettings, onOpenEditor, onOpenAnswer, an
 
     return () => {
       window.removeEventListener('sky:record-complete', onRecordComplete as any);
-      ro.disconnect(); cancelAnimationFrame(raf);
+      ro.disconnect(); 
+      cancelAnimationFrame(raf);
     };
   }, [density, celebrateId]);
 
