@@ -295,7 +295,7 @@ export default function HomeSky({ onOpenSettings, onOpenEditor, onOpenAnswer, an
     <div
       role="region"
       aria-label="Night sky"
-      className="fixed inset-0 select-none"
+      className="fixed inset-0 select-none z-[10]"
       onClick={onContainerClick}
       {...bgLP}
       style={bgStyle}

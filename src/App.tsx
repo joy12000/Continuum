@@ -6,12 +6,16 @@ import { BM25 } from './lib/search/bm25';
 import { rrfFuse } from './lib/search/rrf';
 import { cosineSim } from './lib/search/cosine';
 import Today from './components/Today';
-import { Settings } from './components/Settings'; // 명명된 가져오기로 변경
-import Diagnostics from './components/Diagnostics'; // 기본 가져오기 유지
+import { Settings } from './components/Settings';
+import Diagnostics from './components/Diagnostics';
 import { Toasts } from './components/Toasts';
 import { AnswerData, SearchResult } from './types/common';
-import { getConfig } from './lib/config'; // getConfig 가져오기
+import { getConfig } from './lib/config';
 import { getSemanticAdapter } from "./lib/semantic";
+import HomeSky from './components/HomeSky';
+import OverlayEditor from './components/OverlayEditor';
+import AnswerCardsModal from './components/AnswerCardsModal';
+import { GeneratedAnswer } from './components/GeneratedAnswer';
 
 // --- 타입 정의 ---
 type View = 'today' | 'settings' | 'diagnostics';
@@ -27,35 +31,10 @@ function useLiveNotes() {
   return notes;
 }
 
-// [추가] API 호출 추상화 함수
-async function callGenerateApi(payload: object, endpoint: string = '/.netlify/functions/generate'): Promise<any> {
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    throw new Error(`API error: ${response.statusText || response.status}`);
-  }
-  return response.json();
-}
-
 // --- 메인 앱 컴포넌트 ---
 export default function App() {
   
-// --- Periodic Sync support check ---
-const [supportsPeriodic, setSupportsPeriodic] = React.useState<boolean>(true);
-React.useEffect(() => {
-  const ok = 
-    typeof navigator !== 'undefined' &&
-    'serviceWorker' in navigator &&
-    // @ts-ignore experimental
-    'periodicSync' in (navigator as any);
-  setSupportsPeriodic(!!ok);
-  (window as any).__SUPPORTS_PERIODIC_SYNC__ = !!ok;
-}, []);
-// --- 상태 관리 (State Management) ---
+  // --- 상태 관리 (State Management) ---
   const [view, setView] = useState<View>('today');
   const [q, setQ] = useState('');
   const [debouncedQ, setDebouncedQ] = useState(q);
@@ -64,6 +43,11 @@ React.useEffect(() => {
   const [modelStatus, setModelStatus] = useState("확인 중…");
   const [isModelReady, setIsModelReady] = useState(false);
   
+  // HomeSky 관련 상태
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [answerOpen, setAnswerOpen] = useState(false);
+  const [answerSignal, setAnswerSignal] = useState(0);
+
   // 제안 질문 관련 상태
   const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
@@ -89,6 +73,22 @@ React.useEffect(() => {
     idx.build();
     return idx;
   }, [notes]);
+
+  // [추가] API 호출 추상화 함수
+  async function callGenerateApi(payload: object, endpoint: string = '/.netlify/functions/generate'): Promise<any> {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.statusText || response.status}`);
+    }
+    const result = await response.json();
+    setAnswerSignal(s => s + 1); // 답변 도착 시그널
+    return result;
+  }
 
   // --- useEffect 훅 ---
 
@@ -166,16 +166,6 @@ React.useEffect(() => {
         semanticScores.sort((a, b) => b.score - a.score);
         setSemanticResults(semanticScores);
 
-        // =================================================================
-        // == ✅ 온디바이스 AI 작동 확인 코드 (START) ==
-        // =================================================================
-        console.log('%c[On-Device AI Check]', 'color: limegreen; font-weight: bold;', {
-          query: debouncedQ,
-          semanticSearchResults: semanticScores.slice(0, 5), // 상위 5개 결과만 표시
-        });
-        // =================================================================
-        // == ✅ 온디바이스 AI 작동 확인 코드 (END) ==
-        // =================================================================
       } catch (error) {
         console.error("Semantic search failed:", error);
         setSemanticResults([]);
@@ -191,10 +181,8 @@ React.useEffect(() => {
     
     const bm25Results = bm25Index.search(debouncedQ, 50).map(x => ({ id: x.id, score: x.score }));
     
-    // RRF 퓨전을 사용하여 BM25와 시맨틱 검색 결과 융합 (인수 수정)
     const fusedResults = rrfFuse([bm25Results, semanticResults]);
 
-    // 융합된 결과의 순서에 따라 노트 정렬
     const order = new Map(fusedResults.map((x, i) => [x.id, i]));
     return [...notes].sort((a, b) => {
       const ra = order.get(a.id!) ?? Infinity;
@@ -213,31 +201,14 @@ React.useEffect(() => {
     const generateAnswer = async () => {
       setGeneratedAnswer({ data: null, isLoading: true, error: null });
       try {
-        const relevantNotes = finalResults.slice(0, 5); // 상위 5개 노트를 컨텍스트로 사용
-        const notesContent = relevantNotes.map(n => n.content.replace(/<[^>]+>/g, '')).join('\n\n---\n\n');
-        
-        // =================================================================
-        // == 🕵️‍♂️ 진단 코드 추가 (START) ==
-        // =================================================================
         const settings = getConfig();
-        const isGenerativeMode = settings.genEnabled; // Assuming genEnabled indicates generative mode
-        const apiUrl = settings.genEndpoint; // Assuming genEndpoint is the API URL
-
-        console.log('%c[API Call Diagnosis]', 'color: skyblue; font-weight: bold;', {
-          isGenerativeMode: isGenerativeMode,
-          isApiUrlSet: !!apiUrl,
-          queryExists: !!debouncedQ,
-          hasContextNotes: finalResults.length > 0
-        });
-        // =================================================================
-        // == 🕵️‍♂️ 진단 코드 추가 (END) ==
-        // =================================================================
+        const isGenerativeMode = settings.genEnabled;
+        const apiUrl = settings.genEndpoint;
 
         if (isGenerativeMode && apiUrl && debouncedQ && finalResults.length > 0) {
           const result: AnswerData = await callGenerateApi({ question: debouncedQ, context: finalResults.map((n: Note) => ({ id: n.id, content: n.content })) }, apiUrl);
           setGeneratedAnswer({ data: result, isLoading: false, error: null });
         } else {
-          // API 호출 조건이 충족되지 않으면 로딩 상태를 해제하고 오류 메시지를 표시하지 않음
           setGeneratedAnswer({ data: null, isLoading: false, error: null });
         }
 
@@ -248,10 +219,9 @@ React.useEffect(() => {
     };
 
     generateAnswer();
-  }, [debouncedQ, finalResults]); // config.isGenerativeMode, config.apiUrl 대신 debouncedQ, finalResults만 의존성으로 유지
+  }, [debouncedQ, finalResults]);
 
   // --- 핸들러 함수 ---
-  // 제안 질문 생성 로직 (callGenerateApi 사용)
   const handleSearchFocus = useCallback(async () => {
     if (suggestedQuestions.length > 0 || isLoadingSuggestions) return;
     
@@ -259,17 +229,14 @@ React.useEffect(() => {
     setSuggestionError(null);
     try {
       const recentNotes = notes.slice(0, 5);
-      const notesContent = recentNotes.map((n: Note) => n.content.replace(/<[^>]+>/g, '')).join('\n\n');
-      
       const settings = getConfig();
-      const isGenerativeMode = settings.genEnabled; // Assuming genEnabled indicates generative mode
-      const apiUrl = settings.genEndpoint; // Assuming genEndpoint is the API URL
+      const isGenerativeMode = settings.genEnabled;
+      const apiUrl = settings.genEndpoint;
 
       if (isGenerativeMode && apiUrl) {
         const result = await callGenerateApi({ type: 'generate_questions', context: recentNotes.map(n => ({ id: n.id, title: (n.title||'').slice(0,160), content: n.content })), question: '위 노트들을 바탕으로 사용자가 던질 만한 흥미로운 질문 3개를 JSON으로만 반환해 주세요.' }, apiUrl);
         setSuggestedQuestions(result.questions || []);
       } else {
-        // API 호출 조건이 충족되지 않으면 로딩 상태를 해제하고 오류 메시지를 표시하지 않음
         setSuggestedQuestions([]);
       }
 
@@ -290,6 +257,8 @@ React.useEffect(() => {
       createdAt: now,
       updatedAt: now,
       tags: [],
+    }).then(() => {
+      window.dispatchEvent(new CustomEvent('sky:record-complete'));
     });
     setQ('');
     setActiveNoteId(newNoteId);
@@ -333,7 +302,35 @@ React.useEffect(() => {
   return (
     <div>
       <Toasts />
+      <HomeSky
+        onOpenSettings={() => setView('settings')}
+        onOpenEditor={() => setEditorOpen(true)}
+        onOpenAnswer={() => setAnswerOpen(true)}
+        answerSignal={answerSignal}
+        bottomBarSelector="#tabbar"
+      />
       {renderView()}
+      {editorOpen && (
+        <OverlayEditor
+          note={activeNote}
+          onClose={() => setEditorOpen(false)}
+          onSave={() => {
+            setEditorOpen(false);
+            window.dispatchEvent(new CustomEvent('sky:record-complete'));
+          }}
+        />
+      )}
+      {answerOpen && generatedAnswer.data && (
+        <AnswerCardsModal
+          answer={generatedAnswer.data}
+          onClose={() => setAnswerOpen(false)}
+        />
+      )}
+      {generatedAnswer.data && !answerOpen && (
+        <div className="fixed bottom-20 right-4 z-50">
+            <GeneratedAnswer data={generatedAnswer.data} />
+        </div>
+      )}
     </div>
   );
 }
