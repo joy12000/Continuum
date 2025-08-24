@@ -244,7 +244,43 @@ if (reqType === "generate_questions") {
   return { statusCode: 200, headers: CORS, body: JSON.stringify({ questions: out }) };
 }
 
-    const context = payload.context || [];
+    
+// --- daily summary branch ---
+if (reqType === "daily_summary") {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: "Missing GEMINI_API_KEY" }) };
+  }
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const modelName = process.env.GEMINI_MODEL || "gemini-1.5-flash";
+  const model = genAI.getGenerativeModel({ model: modelName });
+  const prompt = [
+    "다음의 Q/A를 한 편의 **하루 일기**로 요약하세요.",
+    "반드시 순수 JSON으로만 답하세요. 형식:",
+    '{ "title": "...", "summary": "...", "bullets": ["..."], "tomorrow": "...", "tags": ["#daily"] }',
+    "사실/숫자 왜곡 금지. 한국어."
+  ].join("\n");
+  const qa = Array.isArray(payload.context) ? payload.context : [];
+  const tomorrow = String(payload.tomorrow || "");
+  let text = "";
+  try{
+    const resp = await model.generateContent({ contents: [{ role:"user", parts:[{ text: prompt + "\n\n" + JSON.stringify({ qa, tomorrow }) }]}] });
+    text = (resp?.response?.text?.() || "");
+  }catch(e){
+    console.error("daily_summary error:", e);
+  }
+  const parsed = safeParseJSON(text) || {};
+  // normalize
+  const out = {
+    title: String(parsed.title || "오늘의 일기"),
+    summary: String(parsed.summary || ""),
+    bullets: Array.isArray(parsed.bullets) ? parsed.bullets.map(String).slice(0,6) : [],
+    tomorrow: String(parsed.tomorrow || tomorrow || ""),
+    tags: Array.isArray(parsed.tags) ? parsed.tags.map(String) : ["#daily"]
+  };
+  return { statusCode: 200, headers: CORS, body: JSON.stringify(out) };
+}
+const context = payload.context || [];
     const options = payload.options || {};
 
     if (!question) {

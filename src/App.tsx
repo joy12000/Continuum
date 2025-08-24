@@ -5,7 +5,7 @@ import { SemWorkerClient } from './lib/semWorkerClient';
 import { BM25 } from './lib/search/bm25';
 import { rrfFuse } from './lib/search/rrf';
 import { cosineSim } from './lib/search/cosine';
-import TodayCanvasScreen from './components/TodayCanvasScreen';
+import Today from './components/Today';
 import { Settings } from './components/Settings'; // 명명된 가져오기로 변경
 import Diagnostics from './components/Diagnostics'; // 기본 가져오기 유지
 import { Toasts } from './components/Toasts';
@@ -310,7 +310,7 @@ React.useEffect(() => {
       case 'today':
       default:
         return (
-          <TodayCanvasScreen
+          <Today
             onNavigate={setView}
             query={q}
             onQueryChange={setQ}
