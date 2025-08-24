@@ -1,0 +1,66 @@
+# Today.tsx 최소 수정 지시 (복붙 가이드)
+
+1) "일기 만들기" 클릭 핸들러에서 API 호출을 아래 형태로 보장하세요.
+   - URL: `/api/generate`
+   - Method: POST
+   - Body: `{ type: 'daily_summary', context: [{q,a}...], tomorrow }`
+   - 응답 OK면 `resp.daily`를 사용해 본문을 만들고 저장합니다.
+   - 실패/비JSON이면 **로컬 fallback**으로 노트 저장(버튼 토스트로 알려주기).
+
+샘플:
+
+async function handleMakeDiary() {
+  setMaking(true);
+  try {
+    const payload = {
+      type: 'daily_summary',
+      context: QUESTIONS.map(x => ({ q: x.q, a: answers[x.key] || '' })),
+      tomorrow: answers['tomorrow'] || ''
+    };
+    const r = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const j = await r.json().catch(()=>null);
+    const daily = j?.daily || null;
+
+    const dateTag = '#' + new Date().toISOString().slice(0,10);
+    const tags = ['#daily', dateTag];
+    let title = '오늘의 일기', summary = '', bullets = [], tomorrow = payload.tomorrow;
+
+    if (daily) {
+      title = daily.title || title;
+      summary = daily.summary || '';
+      bullets = Array.isArray(daily.bullets) ? daily.bullets : [];
+      tomorrow = daily.tomorrow || tomorrow;
+      if (Array.isArray(daily.tags)) tags.push(...daily.tags.filter(t=>t!=='#daily'));
+    } else {
+      // 로컬 fallback
+      summary = payload.context.map(x => `${x.q} ${x.a}`).join('\n');
+    }
+
+    const md = [
+      `# ${title}`,
+      '', summary, '',
+      ...bullets.map(b=>`• ${b}`),
+      '', `내일: ${tomorrow}`
+    ].join('\n');
+
+    const id = crypto.randomUUID();
+    const now = Date.now();
+    await db.notes.add({ id, content: md, createdAt: now, updatedAt: now, tags });
+    await (db).embeddings.put({ noteId: id, embedding: [] }).catch(()=>{}); // 임시
+    try { await (db).day_index?.put({ date: dateTag.slice(1), noteId: id, tomorrow }); } catch {}
+    toast.success('오늘 완료 🎉');
+  } catch (e) {
+    toast.error('일기 생성 실패 — 로컬 저장으로 대체해주세요.');
+  } finally {
+    setMaking(false);
+  }
+}
+
+2) 버튼 상태
+- 진행 중에는 `disabled` + 로딩 인디케이터 표시.
+
+끝.
