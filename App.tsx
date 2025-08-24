@@ -311,22 +311,40 @@ React.useEffect(() => {
       case 'today':
       default:
         return (
-          <Today
-            onNavigate={setView}
-            query={q}
-            onQueryChange={setQ}
-            notes={finalResults}
-            onSearchFocus={handleSearchFocus}
-            suggestedQuestions={suggestedQuestions}
-            isLoadingSuggestions={isLoadingSuggestions}
-            suggestionError={suggestionError}
-            generatedAnswer={generatedAnswer}
-            onNewNote={handleNewNote}
-            activeNote={activeNote}
-            onNoteSelect={setActiveNoteId}
-            isModelReady={isModelReady}
-            modelStatus={modelStatus}
-          />
+          <>
+            <HomeSky
+              onOpenSettings={() => setView('settings')}
+              onOpenEditor={() => setView('editor')}
+              onOpenAnswer={() => {
+                // Implement answer modal logic
+              }}
+              answerSignal={generatedAnswer.data ? 'new' : null}
+              bottomBarSelector="#tab-bar"
+            />
+            <Today
+              onNavigate={setView}
+              query={q}
+              onQueryChange={setQ}
+              notes={finalResults}
+              onSearchFocus={handleSearchFocus}
+              suggestedQuestions={suggestedQuestions}
+              isLoadingSuggestions={isLoadingSuggestions}
+              suggestionError={suggestionError}
+              generatedAnswer={generatedAnswer}
+              onNewNote={handleNewNote}
+              activeNote={activeNote}
+              onNoteSelect={setActiveNoteId}
+              isModelReady={isModelReady}
+              modelStatus={modelStatus}
+            />
+          </>
+        );
+      case 'editor':
+        return (
+          <div className="h-screen w-screen bg-white">
+            <button onClick={() => setView('today')}>Close Editor</button>
+            {/* Add your editor component here */}
+          </div>
         );
     }
   };
