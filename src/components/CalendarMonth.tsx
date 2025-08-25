@@ -39,7 +39,7 @@ const CalendarMonth: React.FC<Props> = ({ year, month, weekLabels, notesByDate, 
           const today=c.key===todayKey;
           return (
             <button key={c.key} className={`ccell ${active?"active":""} ${today?"today":""} ${c.inMonth?"":"dim"}`}
-              onClick={()=>onSelectDate(c.key)} aria-current={active?"date":undefined} aria-label={`${c.key} (${list.length}개 노트)`}>
+              onClick={()=>onSelectDate(c.key)} aria-current={active?"date":undefined} aria-label={`${year}년 ${month + 1}월 ${c.date}일, 노트 ${list.length}개`}>
               <span className="date">{c.date}</span>
               <span className="dots" aria-hidden="true">
                 {list.slice(0,3).map((_,i)=><i key={i} className="dot" />)}

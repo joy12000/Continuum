@@ -1,5 +1,10 @@
-
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import Tippy from '@tippyjs/react';
+import 'tippy.js/dist/tippy.css';
+import Toast from "../components/Toast";
+import Modal from "../components/Modal";
+import "../styles/toast.css";
+import "../styles/modal.css";
 
 /**
  * HomeSky (NEW)
@@ -10,9 +15,10 @@ export default function HomeSky(props: {
   onOpenSettings?: () => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const inputRef = useRef<HTMLDivElement>(null);
   const [text, setText] = useState<string>("");
-  const [savedToast, setSavedToast] = useState<string>("");
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [modal, setModal] = useState<{ title: string; summary: string } | null>(null);
   const isComposingRef = useRef(false);
 
   useEffect(() => {
@@ -58,8 +64,8 @@ export default function HomeSky(props: {
     const payload = { text, createdAt: Date.now() };
     if (props.onSave) props.onSave(payload);
     else window.dispatchEvent(new CustomEvent("sky:save", { detail: payload }));
-    setSavedToast("저장했어요 ✨");
-    setTimeout(() => setSavedToast(""), 1600);
+    setToast({ message: "저장했어요 ✨", type: 'success' });
+    setTimeout(() => setToast(null), 1800);
     const count = 2 + Math.floor(Math.random() * 2);
     for (let i = 0; i < count; i++) setTimeout(spawnClassicMeteor, i * 350);
   }
@@ -88,37 +94,11 @@ export default function HomeSky(props: {
     star.style.top  = `${0.18 * h + Math.random() * 0.5 * h}px`;
     star.title = "요약 보기";
     star.addEventListener("click", () => {
-      showSummaryModal(title, summary);
+      setModal({ title, summary });
       star.remove();
     });
     host.appendChild(star);
     requestAnimationFrame(() => star.classList.add("twinkle-on"));
-  }
-
-  function showSummaryModal(title: string, summary: string) {
-    const modal = document.createElement("div");
-    modal.className = "sky-modal";
-    modal.innerHTML = `
-      <div class="sky-modal__panel">
-        <h3>${escapeHtml(title)}</h3>
-        <p>${escapeHtml(summary).replace(/\n/g, "<br/>")}</p>
-        <div class="sky-modal__actions">
-          <button class="btn outline" data-close>닫기</button>
-          <button class="btn" data-paste>본문에 붙여넣기</button>
-        </div>
-      </div>`;
-    modal.addEventListener("click", (e: any) => {
-      if (e.target.dataset.close !== undefined || e.target === modal) modal.remove();
-      if (e.target.dataset.paste !== undefined) {
-        setText((prev) => (prev ? prev + "\n\n" : "") + summary);
-        modal.remove();
-      }
-    });
-    document.body.appendChild(modal);
-  }
-
-  function escapeHtml(s: string) {
-    return s.replace(/[&<>"']/g, (m) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",""":"&quot;","'":"&#039;" }[m] as string));
   }
 
   function openSettings() {
@@ -129,19 +109,47 @@ export default function HomeSky(props: {
   return (
     <div ref={containerRef} className="sky-root">
       <div className="sky-gradient" /><div className="sky-stars" />
-      <button className="sky-moon" onClick={openSettings} aria-label="설정"><span className="moon-core" /></button>
-      <button className="sky-constellation" onClick={handleSave} aria-label="저장">
-        <span className="star s1" /><span className="star s2" /><span className="star s3" /><span className="star s4" />
-      </button>
-      <textarea
+      <Tippy content="설정">
+        <button className="sky-moon" onClick={openSettings} aria-label="설정"><span className="moon-core" /></button>
+      </Tippy>
+      <Tippy content="저장">
+        <button className="sky-constellation" onClick={handleSave} aria-label="저장">
+          <span className="star s1" /><span className="star s2" /><span className="star s3" /><span className="star s4" />
+        </button>
+      </Tippy>
+      <div
         ref={inputRef}
+        contentEditable
+        role="textbox"
+        aria-label="밤하늘에 적기"
         className="sky-input"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder="밤하늘에 오늘을 적어 보세요…"
+        onInput={(e) => setText((e.target as HTMLDivElement).innerText)}
+        onCompositionStart={() => (isComposingRef.current = true)}
+        onCompositionEnd={() => (isComposingRef.current = false)}
       />
-      <div className="sky-text">{lines.map((ln, i) => <div key={i} className="ln">{ln || " "}</div>)}</div>
-      <div className="sky-hud">{savedToast && <div className="toast">{savedToast}</div>}</div>
+      <div className="sky-text">{text ? lines.map((ln, i) => <div key={i} className="ln">{ln || " "}</div>) : <div className="ln placeholder">밤하늘에 오늘을 적어 보세요…</div>}</div>
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      {modal && (
+        <Modal
+          title={modal.title}
+          onClose={() => setModal(null)}
+          actions={(            <>
+              <button className="btn outline" onClick={() => setModal(null)}>닫기</button>
+              <button
+                className="btn"
+                onClick={() => {
+                  setText((prev) => (prev ? prev + "\n\n" : "") + modal.summary);
+                  setModal(null);
+                }}
+              >
+                본문에 붙여넣기
+              </button>
+            </>
+          )}
+        >
+          <p>{modal.summary}</p>
+        </Modal>
+      )}
     </div>
   );
 }

@@ -1,8 +1,8 @@
 
 .calendar-wrap{min-height:100vh;display:flex;flex-direction:column;gap:12px;color:#e9f2ff;background:linear-gradient(180deg,rgba(3,10,20,.6),rgba(6,18,36,.8));}
 .cal-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.06);backdrop-filter:blur(4px);}
-.cal-head .nav-btn,.cal-actions button{min-height:36px;padding:6px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.06);color:#eaf3ff;}
-.cal-title{display:flex;align-items:center;gap:10px;} .cal-title h1{margin:0;font-size:16px;} .cal-title button{min-width:36px;min-height:36px;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.06);color:#eaf3ff;}
+.cal-head .nav-btn { background-color: rgba(120, 180, 255, 0.2); padding: 6px 12px; }
+.cal-title{display:flex;align-items:center;gap:10px;} .cal-title h1{margin:0;font-size:16px;} .cal-title button { min-width: 32px; min-height: 32px; font-size: 18px; }
 .cal-grid{padding:8px 10px;display:grid;gap:6px;}
 .cal-weekhead{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;padding:0 2px;color:rgba(240,245,255,.8);font-size:12px;}
 .wcell.sun{color:#ffd3d3;} .wcell.sat{color:#cfe3ff;}
