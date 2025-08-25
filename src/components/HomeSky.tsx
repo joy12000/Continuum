@@ -1,255 +1,419 @@
-
 import React, { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 /**
  * HomeSky
- * - Fullscreen animated night sky (gradient + twinkling stars)
- * - Moon button (tap: /settings, long-press: quick panel for density/brightness)
- * - Ground silhouette + bottom tab bar (home/calendar/search/links)
+ * - 풀스크린 밤하늘 배경(그라데이션 + 반짝이는 별)
+ * - 우상단 달 아이콘: 탭 -> /settings 이동, 길게눌러 빠른설정(밀도/밝기)
+ * - 하늘 어디서든 타이핑하면 "은은한 달빛" 스타일로 글씨가 바로 써짐
+ *   (contentEditable 오버레이, 저장은 기존 단축키/버튼 로직에 연결해 쓰면 됨)
  *
- * No external deps; works with Tailwind or plain CSS.
+ * 모바일/데스크탑 모두 대응. 캔버스는 DPR 스케일 적용.
  */
 
-type Star = {
-  x: number;    // canvas px
-  y: number;    // canvas px
-  r: number;    // radius px (at dpr scale)
-  phase: number;// 0..2π
-  speed: number;// phase increment per frame
-  baseAlpha: number; // 0..1 baseline
+type QuickPrefs = {
+  starDensity: number; // 0.2 ~ 2.0
+  starBrightness: number; // 0.5 ~ 1.5
 };
 
-const LS_KEY = "nightSky.prefs.v1";
-
-type Prefs = {
-  densityMul: number;   // 0.2..2.0
-  glowMul: number;      // 0.5..1.6
+const DEFAULT_PREFS: QuickPrefs = {
+  starDensity: 1.0,
+  starBrightness: 1.0,
 };
 
-const defaultPrefs: Prefs = { densityMul: 1.0, glowMul: 1.0 };
-
-function loadPrefs(): Prefs {
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (!raw) return defaultPrefs;
-    const obj = JSON.parse(raw);
-    return {
-      densityMul: Number(obj.densityMul) || 1.0,
-      glowMul: Number(obj.glowMul) || 1.0,
-    };
-  } catch { return defaultPrefs; }
-}
-
-function savePrefs(p: Prefs) {
-  localStorage.setItem(LS_KEY, JSON.stringify(p));
-}
-
-function useLongPress(onLong: () => void, ms = 450) {
-  const timer = useRef<number | null>(null);
-  const clear = () => {
-    if (timer.current) {
-      window.clearTimeout(timer.current);
-      timer.current = null;
-    }
-  };
-  const onDown = () => {
-    clear();
-    timer.current = window.setTimeout(() => {
-      timer.current = null;
-      onLong();
-    }, ms);
-  };
-  const onUp = () => clear();
-  useEffect(() => clear, []);
-  return { onPointerDown: onDown, onPointerUp: onUp, onPointerCancel: onUp, onPointerLeave: onUp };
-}
+const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1)); // 상한 2로 고정(과도한 스케일 방지)
 
 export default function HomeSky() {
+  const navigate = useNavigate();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rafRef = useRef<number | null>(null);
-  const starsRef = useRef<Star[]>([]);
-  const [prefs, setPrefs] = useState<Prefs>(() => loadPrefs());
-  const [panelOpen, setPanelOpen] = useState(false);
-  const nav = useNavigate();
+  const [prefs, setPrefs] = useState<QuickPrefs>(() => {
+    try {
+      const saved = localStorage.getItem("sky.prefs");
+      return saved ? { ...DEFAULT_PREFS, ...JSON.parse(saved) } : DEFAULT_PREFS;
+    } catch {
+      return DEFAULT_PREFS;
+    }
+  });
 
-  // handle moon interactions
-  const longBind = useLongPress(() => setPanelOpen(v => !v));
+  // 에디터 텍스트 상태(간단 버전)
+  const [draft, setDraft] = useState<string>("");
+  const editorRef = useRef<HTMLDivElement | null>(null);
 
+  // 빠른설정 패널 표시
+  const [showQuick, setShowQuick] = useState(false);
+
+  // 달 아이콘 길게 누르기 감지
+  const longPressTimer = useRef<number | null>(null);
+  const moonRef = useRef<HTMLButtonElement | null>(null);
+
+  // 별 데이터
+  const starsRef = useRef<{ x: number; y: number; r: number; tw: number }[]>([]);
+
+  // 캔버스 리사이즈 & 초기화
   useEffect(() => {
-    savePrefs(prefs);
-    // reinit stars if density changed
-    init();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prefs.densityMul]);
+    const canvas = canvasRef.current!;
+    const ctx = canvas.getContext("2d")!;
 
+    const resize = () => {
+      const { innerWidth: w, innerHeight: h } = window;
+      canvas.width = Math.floor(w * dpr);
+      canvas.height = Math.floor(h * dpr);
+      canvas.style.width = w + "px";
+      canvas.style.height = h + "px";
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      seedStars();
+    };
+
+    const seedStars = () => {
+      const w = canvas.width / dpr;
+      const h = canvas.height / dpr;
+      const base = Math.round((w * h) / 9000); // 화면 크기당 기본 별 수
+      const count = Math.max(100, Math.floor(base * prefs.starDensity));
+      starsRef.current = Array.from({ length: count }, () => ({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        r: Math.random() * 1.3 + 0.2,
+        tw: Math.random() * Math.PI * 2, // twinkle phase
+      }));
+    };
+
+    resize();
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, [prefs.starDensity]);
+
+  // 렌더 루프
   useEffect(() => {
-    init();
-    window.addEventListener("resize", init);
+    const canvas = canvasRef.current!;
+    const ctx = canvas.getContext("2d")!;
+
+    const render = (t: number) => {
+      const w = canvas.width / dpr;
+      const h = canvas.height / dpr;
+
+      // 하늘 그라데이션(상: 네이비, 하: 짙은 청록) + 은은한 우주광
+      const g = ctx.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, "#071739");
+      g.addColorStop(0.45, "#09224a");
+      g.addColorStop(1, "#0a2c50");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+
+      // 미세한 은하수 텍스처(노이즈 느낌)
+      ctx.globalAlpha = 0.08;
+      for (let i = 0; i < 2; i++) {
+        const rg = ctx.createRadialGradient(
+          w * (0.2 + 0.6 * Math.random()),
+          h * (0.25 + 0.3 * Math.random()),
+          0,
+          w * 0.5,
+          h * 0.5,
+          Math.max(w, h) * (0.8 + Math.random() * 0.4)
+        );
+        rg.addColorStop(0, "rgba(255,255,255,0.03)");
+        rg.addColorStop(1, "rgba(255,255,255,0.0)");
+        ctx.fillStyle = rg;
+        ctx.fillRect(0, 0, w, h);
+      }
+      ctx.globalAlpha = 1;
+
+      // 별 반짝임
+      const stars = starsRef.current;
+      for (let i = 0; i < stars.length; i++) {
+        const s = stars[i];
+        s.tw += 0.015 + (i % 7) * 0.0005;
+        const twinkle = (Math.sin(s.tw) + 1) * 0.5; // 0~1
+        const a = (0.35 + 0.65 * twinkle) * prefs.starBrightness;
+        ctx.fillStyle = `rgba(255,255,255,${Math.min(0.9, a)})`;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r * (0.9 + twinkle * 0.4), 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 지면(실루엣) + 하단 영역 자연스러운 블렌드
+      const groundH = Math.max(36, Math.min(120, h * 0.12));
+      const gg = ctx.createLinearGradient(0, h - groundH, 0, h);
+      gg.addColorStop(0, "rgba(0,0,0,0.0)");
+      gg.addColorStop(1, "rgba(0,0,0,0.85)");
+      ctx.fillStyle = gg;
+      ctx.fillRect(0, h - groundH, w, groundH);
+
+      rafRef.current = requestAnimationFrame(render);
+    };
+
+    rafRef.current = requestAnimationFrame(render);
     return () => {
-      window.removeEventListener("resize", init);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefs.starBrightness]);
+
+  // contentEditable 포커스: 하늘 아무데나 클릭하면 포커스
+  useEffect(() => {
+    const onSkyClick = (e: MouseEvent) => {
+      // 달/패널 클릭은 무시
+      const moonEl = moonRef.current;
+      if (moonEl && moonEl.contains(e.target as Node)) return;
+      // 빠른설정 영역 무시
+      const quick = document.getElementById("quick-panel");
+      if (quick && quick.contains(e.target as Node)) return;
+
+      editorRef.current?.focus();
+    };
+    window.addEventListener("click", onSkyClick);
+    return () => window.removeEventListener("click", onSkyClick);
   }, []);
 
-  function init() {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2)); // clamp for perf
-    const { innerWidth: w, innerHeight: h } = window;
-    canvas.width = Math.floor(w * dpr);
-    canvas.height = Math.floor(h * dpr);
-    canvas.style.width = `${w}px`;
-    canvas.style.height = `${h}px`;
+  // 로컬 보관
+  useEffect(() => {
+    localStorage.setItem("sky.prefs", JSON.stringify(prefs));
+  }, [prefs]);
 
-    // generate stars
-    const area = canvas.width * canvas.height;
-    const baseDensity = 0.000025; // tweak
-    const count = Math.max(120, Math.floor(area * baseDensity * prefs.densityMul));
-    const stars: Star[] = new Array(count).fill(0).map(() => {
-      // bias more stars toward the top
-      const y = Math.random() ** 0.8 * canvas.height * 0.92;
-      return {
-        x: Math.random() * canvas.width,
-        y,
-        r: Math.random() * (1.2 * dpr) + (0.3 * dpr),
-        phase: Math.random() * Math.PI * 2,
-        speed: 0.004 + Math.random() * 0.01,
-        baseAlpha: 0.35 + Math.random() * 0.5,
-      };
-    });
-    starsRef.current = stars;
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    rafRef.current = requestAnimationFrame(tick);
-  }
-
-  function drawGradient(ctx: CanvasRenderingContext2D, w: number, h: number) {
-    const grad = ctx.createLinearGradient(0, 0, 0, h);
-    // top: deep navy, bottom: blue-ish twilight
-    grad.addColorStop(0, "#071a3a");
-    grad.addColorStop(0.5, "#0a2348");
-    grad.addColorStop(1, "#0f2f5a");
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, w, h);
-  }
-
-  function drawGround(ctx: CanvasRenderingContext2D, w: number, h: number) {
-    const gh = Math.floor(h * 0.16);
-    const y0 = h - gh;
-    const grd = ctx.createLinearGradient(0, y0, 0, h);
-    grd.addColorStop(0, "rgba(0,0,0,0)");
-    grd.addColorStop(0.35, "rgba(0,0,0,0.3)");
-    grd.addColorStop(1, "rgba(0,0,0,0.9)");
-    ctx.fillStyle = grd;
-    ctx.fillRect(0, y0, w, gh);
-
-    // subtle hillside silhouette
-    ctx.fillStyle = "rgba(0,0,0,0.7)";
-    ctx.beginPath();
-    ctx.moveTo(0, h - gh * 0.3);
-    ctx.quadraticCurveTo(w * 0.35, h - gh * 0.6, w * 0.7, h - gh * 0.25);
-    ctx.quadraticCurveTo(w * 0.85, h - gh * 0.15, w, h - gh * 0.35);
-    ctx.lineTo(w, h);
-    ctx.lineTo(0, h);
-    ctx.closePath();
-    ctx.fill();
-  }
-
-  function tick() {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    const { width: w, height: h } = canvas;
-
-    drawGradient(ctx, w, h);
-
-    // stars
-    const stars = starsRef.current;
-    for (let i = 0; i < stars.length; i++) {
-      const s = stars[i];
-      s.phase += s.speed;
-      const twinkle = (Math.sin(s.phase) * 0.5 + 0.5) * 0.7 + 0.3; // 0.3..1.0
-      const a = Math.min(1, Math.max(0, s.baseAlpha * twinkle * prefs.glowMul));
-      ctx.globalAlpha = a;
-      // glow
-      const grd = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.r * 6);
-      grd.addColorStop(0, "rgba(255,255,255,0.9)");
-      grd.addColorStop(1, "rgba(255,255,255,0)");
-      ctx.fillStyle = grd;
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, s.r * 6, 0, Math.PI * 2);
-      ctx.fill();
-
-      // core
-      ctx.globalAlpha = Math.min(1, 0.8 * prefs.glowMul);
-      ctx.fillStyle = "rgba(255,255,255,0.9)";
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-      ctx.fill();
+  // 달 아이콘 포인터 핸들러
+  const onMoonPointerDown = () => {
+    if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
+    longPressTimer.current = window.setTimeout(() => {
+      setShowQuick((s) => !s);
+    }, 520); // 0.5초 길게누르기
+  };
+  const onMoonPointerUp = () => {
+    if (longPressTimer.current) {
+      window.clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
     }
-    ctx.globalAlpha = 1;
+  };
+  const onMoonClick = () => {
+    if (showQuick) return; // 길게누르기 중에는 이동 막기
+    navigate("/settings");
+  };
 
-    drawGround(ctx, w, h);
-
-    rafRef.current = requestAnimationFrame(tick);
-  }
+  const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
+    setDraft((e.target as HTMLDivElement).innerText);
+  };
 
   return (
-    <div className="relative w-full h-dvh overflow-hidden select-none">
-      <canvas ref={canvasRef} className="block w-full h-full" />
-      {/* Moon button */}
+    <div className="relative h-dvh w-full overflow-hidden text-white">
+      {/* 밤하늘 캔버스 */}
+      <canvas ref={canvasRef} className="absolute inset-0 block w-full h-full" />
+
+      {/* 달 아이콘 */}
       <button
+        ref={moonRef}
         aria-label="Settings"
-        onClick={() => nav("/settings")}
-        {...longBind}
-        className="absolute top-3 right-3 z-20 rounded-full w-11 h-11 flex items-center justify-center bg-[rgba(255,255,255,0.08)] hover:bg-[rgba(255,255,255,0.15)] backdrop-blur text-white"
-        style={{ boxShadow: "0 0 16px rgba(255,255,255,.15) inset" }}
+        className="absolute right-4 top-4 z-30 rounded-full p-2 hover:scale-105 transition-transform"
+        onClick={onMoonClick}
+        onPointerDown={onMoonPointerDown}
+        onPointerUp={onMoonPointerUp}
+        onPointerCancel={onMoonPointerUp}
       >
-        {/* crescent */}
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-          <path d="M20 12c0 4.418-3.582 8-8 8a8 8 0 01-3.5-15.2 8.5 8.5 0 1011.7 11.7A8 8 0 0120 12z" fill="white" opacity="0.9"/>
-        </svg>
+        <CrescentMoonSVG />
       </button>
 
-      {/* Quick panel */}
-      {panelOpen && (
-        <div className="absolute top-16 right-3 z-30 rounded-xl bg-[rgba(10,15,30,0.9)] text-white p-3 w-64 shadow-lg border border-white/10">
-          <div className="text-sm mb-2 opacity-90">빠른 설정</div>
-          <label className="block text-xs opacity-80">별 밀도</label>
-          <input
-            type="range" min={0.2} max={2.0} step={0.1} value={prefs.densityMul}
-            onChange={(e) => setPrefs(p => ({ ...p, densityMul: Number(e.target.value) }))}
-            className="w-full mb-2"
+      {/* 하늘 타이핑 에디터 */}
+      <div
+        ref={editorRef}
+        role="textbox"
+        aria-label="밤하늘 메모"
+        contentEditable
+        suppressContentEditableWarning
+        spellCheck={false}
+        className="absolute inset-0 z-10 px-6 md:px-12 outline-none focus:outline-none select-text
+                   flex items-center justify-center"
+        onInput={handleInput}
+        // placeholder 대용 안내 텍스트
+        data-placeholder="밤하늘에 오늘을 적어 보세요…"
+        style={{
+          // 달빛 글꼴 스타일
+          fontFamily:
+            "'Pretendard Variable', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Noto Sans KR, Apple SD Gothic Neo, sans-serif",
+          fontWeight: 500,
+          fontSize: "clamp(18px, 3.4vw, 28px)",
+          lineHeight: 1.6,
+          textAlign: "center",
+          color: "rgba(235,243,255,0.92)",
+          textShadow:
+            "0 0 0.4rem rgba(180,210,255,0.65), 0 0 1.2rem rgba(140,190,255,0.35)",
+          // 배경과 자연스러운 블렌드
+          mixBlendMode: "screen",
+        }}
+      />
+
+      {/* contentEditable placeholder 구현 */}
+      {!draft && (
+        <div
+          className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center px-6 md:px-12 text-center"
+          style={{
+            fontSize: "clamp(18px, 3.4vw, 28px)",
+            lineHeight: 1.6,
+            color: "rgba(220,235,255,0.42)",
+            textShadow: "0 0 0.7rem rgba(150,190,255,0.2)",
+          }}
+        >
+          밤하늘에 오늘을 적어 보세요…
+        </div>
+      )}
+
+      {/* 빠른설정 패널 */}
+      {showQuick && (
+        <div
+          id="quick-panel"
+          className="absolute right-3 top-16 z-40 w-[260px] rounded-2xl border border-white/10 bg-[#0b1830]/80 p-3 backdrop-blur"
+        >
+          <h3 className="mb-2 text-sm text-white/80">빠른 설정</h3>
+          <Slider
+            label="별 밀도"
+            min={0.2}
+            max={2}
+            step={0.05}
+            value={prefs.starDensity}
+            onChange={(v) => setPrefs((p) => ({ ...p, starDensity: v }))}
           />
-          <label className="block text-xs opacity-80">별 밝기</label>
-          <input
-            type="range" min={0.5} max={1.6} step={0.05} value={prefs.glowMul}
-            onChange={(e) => { const v = Number(e.target.value); setPrefs(p => { const q = { ...p, glowMul: v }; savePrefs(q); return q; }); }}
-            className="w-full"
+          <Slider
+            label="별 밝기"
+            min={0.5}
+            max={1.5}
+            step={0.05}
+            value={prefs.starBrightness}
+            onChange={(v) => setPrefs((p) => ({ ...p, starBrightness: v }))}
           />
         </div>
       )}
 
-      {/* Bottom tab bar on ground */}
+      {/* 하단 탭바(심플) */}
       <nav
-        className="pointer-events-auto absolute left-1/2 -translate-x-1/2 bottom-3 z-20 flex items-center gap-6 rounded-2xl px-4 py-2"
-        style={{ background: "rgba(0,0,0,.45)", backdropFilter: "blur(6px)", border: "1px solid rgba(255,255,255,.08)" }}
+        className="pointer-events-auto absolute inset-x-0 bottom-0 z-20 mx-auto mb-2 flex h-12 w-[min(520px,92%)] items-center justify-around
+                   rounded-full border border-white/10 bg-black/40 backdrop-blur"
       >
-        <Link to="/" className="text-white/90 hover:text-white flex items-center gap-1">
-          <span aria-hidden>🏠</span><span className="hidden sm:inline text-sm">Home</span>
-        </Link>
-        <Link to="/calendar" className="text-white/90 hover:text-white flex items-center gap-1">
-          <span aria-hidden>📅</span><span className="hidden sm:inline text-sm">Calendar</span>
-        </Link>
-        <Link to="/search" className="text-white/90 hover:text-white flex items-center gap-1">
-          <span aria-hidden>🔎</span><span className="hidden sm:inline text-sm">Search</span>
-        </Link>
-        <Link to="/links" className="text-white/90 hover:text-white flex items-center gap-1">
-          <span aria-hidden>🪢</span><span className="hidden sm:inline text-sm">Links</span>
-        </Link>
+        <Tab icon="home" label="Home" active />
+        <Tab icon="calendar" label="Calendar" onClick={() => navigate('/calendar')} />
+        <Tab icon="search" label="Search" onClick={() => navigate('/search')} />
+        <Tab icon="link" label="Links" onClick={() => navigate('/recall')} />
       </nav>
     </div>
+  );
+}
+
+function Slider({
+  label,
+  min,
+  max,
+  step,
+  value,
+  onChange,
+}: {
+  label: string;
+  min: number;
+  max: number;
+  step: number;
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <label className="mb-3 block text-xs text-white/70">
+      <span className="mb-1 block">{label}</span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full accent-sky-300"
+      />
+      <div className="mt-0.5 text-right text-[11px] text-white/50">{value.toFixed(2)}</div>
+    </label>
+  );
+}
+
+function Tab({
+  icon,
+  label,
+  active,
+  onClick,
+}: {
+  icon: "home" | "calendar" | "search" | "link";
+  label: string;
+  active?: boolean;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex h-9 items-center gap-2 rounded-full px-3 text-sm ${
+        active ? "bg-white/10 text-white" : "text-white/70 hover:text-white"
+      }`}
+    >
+      <span className="inline-block">{getIcon(icon)}</span>
+      <span className="hidden sm:inline">{label}</span>
+    </button>
+  );
+}
+
+function getIcon(name: "home" | "calendar" | "search" | "link") {
+  switch (name) {
+    case "home":
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path d="M3 11.5 12 4l9 7.5V20a2 2 0 0 1-2 2h-4v-6H9v6H5a2 2 0 0 1-2-2v-8.5Z" stroke="currentColor" strokeWidth="1.5" />
+        </svg>
+      );
+    case "calendar":
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" />
+          <path d="M16 3v4M8 3v4M3 10h18" stroke="currentColor" strokeWidth="1.5" />
+        </svg>
+      );
+    case "search":
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.5"></circle>
+          <path d="M20 20l-3.2-3.2" stroke="currentColor" strokeWidth="1.5"></path>
+        </svg>
+      );
+    case "link":
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path d="M10 14l-1.5 1.5a4 4 0 1 1-5.7-5.7L4.5 8" stroke="currentColor" strokeWidth="1.5" />
+          <path d="M14 10l1.5-1.5a4 4 0 1 1 5.7 5.7L19.5 16" stroke="currentColor" strokeWidth="1.5" />
+          <path d="M8 12h8" stroke="currentColor" strokeWidth="1.5" />
+        </svg>
+      );
+  }
+}
+
+/** 고퀄 크레센트 달 (SVG mask + radialGradient) */
+function CrescentMoonSVG() {
+  return (
+    <svg width="36" height="36" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="moonGlow" cx="50%" cy="45%" r="55%">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
+          <stop offset="60%" stopColor="#dbe7ff" stopOpacity="0.85" />
+          <stop offset="100%" stopColor="#c0d6ff" stopOpacity="0.55" />
+        </radialGradient>
+
+        {/* 달의 초승달을 만드는 마스크: 큰 원 - 작은 원 */}
+        <mask id="crescentMask">
+          <rect width="100%" height="100%" fill="black" />
+          <circle cx="34" cy="30" r="18" fill="white" />
+          <circle cx="42" cy="26" r="16" fill="black" />
+        </mask>
+
+        {/* 은은한 외곽 광채 */}
+        <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="2.6" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+
+      {/* 외곽 부드러운 글로우 */}
+      <g filter="url(#softGlow)">
+        <circle cx="34" cy="30" r="20" fill="url(#moonGlow)" mask="url(#crescentMask)" />
+      </g>
+    </svg>
   );
 }
