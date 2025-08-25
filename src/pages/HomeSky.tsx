@@ -4,7 +4,7 @@ import Tippy from '@tippyjs/react';
 import 'tippy.js/dist/tippy.css';
 import Toast from "../components/Toast";
 import Modal from "../components/Modal";
-import BottomHorizonNav from "../components/BottomHorizonNav";
+
 import "../styles/toast.css";
 import "../styles/modal.css";
 import "../styles/sky.css";
@@ -156,7 +156,7 @@ export default function HomeSky(props: {
           <p>{modal.summary}</p>
         </Modal>
       )}
-      <BottomHorizonNav />
+      
     </div>
   );
 }

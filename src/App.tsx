@@ -8,7 +8,7 @@ import LinksPage from './pages/LinksPage';
 import Diagnostics from './components/Diagnostics';
 import { Toasts } from './components/Toasts';
 import { getSemanticAdapter } from "./lib/semantic";
-import BottomHorizonNav from './components/BottomHorizonNav';
+import NewBottomNav from './components/NewBottomNav';
 
 // Main layout component to handle conditional nav bar
 const MainLayout = () => {
@@ -57,7 +57,7 @@ const MainLayout = () => {
           <Route path="/diagnostics" element={<Diagnostics onBack={() => window.history.back()} />} />
         </Routes>
       </main>
-      {showNav && <BottomHorizonNav />}
+      {showNav && <NewBottomNav />}
     </div>
   );
 };
