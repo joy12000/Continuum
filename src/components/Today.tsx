@@ -1,134 +1,170 @@
-import React, { useMemo, useRef, useState } from "react";
-import { SearchBar } from "./SearchBar";
-import { RichNoteEditor } from "./RichNoteEditor";
-import { db, Note } from "../lib/db";
-import { Attachment } from "../lib/db";
-import { toast } from "../lib/toast";
-import { GeneratedAnswer } from "./GeneratedAnswer";
-import { AnswerData } from "../types/common";
-import { Mic, Save, Calendar, MessageSquare } from "lucide-react";
 
-/** Props are kept source-compatible with the older TodayCanvasScreen */
-type View = 'today' | 'settings' | 'diagnostics';
-interface Props {
-  onNavigate: (v: View)=>void;
-  query: string;
-  onQueryChange: (s: string)=>void;
-  notes: Note[];
-  onSearchFocus?: ()=>void;
-  suggestedQuestions?: string[];
-  isLoadingSuggestions?: boolean;
-  suggestionError?: string|null;
-  generatedAnswer: { data: AnswerData|null; isLoading: boolean; error: string|null; };
-  onNewNote: ()=>void;
-  activeNote?: Note;
-  onNoteSelect: (id: string)=>void;
-  isModelReady: boolean;
-  modelStatus: string;
+import React, { useState, useEffect, useMemo } from 'react';
+import { db, Note } from '../lib/db';
+import { Trash2, Edit, Save, XCircle } from 'lucide-react';
+
+interface SearchResult {
+  id: string;
+  score: number;
 }
 
-/** Small Voice record button that saves audio/webm into attachments for the current note */
-function VoiceNoteButton({ noteId }: { noteId?: string }) {
-  const [rec, setRec] = useState<MediaRecorder|null>(null);
-  const chunks = useRef<BlobPart[]>([]);
-  const [busy, setBusy] = useState(false);
+const Today = () => {
+  const [query, setQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Note[]>([]);
+  const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedText, setEditedText] = useState('');
 
-  async function start() {
-    if (!noteId) { alert("먼저 노트를 생성/선택하세요"); return; }
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const m = new MediaRecorder(stream, { mimeType: "audio/webm" });
-    chunks.current = [];
-    m.ondataavailable = (e) => { if (e.data?.size) chunks.current.push(e.data); };
-    m.onstop = async () => {
-      try {
-        setBusy(true);
-        const blob = new Blob(chunks.current, { type: "audio/webm" });
-        const id = crypto.randomUUID();
-        const name = `voice-${new Date().toISOString().slice(0,19)}.webm`;
-        await db.attachments.add({ id, noteId, name, type: "audio/webm", blob, createdAt: Date.now() } as any);
-        toast.success("음성 메모 저장 완료");
-      } catch(e:any) {
-        toast.error("음성 저장 실패: " + (e?.message || e));
-      } finally { setBusy(false); }
+  const searchWorker = useMemo(() =>
+    new Worker(new URL('../workers/searchWorker.ts', import.meta.url), { type: 'module' })
+  , []);
+
+  useEffect(() => {
+    const handleWorkerMessage = async (e: MessageEvent) => {
+      if (e.data.type === 'SIMILAR_RESULT') {
+        setSearchResults(e.data.payload);
+      } else if (e.data.ok && e.data.result) {
+        const results: SearchResult[] = e.data.result;
+        const notes = await db.notes.where('id').anyOf(results.map(r => r.id)).toArray();
+        const sortedNotes = results.map(r => notes.find(n => n.id === r.id)).filter(Boolean) as Note[];
+        setSearchResults(sortedNotes);
+      }
     };
-    m.start();
-    setRec(m);
-  }
 
-  function stop() {
-    rec?.stop();
-    rec?.stream.getTracks().forEach(t=>t.stop());
-    setRec(null);
-  }
+    searchWorker.addEventListener('message', handleWorkerMessage);
+
+    return () => {
+      searchWorker.removeEventListener('message', handleWorkerMessage);
+    };
+  }, [searchWorker]);
+
+  useEffect(() => {
+    const handleSearch = () => {
+      if (query.trim() === '') {
+        setSearchResults([]);
+        return;
+      }
+      searchWorker.postMessage({ type: 'score', payload: { q: query, engine: 'auto', notes: [] } });
+    };
+
+    const debounce = setTimeout(() => {
+      handleSearch();
+    }, 300);
+
+    return () => clearTimeout(debounce);
+  }, [query, searchWorker]);
+
+  const handleSelectNote = (note: Note) => {
+    setSelectedNote(note);
+    setIsEditing(false);
+    setEditedText(note.content);
+  };
+
+  const handleEdit = () => {
+    if (!selectedNote) return;
+    setIsEditing(true);
+    setEditedText(selectedNote.content);
+  };
+
+  const handleSave = async () => {
+    if (!selectedNote) return;
+    await db.notes.update(selectedNote.id!, { content: editedText });
+    const updatedNote = { ...selectedNote, content: editedText };
+    setSelectedNote(updatedNote);
+    // Update search results list as well
+    setSearchResults(prev => prev.map(n => n.id === updatedNote.id ? updatedNote : n));
+    setIsEditing(false);
+  };
+
+  const handleDelete = async () => {
+    if (!selectedNote || !window.confirm('Are you sure you want to delete this note?')) return;
+    await db.notes.delete(selectedNote.id!);
+    setSearchResults(prev => prev.filter(n => n.id !== selectedNote.id));
+    setSelectedNote(null);
+    setIsEditing(false);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+  };
 
   return (
-    <button className="btn flex items-center gap-2" onClick={rec?stop:start} disabled={busy}>
-      <Mic size={16} /> {rec ? "녹음 중지" : "음성 메모"}
-    </button>
-  );
-}
-
-/** Five daily questions -> single diary note via /api/generate (type: daily_summary) */
-function DailyCheckin({ onDone }:{ onDone?: (noteId:string)=>void }) {
-  // ...
-  return (
-    <section className="border border-slate-700 rounded-2xl p-4 space-y-3">
-      {/* ... */}
-    </section>
-  );
-}
-
-export default function Today(props: Props){
-  const { onNavigate, query, onQueryChange, notes, onSearchFocus, suggestedQuestions, isLoadingSuggestions, suggestionError, generatedAnswer, onNewNote, activeNote, onNoteSelect, isModelReady, modelStatus } = props;
-
-  return (
-    <div className="p-4 space-y-4">
-      {/* Top actions */}
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-slate-400">{isModelReady ? "온디바이스 임베딩 준비 ✔︎" : modelStatus}</div>
-        <div className="flex gap-2">
-          <button className="btn" onClick={onNewNote}>새 노트</button>
-          <VoiceNoteButton noteId={activeNote?.id} />
+    <div className="grid grid-cols-1 md:grid-cols-3 h-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+      {/* Left Column: Search and Results */}
+      <div className="col-span-1 md:border-r border-gray-200 dark:border-gray-700 flex flex-col">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search notes..."
+            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div className="flex-grow overflow-y-auto">
+          {searchResults.length > 0 ? (
+            <ul>
+              {searchResults.map((note) => (
+                <li key={note.id}>
+                  <button
+                    onClick={() => handleSelectNote(note)}
+                    className={`w-full text-left p-4 border-l-4 ${selectedNote?.id === note.id ? 'border-blue-500 bg-blue-50 dark:bg-gray-800' : 'border-transparent hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
+                    <h3 className="font-semibold truncate">{note.content.split('\n')[0]}</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                      {note.content.split('\n').slice(1).join(' ') || 'No additional content'}
+                    </p>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="p-4 text-center text-gray-500">
+              <p>No search results.</p>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Quick Write */}
-      <section className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
-        <h3 className="font-semibold mb-2">Quick Write</h3>
-        <RichNoteEditor note={activeNote} onSaved={() => activeNote && onNoteSelect(activeNote.id)} />
-      </section>
-
-
-      {/* Daily Check‑in */}
-      <DailyCheckin onDone={onNoteSelect}/>
-
-      {/* Search */}
-      <section className="space-y-2">
-        <SearchBar q={query} setQ={onQueryChange} onFocus={onSearchFocus || (() => {})} suggestedQuestions={suggestedQuestions || []} isLoadingSuggestions={isLoadingSuggestions || false} suggestionError={suggestionError || null} isModelReady={isModelReady} modelStatus={modelStatus} />
-        {suggestedQuestions && suggestedQuestions.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {suggestedQuestions.map((s,i)=>(
-              <button key={i} className="px-2 py-1 rounded-full bg-slate-700 text-xs hover:bg-slate-600" onClick={()=>onQueryChange(s)}>{s}</button>
-            ))}
+      {/* Right Column: Note Viewer/Editor */}
+      <div className="col-span-1 md:col-span-2 p-6 flex flex-col">
+        {selectedNote ? (
+          <>
+            <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-4 mb-4">
+              <h2 className="text-2xl font-bold">{selectedNote.content.split('\n')[0]}</h2>
+              <div className="flex items-center gap-2">
+                {isEditing ? (
+                  <>
+                    <button onClick={handleSave} className="p-2 rounded-md bg-green-500 text-white hover:bg-green-600"><Save size={20} /></button>
+                    <button onClick={handleCancelEdit} className="p-2 rounded-md bg-gray-500 text-white hover:bg-gray-600"><XCircle size={20} /></button>
+                  </>
+                ) : (
+                  <button onClick={handleEdit} className="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700"><Edit size={20} /></button>
+                )}
+                <button onClick={handleDelete} className="p-2 rounded-md hover:bg-red-100 dark:hover:bg-red-900 text-red-500"><Trash2 size={20} /></button>
+              </div>
+            </div>
+            <div className="flex-grow overflow-y-auto">
+              {isEditing ? (
+                <textarea
+                  value={editedText}
+                  onChange={(e) => setEditedText(e.target.value)}
+                  className="w-full h-full p-2 bg-transparent border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              ) : (
+                <div className="prose dark:prose-invert max-w-none whitespace-pre-wrap">
+                  {editedText}
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="flex items-center justify-center h-full text-gray-500">
+            <p>Select a note to view or edit.</p>
           </div>
         )}
-      </section>
-
-      {/* AI Answer */}
-      <section>
-        {generatedAnswer.data && <GeneratedAnswer data={generatedAnswer.data} />}
-      </section>
-
-      {/* Results (today can still list) */}
-      <section className="grid gap-2">
-        {notes.map(n=>(
-          <article key={n.id} className="rounded-xl border border-slate-700 p-3 hover:bg-slate-800 cursor-pointer" onClick={()=>onNoteSelect(n.id)}>
-            <div className="text-xs text-slate-400">{new Date(n.updatedAt).toLocaleString()}</div>
-            <div className="line-clamp-2" dangerouslySetInnerHTML={{__html: n.content}}/>
-            <div className="mt-1 flex flex-wrap gap-1">{n.tags.map(t=>(<span key={t} className="text-xs bg-slate-700 rounded-full px-2 py-0.5">{t}</span>))}</div>
-          </article>
-        ))}
-      </section>
+      </div>
     </div>
   );
-}
+};
+
+export default Today;
