@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import HomeSky from './components/HomeSky';
 import Settings from './pages/Settings';
 import CalendarPage from './pages/CalendarPage';
@@ -8,8 +8,11 @@ import LinksPage from './pages/LinksPage';
 import Diagnostics from './components/Diagnostics';
 import { Toasts } from './components/Toasts';
 import { getSemanticAdapter } from "./lib/semantic";
+import BottomHorizonNav from './components/BottomHorizonNav';
 
-export default function App() {
+// Main layout component to handle conditional nav bar
+const MainLayout = () => {
+  const location = useLocation();
   const [engine, setEngine] = useState<'auto' | 'remote'>((localStorage.getItem('semanticEngine') as any) || 'auto');
   const [modelStatus, setModelStatus] = useState("확인 중…");
 
@@ -38,17 +41,31 @@ export default function App() {
     return () => { dead = true; };
   }, [engine]);
 
+  const noNavPaths = ['/settings', '/diagnostics'];
+  const showNav = !noNavPaths.includes(location.pathname);
+
+  return (
+    <div className="flex flex-col h-screen bg-surface text-text-primary">
+      <Toasts />
+      <main className="flex-grow overflow-y-auto">
+        <Routes>
+          <Route path="/" element={<HomeSky />} />
+          <Route path="/settings" element={<Settings engine={engine} setEngine={setEngine} modelStatus={modelStatus} />} />
+          <Route path="/calendar" element={<CalendarPage />} />
+          <Route path="/search" element={<SearchPage />} />
+          <Route path="/recall" element={<LinksPage />} />
+          <Route path="/diagnostics" element={<Diagnostics onBack={() => window.history.back()} />} />
+        </Routes>
+      </main>
+      {showNav && <BottomHorizonNav />}
+    </div>
+  );
+};
+
+export default function App() {
   return (
     <Router>
-      <Toasts />
-      <Routes>
-        <Route path="/" element={<HomeSky />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/calendar" element={<CalendarPage />} />
-        <Route path="/search" element={<SearchPage />} />
-        <Route path="/links" element={<LinksPage />} />
-        <Route path="/diagnostics" element={<Diagnostics onBack={() => window.history.back()} />} />
-      </Routes>
+      <MainLayout />
     </Router>
   );
 }

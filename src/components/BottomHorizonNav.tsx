@@ -5,7 +5,7 @@ const tabs = [
   { to: "/",        label: "홈",     icon: "🏠" },
   { to: "/calendar",label: "달력",   icon: "📅" },
   { to: "/search",  label: "검색",   icon: "🔎" },
-  { to: "/links",   label: "링크",   icon: "🪢" },
+  { to: "/recall",   label: "리콜",   icon: "🪢" },
 ];
 const BottomHorizonNav: React.FC = () => {
   return (

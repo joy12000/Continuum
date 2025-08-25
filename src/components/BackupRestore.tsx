@@ -18,7 +18,7 @@ async function calculateNotesHash(notes: Note[]): Promise<string> {
   return hashHex;
 }
 
-export function BackupRestore() {
+export function BackupRestore({ onNotesImported }: { onNotesImported?: () => void }) {
   /**
    * Creates an encrypted backup of all notes with a data integrity hash.
    */
