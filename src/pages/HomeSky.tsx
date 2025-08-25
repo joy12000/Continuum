@@ -1,11 +1,14 @@
+
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Tippy from '@tippyjs/react';
 import 'tippy.js/dist/tippy.css';
 import Toast from "../components/Toast";
 import Modal from "../components/Modal";
+import BottomHorizonNav from "../components/BottomHorizonNav";
 import "../styles/toast.css";
 import "../styles/modal.css";
 import "../styles/sky.css";
+import "../styles/bottom-horizon-nav.css";
 
 /**
  * HomeSky (NEW)
@@ -128,7 +131,9 @@ export default function HomeSky(props: {
         onCompositionStart={() => (isComposingRef.current = true)}
         onCompositionEnd={() => (isComposingRef.current = false)}
       />
-      <div className="sky-text">{text ? lines.map((ln, i) => <div key={i} className="ln">{ln || " "}</div>) : <div className="ln placeholder">밤하늘에 오늘을 적어 보세요…</div>}</div>
+      <div className="sky-text-container">
+        <div className="sky-text">{text ? lines.map((ln, i) => <div key={i} className="ln">{ln || " "}</div>) : <div className="ln placeholder">밤하늘에 오늘을 적어 보세요…</div>}</div>
+      </div>
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       {modal && (
         <Modal
@@ -151,6 +156,7 @@ export default function HomeSky(props: {
           <p>{modal.summary}</p>
         </Modal>
       )}
+      <BottomHorizonNav />
     </div>
   );
 }

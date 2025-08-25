@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import HomePageWithSky from './pages/HomePageWithSky';
+import CalendarPage from './pages/CalendarPage';
+import SearchPage from './pages/SearchPage';
+import LinksPage from './pages/LinksPage';
 import { Settings } from './components/Settings';
 import Diagnostics from './components/Diagnostics';
 import { Toasts } from './components/Toasts';
@@ -59,6 +62,9 @@ export default function App() {
       <Toasts />
       <Routes>
         <Route path="/" element={<HomePageWithSky />} />
+        <Route path="/calendar" element={<CalendarPage />} />
+        <Route path="/search" element={<SearchPage />} />
+        <Route path="/links" element={<LinksPage />} />
         <Route path="/settings" element={<SettingsWrapper />} />
         <Route path="/diagnostics" element={<Diagnostics onBack={() => window.history.back()} />} />
       </Routes>
