@@ -5,6 +5,7 @@ import Toast from "../components/Toast";
 import Modal from "../components/Modal";
 import "../styles/toast.css";
 import "../styles/modal.css";
+import "../styles/sky.css";
 
 /**
  * HomeSky (NEW)
