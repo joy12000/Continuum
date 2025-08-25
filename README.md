@@ -21,8 +21,20 @@ npm run preview
 - RRF 융합 (현재는 BM25 단독 사용, 시맨틱 추가 예정)
 - AES-GCM 암호화 백업/복원
 
-## 배포
-- Netlify / GitHub Pages 등 정적 호스팅
+## 배포 (Vercel)
+
+이 프로젝트는 Vercel에 최적화되어 있습니다.
+
+1.  **저장소 연결**: Vercel 대시보드에서 이 GitHub 저장소를 가져와 새 프로젝트를 생성합니다.
+2.  **빌드 설정**: Vercel은 자동으로 Vite 프로젝트를 감지하므로 대부분의 설정은 필요 없습니다. `vercel.json` 파일이 다음을 자동으로 구성합니다:
+    *   **빌드 명령**: `npm run build`
+    *   **출력 디렉터리**: `dist`
+3.  **환경 변수**: 프로젝트 설정의 **Settings → Environment Variables**에서 다음 변수를 추가해야 합니다.
+    *   `GEMINI_API_KEY`: Google Gemini API 키
+    *   `GEMINI_EMBED_MODEL` (선택 사항): 사용할 Gemini 모델 (기본값: `gemini-1.5-flash`)
+4.  **캐시 및 헤더 정책**:
+    *   `vercel.json` 파일에 ONNX/WASM 환경에 필요한 `COOP/COEP` 헤더가 설정되어 있습니다.
+    *   `/models` 와 `/*.wasm` 파일은 브라우저에 1년간 캐시되어 재방문 시 로딩 속도를 높입니다.
 
 ## 시맨틱 검색(선택)
 - `onnxruntime-web` 추가 후 `src/lib/search/semantic.ts` 대체 구현
