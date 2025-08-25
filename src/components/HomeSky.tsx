@@ -279,7 +279,16 @@ export default function HomeSky() {
         </div>
       )}
 
-      
+      {/* 하단 탭바(심플) */}
+      <nav
+        className="pointer-events-auto absolute inset-x-0 bottom-0 z-20 mx-auto mb-2 flex h-12 w-[min(520px,92%)] items-center justify-around
+                   rounded-full border border-white/10 bg-black/40 backdrop-blur"
+      >
+        <Tab icon="home" label="Home" active />
+        <Tab icon="calendar" label="Calendar" onClick={() => navigate('/calendar')} />
+        <Tab icon="search" label="Search" onClick={() => navigate('/search')} />
+        <Tab icon="link" label="Links" onClick={() => navigate('/recall')} />
+      </nav>
     </div>
   );
 }
