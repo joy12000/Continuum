@@ -1,0 +1,19 @@
+
+.calendar-wrap{min-height:100vh;display:flex;flex-direction:column;gap:12px;color:#e9f2ff;background:linear-gradient(180deg,rgba(3,10,20,.6),rgba(6,18,36,.8));}
+.cal-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.06);backdrop-filter:blur(4px);}
+.cal-head .nav-btn,.cal-actions button{min-height:36px;padding:6px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.06);color:#eaf3ff;}
+.cal-title{display:flex;align-items:center;gap:10px;} .cal-title h1{margin:0;font-size:16px;} .cal-title button{min-width:36px;min-height:36px;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.06);color:#eaf3ff;}
+.cal-grid{padding:8px 10px;display:grid;gap:6px;}
+.cal-weekhead{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;padding:0 2px;color:rgba(240,245,255,.8);font-size:12px;}
+.wcell.sun{color:#ffd3d3;} .wcell.sat{color:#cfe3ff;}
+.cal-cells{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+.ccell{aspect-ratio:1/1.05;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);border-radius:12px;color:#eaf3ff;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;padding:8px;gap:4px;text-align:left;position:relative;}
+.ccell.dim{opacity:.55;} .ccell.today{box-shadow:0 0 0 2px rgba(120,180,255,.35) inset;} .ccell.active{outline:2px solid rgba(120,180,255,.7);}
+.ccell .date{font-weight:600;font-size:13px;} .ccell .dots{position:absolute;right:6px;bottom:6px;display:flex;gap:4px;align-items:center;}
+.ccell .dot{width:6px;height:6px;border-radius:50%;background:linear-gradient(180deg,rgba(200,220,255,.95),rgba(120,180,255,.9));box-shadow:0 0 8px rgba(120,180,255,.45);} .ccell .more{font-size:11px;color:rgba(235,245,255,.8);}
+.cal-detail{padding:8px 12px 90px;display:flex;flex-direction:column;gap:10px;}
+.detail-head{display:flex;align-items:baseline;gap:10px;} .detail-head h2{margin:0;font-size:15px;} .detail-head .count{font-size:12px;color:rgba(235,245,255,.75);}
+.detail-list{display:grid;gap:8px;} .detail-item{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:10px;}
+.detail-item h3{margin:0 0 6px 0;font-size:14px;} .detail-item .snippet{margin:0 0 8px 0;color:rgba(235,245,255,.85);}
+.detail-actions{display:flex;gap:8px;flex-wrap:wrap;} .detail-actions button{min-height:32px;padding:6px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.06);color:#eaf3ff;}
+@media (min-width:1024px){.calendar-wrap{padding-left:84px;}}
