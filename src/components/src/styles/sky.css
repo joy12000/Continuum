@@ -1,0 +1,88 @@
+
+:root{
+  --sky-top: #07182f;
+  --sky-bottom: #0c2746;
+  --moon: #dde6ff;
+  --moon-glow: rgba(214,230,255,.55);
+  --text: #e7f0ff;
+}
+.sky-root{
+  position:relative; width:100%; height:100vh; overflow:hidden; user-select:none; touch-action:manipulation;
+  background: radial-gradient(1400px 900px at 50% -200px, #0b1c36 0%, transparent 65%),
+              linear-gradient(to bottom, var(--sky-top), var(--sky-bottom));
+}
+.sky-gradient{ position:absolute; inset:0; pointer-events:none; }
+.sky-stars{
+  position:absolute; inset:0; pointer-events:none; z-index:0;
+  background-image:
+    radial-gradient(1px 1px at 20% 30%, #9db7ff 0.8px, transparent 1px),
+    radial-gradient(1px 1px at 40% 70%, #9db7ff 0.8px, transparent 1px),
+    radial-gradient(1px 1px at 60% 25%, #9db7ff 0.8px, transparent 1px),
+    radial-gradient(1px 1px at 80% 55%, #9db7ff 0.8px, transparent 1px),
+    radial-gradient(1px 1px at 30% 80%, #9db7ff 0.8px, transparent 1px);
+  background-repeat: repeat; background-size: 360px 360px;
+  opacity:.65; filter: drop-shadow(0 0 1px rgba(160,190,255,.4));
+}
+.sky-moon{ position:absolute; top:16px; right:16px; z-index:3;
+  width:38px; height:38px; border-radius:999px;
+  background: radial-gradient(circle at 30% 35%, var(--moon) 0%, #b8c7ff 60%, #8ba1ff 100%);
+  box-shadow: 0 0 10px var(--moon-glow), 0 0 26px var(--moon-glow);
+  border:0; cursor:pointer;
+}
+.sky-moon:active{ transform:scale(.98); }
+.sky-constellation{ position:absolute; top:12px; left:12px; z-index:3; width:88px; height:44px; background:transparent; border:0; cursor:pointer; }
+.sky-constellation .star{ position:absolute; width:4px; height:4px; border-radius:50%; background:#bcd3ff; box-shadow:0 0 6px rgba(188,211,255,.8); }
+.sky-constellation .s1{ left:6px; top:10px; } .sky-constellation .s2{ left:22px; top:22px; }
+.sky-constellation .s3{ left:44px; top:14px; } .sky-constellation .s4{ left:70px; top:28px; }
+.sky-constellation:hover .star{ transform: scale(1.25); }
+.sky-input{ position:absolute; inset:0; opacity:0; color:transparent; background:transparent; border:0; outline:0; z-index:2; caret-color:#cfe1ff; }
+.sky-text{
+  position:absolute; z-index:2; left:50%; top:42%; transform:translate(-50%,-42%);
+  width:min(90vw, 860px); color:var(--text); font-weight:500; line-height:1.6; letter-spacing:0.02em;
+  text-shadow: 0 0 6px rgba(175,200,255,.35), 0 0 18px rgba(175,200,255,.25);
+  filter: drop-shadow(0 2px 12px rgba(0,0,0,.25)); mix-blend-mode: screen;
+}
+@media (max-width: 640px){
+  .sky-text{ width:88vw; top:46%; transform:translate(-50%,-46%); line-height:1.7; letter-spacing:.015em; }
+  .sky-text .ln{ font-size: clamp(18px, 3.8vw, 20px); }
+}
+@media (min-width: 641px){
+  .sky-text .ln{ font-size: clamp(20px, 2.1vw, 26px); }
+}
+@keyframes meteorClassic{
+  0%{ transform: translateX(0) translateY(0) rotate(14deg); opacity:0; }
+  6%{ opacity:.85; }
+  80%{ opacity:.92; }
+  100%{ transform: translateX(120vw) translateY(22vh) rotate(14deg); opacity:0; }
+}
+.meteor-classic{
+  position:absolute; width:2px; height:2px; border-radius:2px; background:white;
+  box-shadow:0 0 10px rgba(255,255,255,.9), 0 0 24px rgba(152,176,255,.8);
+  z-index:1; animation: meteorClassic 3.6s cubic-bezier(.22,.61,.36,1) forwards;
+}
+.meteor-classic::after{
+  content:""; position:absolute; left:-220px; top:-1px; height:4px; width:220px;
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(195,213,255,.95) 55%, rgba(255,255,255,1) 95%);
+  filter: blur(1px);
+}
+.twinkle-star{ position:absolute; width:10px; height:10px; border-radius:50%;
+  background: radial-gradient(circle, #fff 0%, #cfe1ff 55%, rgba(255,255,255,0) 70%);
+  border:0; cursor:pointer; opacity:0; transform:scale(.6);
+  box-shadow: 0 0 12px rgba(210,230,255,.9), 0 0 28px rgba(150,180,255,.8);
+  z-index:3; transition: transform .35s ease, opacity .35s ease;
+}
+.twinkle-star.twinkle-on{ opacity:1; transform:scale(1); }
+.twinkle-star:active{ transform:scale(.96); }
+.sky-modal{ position:fixed; inset:0; z-index:50; display:grid; place-items:center; background:rgba(0,6,18,.45); backdrop-filter: blur(6px); }
+.sky-modal__panel{ width:min(92vw,680px); background:rgba(13,24,50,.82); border:1px solid rgba(180,200,255,.25);
+  border-radius:18px; padding:18px 18px 14px; color:#eaf1ff; box-shadow:0 15px 60px rgba(0,0,0,.45);
+}
+.sky-modal__panel h3{ font-size:18px; margin:4px 2px 10px; font-weight:600; }
+.sky-modal__panel p{ white-space:pre-wrap; line-height:1.6; opacity:.95; }
+.sky-modal__actions{ display:flex; gap:10px; justify-content:flex-end; margin-top:16px; }
+.btn{ background:#d9e5ff; color:#0a1630; border:0; padding:8px 12px; border-radius:12px; cursor:pointer; }
+.btn.outline{ background:transparent; color:#d9e5ff; border:1px solid rgba(210,225,255,.5); }
+.sky-hud{ position:absolute; left:0; right:0; bottom:16px; display:flex; justify-content:center; pointer-events:none; z-index:4; }
+.toast{ background:rgba(16,34,66,.8); color:#e7f0ff; border:1px solid rgba(180,200,255,.25);
+  padding:8px 12px; border-radius:12px; font-size:14px; pointer-events:auto;
+}
