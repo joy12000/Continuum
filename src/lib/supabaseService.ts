@@ -1,19 +1,33 @@
-import { supabase } from './supabase';
-import { toSentences } from './rag/chunker';
+import { supabase } from "./supabase";
+import { toSentences } from "./rag/chunker";
 
-// 문장 기반 청크러: 길이 기준으로 묶고, 다음 청크에 꼬리(overlap) 조금 남깁니다.
+async function generateEmbeddings(chunks: string[]): Promise<number[][]> {
+  const resp = await fetch("/api/embeddings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ texts: chunks }),
+  });
+  if (!resp.ok) {
+    let err: any = {};
+    try { err = await resp.json(); } catch {}
+    throw new Error(`Failed to generate embeddings: ${err?.error || resp.statusText}`);
+  }
+  const data = await resp.json();
+  return data.embeddings as number[][];
+}
+
+// Simple sentence-based chunker with overlap
 function chunkBySentence(htmlOrText: string, size = 512, overlap = 50): string[] {
   const sents = toSentences(htmlOrText);
   const out: string[] = [];
-  let buf = '';
-
+  let buf = "";
   for (const s of sents) {
-    const next = (buf ? buf + ' ' : '') + s;
+    const next = (buf ? buf + " " : "") + s;
     if (next.length > size && buf) {
       out.push(buf.trim());
       if (overlap > 0) {
         const tail = buf.slice(Math.max(0, buf.length - overlap));
-        buf = (tail + ' ' + s).trim();
+        buf = (tail + " " + s).trim();
       } else {
         buf = s;
       }
@@ -25,79 +39,44 @@ function chunkBySentence(htmlOrText: string, size = 512, overlap = 50): string[]
   return out;
 }
 
-async function generateEmbeddings(chunks: string[]): Promise<number[][]> {
-  const response = await fetch('/api/generate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type: 'generate_embeddings', texts: chunks }),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(`Failed to generate embeddings: ${error.error}`);
-  }
-
-  const data = await response.json();
-  return data.embeddings;
-}
-
-export async function addNoteAndChunks(note: { title?: string; body: string; user_id: string; }) {
+export async function addNoteAndChunks(note: { title?: string; body: string; user_id: string }) {
+  // 1) insert note
   const { data: noteData, error: noteError } = await supabase
-    .from('notes')
+    .from("notes")
     .insert({ title: note.title, body: note.body, user_id: note.user_id })
     .select()
     .single();
+  if (noteError) throw noteError;
+  if (!noteData) throw new Error("Failed to insert note");
 
-  if (noteError) {
-    console.error('Error inserting note:', noteError);
-    throw noteError;
-  }
-  if (!noteData) throw new Error('Failed to insert note.');
-
+  // 2) chunk
   const chunks = chunkBySentence(note.body, 512, 50);
+
+  // 3) embed
   const embeddings = await generateEmbeddings(chunks);
 
-  const chunkData = chunks.map((chunk, i) => ({
+  // 4) insert chunks
+  const rows = chunks.map((content, i) => ({
     note_id: noteData.id,
     chunk_index: i,
-    content: chunk,
+    content,
     embedding: embeddings[i],
-    lang: 'ko',
+    lang: "ko",
   }));
 
-  const { error: chunkError } = await supabase.from('note_chunks').insert(chunkData);
-
-  if (chunkError) {
-    console.error('Error inserting chunks:', chunkError);
-    throw chunkError;
-  }
+  const { error: chunkError } = await supabase.from("note_chunks").insert(rows);
+  if (chunkError) throw chunkError;
 
   return noteData;
 }
 
-export async function searchChunks(params: { query: string; userId: string; }) {
-  try {
-    const [queryEmbedding] = await generateEmbeddings([params.query]);
-    if (!queryEmbedding) {
-      return [];
-    }
-
-    const rpcParams = {
-      q_emb: queryEmbedding as any,
-      uid: params.userId,
-      limit_k: 10,
-    };
-
-    const { data, error } = await supabase.rpc('search_chunks', rpcParams);
-
-    if (error) {
-      console.error('Error searching chunks:', error);
-      return [];
-    }
-
-    return data || [];
-  } catch (e) {
-    console.error("An unexpected error occurred in searchChunks:", e);
-    return [];
-  }
+export async function searchChunks(query: string, userId: string) {
+  const [q] = await generateEmbeddings([query]);
+  const { data, error } = await supabase.rpc("search_chunks", {
+    q_emb: q,
+    uid: userId,
+    limit_k: 10,
+  });
+  if (error) throw error;
+  return data as Array<{ note_id: string; chunk_index: number; content: string; distance: number }>;
 }
