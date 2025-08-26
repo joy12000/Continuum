@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import HomePageWithSky from './pages/HomePageWithSky';
 import Settings from './pages/Settings';
 import CalendarPage from './pages/CalendarPage';
@@ -11,10 +11,15 @@ import { getSemanticAdapter } from "./lib/semantic";
 import NewBottomNav from './components/NewBottomNav';
 import { supabase } from './lib/supabase';
 import { addNoteAndChunks } from './lib/supabaseService';
+import LoginPage from './pages/LoginPage';
+import { Session } from '@supabase/supabase-js';
 
-// Main layout component to handle conditional nav bar
+// Main layout component to handle conditional nav bar and protected routes
 const MainLayout = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
   const [engine, setEngine] = useState<'auto' | 'remote'>((localStorage.getItem('semanticEngine') as any) || 'auto');
   const [modelStatus, setModelStatus] = useState("확인 중…");
 
@@ -26,34 +31,44 @@ const MainLayout = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         console.error("User not logged in, cannot save note.");
-        // Optionally, show a toast notification to the user
         return;
       }
 
       try {
-        await addNoteAndChunks({
-          title: detail.text.slice(0, 50),
-          body: detail.text,
-          user_id: user.id,
-        });
-        // Optionally, show a success toast
+        await addNoteAndChunks({ title: detail.text.slice(0, 50), body: detail.text, user_id: user.id });
       } catch (error) {
         console.error("Failed to save note from HomeSky:", error);
-        // Optionally, show an error toast
       }
     };
 
     window.addEventListener('sky:save', handleSave);
-    return () => {
-      window.removeEventListener('sky:save', handleSave);
-    };
+    return () => window.removeEventListener('sky:save', handleSave);
   }, []);
 
   useEffect(() => {
-    let dead = false;
-    const updateStatus = (message: string) => {
-      if (!dead) setModelStatus(message);
+    const getSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setSession(session);
+      setLoading(false);
     };
+    getSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (_event === 'SIGNED_OUT') {
+        navigate('/login');
+      }
+      if (_event === 'SIGNED_IN') {
+        navigate('/');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  useEffect(() => {
+    let dead = false;
+    const updateStatus = (message: string) => { if (!dead) setModelStatus(message); };
     const checkLocalEngine = async () => {
       updateStatus("로컬 엔진 준비 중…");
       try {
@@ -66,28 +81,35 @@ const MainLayout = () => {
         updateStatus("로컬 엔진 준비 실패. 원격 API 사용.");
       }
     };
-    if (engine === "remote") {
-      updateStatus("원격 API 사용");
-    } else {
-      checkLocalEngine();
-    }
+    if (engine === "remote") { updateStatus("원격 API 사용"); } else { checkLocalEngine(); }
     return () => { dead = true; };
   }, [engine]);
 
-  const noNavPaths = ['/settings', '/diagnostics'];
-  const showNav = !noNavPaths.includes(location.pathname);
+  if (loading) {
+    return <div className="flex justify-center items-center h-screen">Loading...</div>; // Or a splash screen
+  }
+
+  const noNavPaths = ['/settings', '/diagnostics', '/login'];
+  const showNav = !noNavPaths.includes(location.pathname) && session;
 
   return (
     <div className="flex flex-col h-screen bg-surface text-text-primary">
       <Toasts />
       <main className="flex-grow overflow-y-auto">
         <Routes>
-          <Route path="/" element={<HomeSky />} />
-          <Route path="/settings" element={<Settings engine={engine} setEngine={setEngine} modelStatus={modelStatus} />} />
-          <Route path="/calendar" element={<CalendarPage />} />
-          <Route path="/search" element={<SearchPage />} />
-          <Route path="/recall" element={<LinksPage />} />
-          <Route path="/diagnostics" element={<Diagnostics onBack={() => window.history.back()} />} />
+          <Route path="/login" element={<LoginPage />} />
+          {session ? (
+            <>
+              <Route path="/" element={<HomePageWithSky />} />
+              <Route path="/settings" element={<Settings engine={engine} setEngine={setEngine} modelStatus={modelStatus} />} />
+              <Route path="/calendar" element={<CalendarPage />} />
+              <Route path="/search" element={<SearchPage />} />
+              <Route path="/recall" element={<LinksPage />} />
+              <Route path="/diagnostics" element={<Diagnostics onBack={() => window.history.back()} />} />
+            </>
+          ) : (
+            <Route path="*" element={<LoginPage />} />
+          )}
         </Routes>
       </main>
       {showNav && <NewBottomNav />}

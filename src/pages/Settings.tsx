@@ -4,16 +4,25 @@ import { db, Snapshot, Note } from "../lib/db";
 import ConfirmModal from "../components/ConfirmModal";
 import { toast } from "../lib/toast";
 import { DedupSuggestions } from "../components/DedupSuggestions";
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, LogOut } from 'lucide-react';
 import { BackupRestore } from "../components/BackupRestore";
 import DevToolsLink from "../components/settings/DevToolsLink";
 import EmbeddingMode from "../components/settings/EmbeddingMode";
+import { supabase } from "../lib/supabase";
 
 interface SettingsProps {
   engine: 'auto' | 'remote';
   setEngine: (engine: 'auto' | 'remote') => void;
   modelStatus: string;
 }
+
+// A reusable section component for settings
+const SettingSection = ({ title, children }: { title: string, children: React.ReactNode }) => (
+  <div className="border-b border-gray-700/50 pb-6 mb-6">
+    <h2 className="text-xl font-semibold mb-4 text-gray-200">{title}</h2>
+    <div className="space-y-4">{children}</div>
+  </div>
+);
 
 export default function Settings({ engine, setEngine, modelStatus }: SettingsProps) {
   const navigate = useNavigate();
@@ -53,33 +62,23 @@ export default function Settings({ engine, setEngine, modelStatus }: SettingsPro
   const handleCreateSnapshot = async () => {
     try {
       const noteCount = await db.notes.count();
-      const snapshot = {
-        id: crypto.randomUUID(),
-        createdAt: Date.now(),
-        noteCount: noteCount,
-      };
+      const snapshot = { id: crypto.randomUUID(), createdAt: Date.now(), noteCount };
       await db.snapshots.add(snapshot);
       toast.success("스냅샷이 생성되었습니다!");
-      fetchSnapshots(); // Refresh the list
+      fetchSnapshots();
     } catch (err) {
       toast.error("스냅샷 생성에 실패했습니다.");
       console.error(err);
     }
   };
 
-  const handleRestoreClick = (snapshot: Snapshot) => {
-    setModalState({ isOpen: true, snapshot });
-  };
-
+  const handleRestoreClick = (snapshot: Snapshot) => setModalState({ isOpen: true, snapshot });
   const handleConfirmRestore = async () => {
     if (!modalState.snapshot) return;
     toast.info("스냅샷 복원 기능은 아직 구현되지 않았습니다.");
     setModalState({ isOpen: false, snapshot: null });
   };
-
-  const handleCancelRestore = () => {
-    setModalState({ isOpen: false, snapshot: null });
-  };
+  const handleCancelRestore = () => setModalState({ isOpen: false, snapshot: null });
 
   const handleMerge = async (keep: string, remove: string[]) => {
     try {
@@ -92,47 +91,72 @@ export default function Settings({ engine, setEngine, modelStatus }: SettingsPro
     }
   };
 
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast.error("로그아웃 중 오류가 발생했습니다.");
+      console.error('Error logging out:', error);
+    } else {
+      navigate('/login');
+    }
+  };
+
   return (
-    <div className="p-4 bg-surface text-text-primary font-sans min-h-screen">
-      <header className="flex items-center justify-between mb-6">
+    <div className="min-h-screen bg-gray-900 text-gray-200 font-sans">
+      <header className="sticky top-0 z-10 flex items-center justify-between p-4 bg-gray-900/80 backdrop-blur-sm border-b border-gray-700/50">
         <h1 className="text-2xl font-bold">설정</h1>
-        <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-surface-2">
+        <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-gray-700">
           <ArrowLeft size={24} />
         </button>
       </header>
 
-      <div className="space-y-6">
-        <EmbeddingMode />
-        
-        <BackupRestore onNotesImported={fetchNotes} />
+      <main className="p-4 max-w-3xl mx-auto">
+        <SettingSection title="데이터 관리">
+          <BackupRestore onNotesImported={fetchNotes} />
+        </SettingSection>
 
-        <div className="card bg-surface-2 p-4 rounded-lg">
-          <h2 className="text-lg font-semibold mb-3">스냅샷 관리</h2>
-          <button onClick={handleCreateSnapshot} disabled={loading} className="btn bg-accent text-white mb-4 w-full">
-            {loading ? '스냅샷 생성 중...' : '현재 상태 스냅샷 생성'}
+        <SettingSection title="스냅샷 관리">
+          <button onClick={handleCreateSnapshot} disabled={loading} className="btn bg-indigo-600 hover:bg-indigo-700 text-white mb-4 w-full">
+            {loading ? '생성 중...' : '현재 상태 스냅샷 생성'}
           </button>
-          {error && <div className="text-red-500 mb-4">{error}</div>}
+          {error && <div className="text-red-400 mb-4 p-3 bg-red-900/50 rounded-md">{error}</div>}
           {snapshots.length === 0 ? (
-            <p className="text-text-secondary">저장된 스냅샷이 없습니다.</p>
+            <p className="text-gray-400 text-center py-4">저장된 스냅샷이 없습니다.</p>
           ) : (
             <ul className="space-y-2">
               {snapshots.map(snapshot => (
-                <li key={snapshot.id} className="flex justify-between items-center p-2 bg-surface rounded-md">
-                  <span>{new Date(snapshot.createdAt).toLocaleString()} ({snapshot.noteCount} 노트)</span>
-                  <button onClick={() => handleRestoreClick(snapshot)} className="btn btn-sm bg-accent text-white">복원</button>
+                <li key={snapshot.id} className="flex justify-between items-center p-3 bg-gray-800/50 rounded-lg">
+                  <div>
+                    <p className="font-medium">{new Date(snapshot.createdAt).toLocaleString()}</p>
+                    <p className="text-sm text-gray-400">{snapshot.noteCount}개의 노트</p>
+                  </div>
+                  <button onClick={() => handleRestoreClick(snapshot)} className="btn btn-sm bg-gray-700 hover:bg-gray-600 text-white">복원</button>
                 </li>
               ))}
             </ul>
           )}
-        </div>
+        </SettingSection>
 
-        <div className="card bg-surface-2 p-4 rounded-lg">
-          <h2 className="text-lg font-semibold mb-3">중복 노트 관리</h2>
+        <SettingSection title="중복 노트 관리">
           <DedupSuggestions notes={notes} engine={engine} onMerge={handleMerge} />
-        </div>
+        </SettingSection>
 
-        <DevToolsLink />
-      </div>
+        <SettingSection title="고급 설정">
+          <EmbeddingMode />
+          <DevToolsLink />
+        </SettingSection>
+
+        <div className="border-t border-red-500/30 pt-6 mt-6">
+          <h2 className="text-xl font-semibold mb-4 text-red-400">위험 구역</h2>
+          <button 
+            onClick={handleLogout} 
+            className="btn w-full bg-red-600/80 hover:bg-red-600 text-white flex items-center justify-center gap-2"
+          >
+            <LogOut size={18} />
+            로그아웃
+          </button>
+        </div>
+      </main>
 
       <ConfirmModal
         isOpen={modalState.isOpen}

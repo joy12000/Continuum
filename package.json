@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.15.0",
+    "@supabase/auth-ui-react": "^0.4.7",
+    "@supabase/auth-ui-shared": "^0.1.8",
     "@supabase/supabase-js": "^2.56.0",
     "@tippyjs/react": "^4.2.6",
     "@tiptap/react": "^2.7.2",
