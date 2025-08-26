@@ -9,12 +9,45 @@ import Diagnostics from './components/Diagnostics';
 import { Toasts } from './components/Toasts';
 import { getSemanticAdapter } from "./lib/semantic";
 import NewBottomNav from './components/NewBottomNav';
+import { supabase } from './lib/supabase';
+import { addNoteAndChunks } from './lib/supabaseService';
 
 // Main layout component to handle conditional nav bar
 const MainLayout = () => {
   const location = useLocation();
   const [engine, setEngine] = useState<'auto' | 'remote'>((localStorage.getItem('semanticEngine') as any) || 'auto');
   const [modelStatus, setModelStatus] = useState("확인 중…");
+
+  useEffect(() => {
+    const handleSave = async (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (!detail || !detail.text) return;
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error("User not logged in, cannot save note.");
+        // Optionally, show a toast notification to the user
+        return;
+      }
+
+      try {
+        await addNoteAndChunks({
+          title: detail.text.slice(0, 50),
+          body: detail.text,
+          user_id: user.id,
+        });
+        // Optionally, show a success toast
+      } catch (error) {
+        console.error("Failed to save note from HomeSky:", error);
+        // Optionally, show an error toast
+      }
+    };
+
+    window.addEventListener('sky:save', handleSave);
+    return () => {
+      window.removeEventListener('sky:save', handleSave);
+    };
+  }, []);
 
   useEffect(() => {
     let dead = false;
