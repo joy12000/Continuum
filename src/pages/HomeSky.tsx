@@ -1,18 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import Tippy from '@tippyjs/react';
+import Tippy from "@tippyjs/react";
 import 'tippy.js/dist/tippy.css';
-import Toast from "./Toast";
-import Modal from "./Modal";
+import Toast from "../components/Toast";
+import Modal from "../components/Modal";
 
-import "@/styles/toast.css";
-import "@/styles/modal.css";
-import "@/styles/sky.css";
-// import "@/styles/bottom-horizon-nav.css";
+import "../styles/toast.css";
+import "../styles/modal.css";
+import "../styles/sky.css";
+// import "../styles/bottom-horizon-nav.css"; // This file does not exist
 
-/**
- * HomeSky (NEW)
- * See README in patch for usage.
- */
 export default function HomeSky(props: {
   onSave?: (payload: { text: string; createdAt: number }) => void;
   onOpenSettings?: () => void;
