@@ -1,96 +1,125 @@
-
-import React, { useState, useEffect, useMemo } from 'react';
-import { db, Note } from '../lib/db';
+import React, { useState, useEffect, useCallback } from 'react';
+import { supabase } from '../lib/supabase';
+import { searchChunks } from '../lib/supabaseService';
 import { Trash2, Edit, Save, XCircle } from 'lucide-react';
+import { debounce } from 'lodash';
 
 interface SearchResult {
+  note_id: string;
+  content: string;
+  distance: number;
+}
+
+interface Note {
   id: string;
-  score: number;
+  body: string | null;
+  [key: string]: any;
 }
 
 const Today = () => {
   const [query, setQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<Note[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editedText, setEditedText] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const searchWorker = useMemo(() =>
-    new Worker(new URL('../workers/searchWorker.ts', import.meta.url), { type: 'module' })
-  , []);
-
-  useEffect(() => {
-    const handleWorkerMessage = async (e: MessageEvent) => {
-      if (e.data.type === 'SIMILAR_RESULT') {
-        setSearchResults(e.data.payload);
-      } else if (e.data.ok && e.data.result) {
-        const results: SearchResult[] = e.data.result;
-        const notes = await db.notes.where('id').anyOf(results.map(r => r.id)).toArray();
-        const sortedNotes = results.map(r => notes.find(n => n.id === r.id)).filter(Boolean) as Note[];
-        setSearchResults(sortedNotes);
-      }
-    };
-
-    searchWorker.addEventListener('message', handleWorkerMessage);
-
-    return () => {
-      searchWorker.removeEventListener('message', handleWorkerMessage);
-    };
-  }, [searchWorker]);
-
-  useEffect(() => {
-    const handleSearch = () => {
-      if (query.trim() === '') {
+  const debouncedSearch = useCallback(
+    debounce(async (currentQuery: string) => {
+      if (currentQuery.trim() === '') {
         setSearchResults([]);
         return;
       }
-      searchWorker.postMessage({ type: 'score', payload: { q: query, engine: 'auto', notes: [] } });
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      setIsLoading(true);
+      const results = await searchChunks({ query: currentQuery, userId: user.id });
+      setSearchResults(results || []);
+      setIsLoading(false);
+    }, 300),
+    []
+  );
+
+  useEffect(() => {
+    debouncedSearch(query);
+    return () => {
+      debouncedSearch.cancel();
     };
+  }, [query, debouncedSearch]);
 
-    const debounce = setTimeout(() => {
-      handleSearch();
-    }, 300);
+  const handleSelectNote = async (row: SearchResult) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
-    return () => clearTimeout(debounce);
-  }, [query, searchWorker]);
+    const { data, error } = await supabase
+      .from("notes")
+      .select("*")
+      .eq("id", row.note_id)
+      .single();
 
-  const handleSelectNote = (note: Note) => {
-    setSelectedNote(note);
-    setIsEditing(false);
-    setEditedText(note.content);
+    if (!error && data) {
+      setSelectedNote(data);
+      setEditedText(data.body ?? "");
+      setIsEditing(false);
+    } else {
+      console.error("Error fetching note:", error);
+    }
   };
 
   const handleEdit = () => {
     if (!selectedNote) return;
     setIsEditing(true);
-    setEditedText(selectedNote.content);
+    setEditedText(selectedNote.body ?? '');
   };
 
   const handleSave = async () => {
     if (!selectedNote) return;
-    await db.notes.update(selectedNote.id!, { content: editedText });
-    const updatedNote = { ...selectedNote, content: editedText };
-    setSelectedNote(updatedNote);
-    // Update search results list as well
-    setSearchResults(prev => prev.map(n => n.id === updatedNote.id ? updatedNote : n));
-    setIsEditing(false);
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from('notes')
+      .update({ body: editedText, updated_at: new Date().toISOString() })
+      .eq('id', selectedNote.id)
+      .select()
+      .single();
+
+    if (!error && data) {
+      setSelectedNote(data);
+      setIsEditing(false);
+      debouncedSearch(query);
+    } else {
+      console.error("Error saving note:", error);
+    }
   };
 
   const handleDelete = async () => {
     if (!selectedNote || !window.confirm('Are you sure you want to delete this note?')) return;
-    await db.notes.delete(selectedNote.id!);
-    setSearchResults(prev => prev.filter(n => n.id !== selectedNote.id));
-    setSelectedNote(null);
-    setIsEditing(false);
+    
+    const { error } = await supabase
+      .from('notes')
+      .delete()
+      .eq('id', selectedNote.id);
+
+    if (!error) {
+      setSearchResults(prev => prev.filter(r => r.note_id !== selectedNote.id));
+      setSelectedNote(null);
+      setIsEditing(false);
+    } else {
+      console.error("Error deleting note:", error);
+    }
   };
 
   const handleCancelEdit = () => {
     setIsEditing(false);
+    setEditedText(selectedNote?.body ?? '');
   };
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 h-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-      {/* Left Column: Search and Results */}
       <div className="col-span-1 md:border-r border-gray-200 dark:border-gray-700 flex flex-col">
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
           <input
@@ -102,21 +131,17 @@ const Today = () => {
           />
         </div>
         <div className="flex-grow overflow-y-auto">
-          {searchResults.length > 0 ? (
-            <ul>
-              {searchResults.map((note) => (
-                <li key={note.id}>
-                  <button
-                    onClick={() => handleSelectNote(note)}
-                    className={`w-full text-left p-4 border-l-4 ${selectedNote?.id === note.id ? 'border-blue-500 bg-blue-50 dark:bg-gray-800' : 'border-transparent hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
-                    <h3 className="font-semibold truncate">{note.content.split('\n')[0]}</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                      {note.content.split('\n').slice(1).join(' ') || 'No additional content'}
-                    </p>
-                  </button>
-                </li>
+          {isLoading ? (
+             <div className="p-4 text-center text-gray-500">Loading...</div>
+          ) : searchResults.length > 0 ? (
+            <div>
+              {searchResults.map((r, i) => (
+                <button key={`${r.note_id}-${i}`} onClick={() => handleSelectNote(r)} className="text-left w-full p-3 hover:bg-gray-100 dark:hover:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                  <div className="text-xs opacity-70 font-mono">score: {r.distance.toFixed(4)}</div>
+                  <div className="line-clamp-3 text-sm mt-1">{r.content}</div>
+                </button>
               ))}
-            </ul>
+            </div>
           ) : (
             <div className="p-4 text-center text-gray-500">
               <p>No search results.</p>
@@ -125,12 +150,11 @@ const Today = () => {
         </div>
       </div>
 
-      {/* Right Column: Note Viewer/Editor */}
       <div className="col-span-1 md:col-span-2 p-6 flex flex-col">
         {selectedNote ? (
           <>
             <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-4 mb-4">
-              <h2 className="text-2xl font-bold">{selectedNote.content.split('\n')[0]}</h2>
+              <h2 className="text-2xl font-bold truncate">Note {selectedNote.id.substring(0, 8)}</h2>
               <div className="flex items-center gap-2">
                 {isEditing ? (
                   <>
@@ -152,14 +176,14 @@ const Today = () => {
                 />
               ) : (
                 <div className="prose dark:prose-invert max-w-none whitespace-pre-wrap">
-                  {editedText}
+                  {selectedNote.body}
                 </div>
               )}
             </div>
           </>
         ) : (
           <div className="flex items-center justify-center h-full text-gray-500">
-            <p>Select a note to view or edit.</p>
+            <p>Select a search result to view the full note.</p>
           </div>
         )}
       </div>

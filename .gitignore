@@ -5,4 +5,4 @@ dist/
 .DS_Store
 src/**/*.js
 src/**/*.js.map
-tconfig.tsbuildinfo 
+tsconfig.tsbuildinfo 

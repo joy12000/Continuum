@@ -1,8 +1,9 @@
-
-import { useEffect, useState, useMemo, useRef } from "react";
+import { addNoteAndChunks } from "../lib/supabaseService";
+import { useEffect, useState, useRef } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { db, Note } from "../lib/db";
+import { Note } from "../lib/db";
+import { supabase } from "../lib/supabase";
 
 function Toolbar({ editor }: { editor: any }) {
   if (!editor) return null;
@@ -17,36 +18,8 @@ function Toolbar({ editor }: { editor: any }) {
   );
 }
 
-/**
- * A rich text editor component for creating and editing notes.
- * It can suggest related notes in real-time based on the content being typed.
- * @param {object} props - The component props.
- * @param {Note} [props.note] - The note to be edited. If not provided, a new note will be created.
- * @param {(noteId: string) => void} [props.onNoteLinkClick] - Callback for when a suggested note is clicked.
- * @param {() => void} [props.onSaved] - Callback function to be executed after a note is saved.
- * @param {(content: string) => void} [props.onSave] - Callback for autosaving.
- * @param {boolean} [props.autoFocus] - Whether to autofocus the editor.
- */
-export function RichNoteEditor({ note: initialNote, onNoteLinkClick, onSaved, onSave, autoFocus, hideSaveButton }: { note?: Note, onNoteLinkClick?: (noteId: string) => void, onSaved?: () => void, onSave?: (content: string) => void, autoFocus?: boolean, hideSaveButton?: boolean }) {
+export function RichNoteEditor({ note: initialNote, onSaved, onSave, autoFocus, hideSaveButton }: { note?: Note, onSaved?: () => void, onSave?: (content: string) => void, autoFocus?: boolean, hideSaveButton?: boolean }) {
   const [tags, setTags] = useState(initialNote?.tags?.join(", ") || "");
-  const [suggestedNotes, setSuggestedNotes] = useState<Note[] | null>(null);
-  const debounceTimeout = useRef<number | null>(null);
-
-  const searchWorker = useMemo(() => 
-    new Worker(new URL('../workers/searchWorker.ts', import.meta.url), { type: 'module' })
-  , []);
-
-  useEffect(() => {
-    const handleWorkerMessage = (e: MessageEvent) => {
-      if (e.data.type === 'SIMILAR_FOUND') {
-        setSuggestedNotes(e.data.payload.notes);
-      }
-    };
-    searchWorker.addEventListener('message', handleWorkerMessage);
-    return () => {
-      searchWorker.removeEventListener('message', handleWorkerMessage);
-    };
-  }, [searchWorker]);
 
   const editor = useEditor({
     extensions: [StarterKit],
@@ -56,21 +29,6 @@ export function RichNoteEditor({ note: initialNote, onNoteLinkClick, onSaved, on
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
       onSave?.(html);
-
-      if (debounceTimeout.current) {
-        clearTimeout(debounceTimeout.current);
-      }
-      debounceTimeout.current = window.setTimeout(() => {
-        const editorContent = editor.getText();
-        if (editorContent.length > 20) {
-          searchWorker.postMessage({
-            type: 'FIND_SIMILAR',
-            payload: { text: editorContent, currentNoteId: initialNote?.id || '', engine: 'auto' }
-          });
-        } else {
-          setSuggestedNotes(null);
-        }
-      }, 500);
     }
   });
 
@@ -85,23 +43,28 @@ export function RichNoteEditor({ note: initialNote, onNoteLinkClick, onSaved, on
     const html = editor.getHTML().trim();
     const text = editor.getText().trim();
     if (!text) return;
-    const now = Date.now();
-    
-    const noteToSave: Note = {
-      id: initialNote?.id || crypto.randomUUID(),
-      content: html,
-      tags: tags.split(",").map(t => t.trim()).filter(Boolean),
-      createdAt: initialNote?.createdAt || now,
-      updatedAt: now
-    };
 
-    await db.notes.put(noteToSave);
-
-    if (!initialNote) {
-      editor.commands.clearContent();
-      setTags("");
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.error("User is not logged in.");
+      return;
     }
-    onSaved?.();
+
+    try {
+      await addNoteAndChunks({
+        title: text.slice(0, 50),
+        body: html,
+        user_id: user.id,
+      });
+
+      if (!initialNote) {
+        editor.commands.clearContent();
+        setTags("");
+      }
+      onSaved?.();
+    } catch (error) {
+      console.error("Failed to save note:", error);
+    }
   }
 
   return (
@@ -111,22 +74,6 @@ export function RichNoteEditor({ note: initialNote, onNoteLinkClick, onSaved, on
       <div className="rounded-xl bg-slate-800/50 border border-slate-700 p-3 flex-grow overflow-y-auto">
         <EditorContent editor={editor} />
       </div>
-      {suggestedNotes && suggestedNotes.length > 0 && (
-        <div className="space-y-2 pt-2">
-          <h3 className="text-sm font-semibold text-slate-400">관련 생각:</h3>
-          <ul className="list-disc list-inside space-y-1">
-            {suggestedNotes.map(note => (
-              <li 
-                key={note.id} 
-                className="text-sm text-indigo-400 hover:underline cursor-pointer"
-                onClick={() => onNoteLinkClick?.(note.id)}
-              >
-                {note.content.replace(/<[^>]+>/g, '').substring(0, 40)}...
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
       {!hideSaveButton && (
         <>
           <input className="input" placeholder="태그: 쉼표로 구분" value={tags} onChange={e => setTags(e.target.value)} />

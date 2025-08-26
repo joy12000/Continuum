@@ -54,6 +54,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       case 'generate_questions':
         responseData = await handleGenerateQuestions(payload);
         break;
+      case 'generate_embeddings':
+        responseData = await handleGenerateEmbeddings(payload);
+        break;
       default:
         responseData = await handleRag(payload);
         break;
@@ -146,6 +149,33 @@ async function handleGenerateQuestions(payload: { context: Note[] }) {
   const out = Array.isArray(parsed?.questions) ? parsed.questions.slice(0,3).map(String) : [];
   return { questions: out };
 }
+
+async function handleGenerateEmbeddings(payload: { texts: string[] }) {
+  const { texts } = payload;
+  if (!Array.isArray(texts) || texts.length === 0) {
+    throw new ApiError("texts array is required", 400, 'client');
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new ApiError("Missing GEMINI_API_KEY");
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({ model: "embedding-004" });
+
+  const result = await model.batchEmbedContents({
+    requests: texts.map(text => ({ model: "embedding-004", content: { parts: [{ text }] } }))
+  });
+
+  const embeddings = result.embeddings.map(e => e.values);
+
+  // Verify the dimension of the first embedding
+  if (embeddings.length > 0) {
+    console.log('Generated embedding dimension:', embeddings[0].length);
+  }
+
+  return { embeddings };
+}
+
 
 async function handleRag(payload: { question: string, context: Note[], options?: RagOptions }) {
   const { question, context, options } = payload;
