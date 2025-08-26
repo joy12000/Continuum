@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
-import HomePageWithSky from './pages/HomePageWithSky';
+import HomeSky from './pages/HomeSky'; // Corrected import path
 import Settings from './pages/Settings';
 import CalendarPage from './pages/CalendarPage';
 import SearchPage from './pages/SearchPage';
@@ -100,7 +100,7 @@ const MainLayout = () => {
           <Route path="/login" element={<LoginPage />} />
           {session ? (
             <>
-              <Route path="/" element={<HomePageWithSky />} />
+              <Route path="/" element={<HomeSky />} />
               <Route path="/settings" element={<Settings engine={engine} setEngine={setEngine} modelStatus={modelStatus} />} />
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/search" element={<SearchPage />} />
