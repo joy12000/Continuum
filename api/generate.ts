@@ -173,7 +173,7 @@ async function handleRag(payload: { question: string, context: Note[], options?:
     const sentencesArr = Array.isArray(json.sentences) ? json.sentences : splitSentences(answer).map(t => ({ text: t, sourceNoteId: null }));
     const mapped = mapSources(sentencesArr, trimmed);
     const srcs = Array.isArray(json.sources) && json.sources.length
-      ? json.sources.filter(s => s && s.noteId).slice(0, 20)
+      ? json.sources.filter((s: { noteId: string; }) => s && s.noteId).slice(0, 20)
       : mapped.sources;
     json = { answer, sentences: mapped.sentences, sources: srcs };
   }
