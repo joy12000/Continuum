@@ -3,16 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { Toasts } from "../components/Toasts";
 import { toast } from "../lib/toast";
 
-/**
- * HomeSky v4
- * - 풀스크린 밤하늘 배경(그라데이션 + 반짝이는 별)
- * - 우상단 달 아이콘: 탭 -> /settings 이동, 길게눌러 빠른설정(밀도/밝기)
- * - 하늘 어디서든 타이핑하면 "은은한 달빛" 스타일로 글씨가 바로 써짐
- */
-
+// Type definitions
 type QuickPrefs = {
-  starDensity: number; // 0.2 ~ 2.0
-  starBrightness: number; // 0.5 ~ 1.5
+  starDensity: number;
+  starBrightness: number;
 };
 
 const DEFAULT_PREFS: QuickPrefs = {
@@ -22,9 +16,11 @@ const DEFAULT_PREFS: QuickPrefs = {
 
 const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
 
+// Main Component
 export default function HomeSky() {
   const navigate = useNavigate();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null); // Ref for meteor container
   const rafRef = useRef<number | null>(null);
   const [prefs, setPrefs] = useState<QuickPrefs>(() => {
     try {
@@ -42,6 +38,7 @@ export default function HomeSky() {
   const moonRef = useRef<HTMLButtonElement | null>(null);
   const starsRef = useRef<{ x: number; y: number; r: number; tw: number }[]>([]);
 
+  // Canvas resize and star seeding effect
   useEffect(() => {
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext("2d")!;
@@ -74,11 +71,12 @@ export default function HomeSky() {
     return () => window.removeEventListener("resize", resize);
   }, [prefs.starDensity]);
 
+  // Canvas render loop
   useEffect(() => {
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext("2d")!;
 
-    const render = (t: number) => {
+    const render = () => {
       const w = canvas.width / dpr;
       const h = canvas.height / dpr;
       const g = ctx.createLinearGradient(0, 0, 0, h);
@@ -99,9 +97,8 @@ export default function HomeSky() {
       ctx.globalAlpha = 1;
 
       const stars = starsRef.current;
-      for (let i = 0; i < stars.length; i++) {
-        const s = stars[i];
-        s.tw += 0.015 + (i % 7) * 0.0005;
+      for (const s of stars) {
+        s.tw += 0.015 + (s.x % 7) * 0.0005;
         const twinkle = (Math.sin(s.tw) + 1) * 0.5;
         const a = (0.35 + 0.65 * twinkle) * prefs.starBrightness;
         ctx.fillStyle = `rgba(255,255,255,${Math.min(0.9, a)})`;
@@ -124,30 +121,43 @@ export default function HomeSky() {
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
   }, [prefs.starBrightness]);
 
+  // Focus handling
   useEffect(() => {
     const onSkyClick = (e: MouseEvent) => {
-      const moonEl = moonRef.current;
-      if (moonEl && moonEl.contains(e.target as Node)) return;
-      const quick = document.getElementById("quick-panel");
-      if (quick && quick.contains(e.target as Node)) return;
-      const saveBtn = document.getElementById("save-button");
-      if (saveBtn && saveBtn.contains(e.target as Node)) return;
-
+      const target = e.target as Node;
+      if (moonRef.current?.contains(target)) return;
+      if (document.getElementById("quick-panel")?.contains(target)) return;
+      if (document.getElementById("save-button")?.contains(target)) return;
       editorRef.current?.focus();
     };
     window.addEventListener("click", onSkyClick);
     return () => window.removeEventListener("click", onSkyClick);
   }, []);
 
+  // Save prefs to localStorage
   useEffect(() => {
     localStorage.setItem("sky.prefs", JSON.stringify(prefs));
   }, [prefs]);
 
+  // Shooting star animation function
+  function spawnClassicMeteor() {
+    const host = containerRef.current;
+    if (!host) return;
+    const h = host.clientHeight;
+    const startY = Math.max(0.25 * h, Math.min(0.6 * h, (0.4 * h) + (Math.random() - 0.5) * 0.25 * h));
+    const el = document.createElement("div");
+    el.className = "meteor-classic";
+    el.style.top = `${startY}px`;
+    el.style.left = `-120px`;
+    el.style.animationDuration = `${3.0 + Math.random() * 1.3}s`;
+    host.appendChild(el);
+    el.addEventListener("animationend", () => el.remove());
+  }
+
+  // Event Handlers
   const onMoonPointerDown = () => {
     if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
-    longPressTimer.current = window.setTimeout(() => {
-      setShowQuick((s) => !s);
-    }, 520);
+    longPressTimer.current = window.setTimeout(() => setShowQuick(s => !s), 520);
   };
   const onMoonPointerUp = () => {
     if (longPressTimer.current) {
@@ -159,11 +169,9 @@ export default function HomeSky() {
     if (showQuick) return;
     navigate("/settings");
   };
-
   const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
     setDraft((e.target as HTMLDivElement).innerText);
   };
-
   const handleSave = () => {
     if (!draft || !draft.trim()) return;
     const payload = { text: draft, createdAt: Date.now() };
@@ -171,31 +179,20 @@ export default function HomeSky() {
     setDraft("");
     if (editorRef.current) editorRef.current.innerText = "";
     toast.success("저장했어요 ✨");
+    const count = 2 + Math.floor(Math.random() * 2);
+    for (let i = 0; i < count; i++) setTimeout(spawnClassicMeteor, i * 350);
   };
 
   return (
-    <div className="relative h-dvh w-full overflow-hidden text-white">
+    <div ref={containerRef} className="relative h-dvh w-full overflow-hidden text-white">
       <Toasts />
       <canvas ref={canvasRef} className="absolute inset-0 block w-full h-full" />
 
       <div className="absolute right-4 top-4 z-30 flex items-center gap-2">
-        <button
-          id="save-button"
-          aria-label="Save Note"
-          className="rounded-full p-2.5 hover:scale-105 transition-transform bg-white/10"
-          onClick={handleSave}
-        >
+        <button id="save-button" aria-label="Save Note" className="rounded-full p-2.5 hover:scale-105 transition-transform bg-white/10" onClick={handleSave}>
           <SaveIcon />
         </button>
-        <button
-          ref={moonRef}
-          aria-label="Settings"
-          className="rounded-full p-2 hover:scale-105 transition-transform"
-          onClick={onMoonClick}
-          onPointerDown={onMoonPointerDown}
-          onPointerUp={onMoonPointerUp}
-          onPointerCancel={onMoonPointerUp}
-        >
+        <button ref={moonRef} aria-label="Settings" className="rounded-full p-2 hover:scale-105 transition-transform" onClick={onMoonClick} onPointerDown={onMoonPointerDown} onPointerUp={onMoonPointerUp} onPointerCancel={onMoonPointerUp}>
           <CrescentMoonSVG />
         </button>
       </div>
@@ -223,49 +220,23 @@ export default function HomeSky() {
       />
 
       {!draft && (
-        <div
-          className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center px-6 md:px-12 text-center"
-          style={{
-            fontSize: "clamp(18px, 3.4vw, 28px)",
-            lineHeight: 1.6,
-            color: "rgba(220,235,255,0.42)",
-            textShadow: "0 0 0.7rem rgba(150,190,255,0.2)",
-          }}
-        >
+        <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center px-6 md:px-12 text-center" style={{ fontSize: "clamp(18px, 3.4vw, 28px)", lineHeight: 1.6, color: "rgba(220,235,255,0.42)", textShadow: "0 0 0.7rem rgba(150,190,255,0.2)" }}>
           밤하늘에 오늘을 적어 보세요…
         </div>
       )}
 
       {showQuick && (
-        <div
-          id="quick-panel"
-          className="absolute right-3 top-16 z-40 w-[260px] rounded-2xl border border-white/10 bg-[#0b1830]/80 p-3 backdrop-blur"
-        >
+        <div id="quick-panel" className="absolute right-3 top-16 z-40 w-[260px] rounded-2xl border border-white/10 bg-[#0b1830]/80 p-3 backdrop-blur">
           <h3 className="mb-2 text-sm text-white/80">빠른 설정</h3>
-          <Slider
-            label="별 밀도"
-            min={0.2}
-            max={2}
-            step={0.05}
-            value={prefs.starDensity}
-            onChange={(v) => setPrefs((p) => ({ ...p, starDensity: v }))}
-          />
-          <Slider
-            label="별 밝기"
-            min={0.5}
-            max={1.5}
-            step={0.05}
-            value={prefs.starBrightness}
-            onChange={(v) => setPrefs((p) => ({ ...p, starBrightness: v }))}
-          />
+          <Slider label="별 밀도" min={0.2} max={2} step={0.05} value={prefs.starDensity} onChange={(v) => setPrefs((p) => ({ ...p, starDensity: v }))} />
+          <Slider label="별 밝기" min={0.5} max={1.5} step={0.05} value={prefs.starBrightness} onChange={(v) => setPrefs((p) => ({ ...p, starBrightness: v }))} />
         </div>
       )}
-
-      
     </div>
   );
 }
 
+// Helper Components
 function Slider({ label, min, max, step, value, onChange }: { label: string; min: number; max: number; step: number; value: number; onChange: (v: number) => void; }) {
   return (
     <label className="mb-3 block text-xs text-white/70">
@@ -274,24 +245,6 @@ function Slider({ label, min, max, step, value, onChange }: { label: string; min
       <div className="mt-0.5 text-right text-[11px] text-white/50">{value.toFixed(2)}</div>
     </label>
   );
-}
-
-function Tab({ icon, label, active, onClick }: { icon: "home" | "calendar" | "search" | "link"; label: string; active?: boolean; onClick?: () => void; }) {
-  return (
-    <button onClick={onClick} className={`flex h-9 items-center gap-2 rounded-full px-3 text-sm ${active ? "bg-white/10 text-white" : "text-white/70 hover:text-white"}`}>
-      <span className="inline-block">{getIcon(icon)}</span>
-      <span className="hidden sm:inline">{label}</span>
-    </button>
-  );
-}
-
-function getIcon(name: "home" | "calendar" | "search" | "link") {
-  switch (name) {
-    case "home": return <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 11.5 12 4l9 7.5V20a2 2 0 0 1-2 2h-4v-6H9v6H5a2 2 0 0 1-2-2v-8.5Z" stroke="currentColor" strokeWidth="1.5" /></svg>;
-    case "calendar": return <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" /><path d="M16 3v4M8 3v4M3 10h18" stroke="currentColor" strokeWidth="1.5" /></svg>;
-    case "search": return <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.5"></circle><path d="M20 20l-3.2-3.2" stroke="currentColor" strokeWidth="1.5"></path></svg>;
-    case "link": return <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M10 14l-1.5 1.5a4 4 0 1 1-5.7-5.7L4.5 8" stroke="currentColor" strokeWidth="1.5" /><path d="M14 10l1.5-1.5a4 4 0 1 1 5.7 5.7L19.5 16" stroke="currentColor" strokeWidth="1.5" /><path d="M8 12h8" stroke="currentColor" strokeWidth="1.5" /></svg>;
-  }
 }
 
 function CrescentMoonSVG() {
