@@ -1,32 +1,78 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { supabase } from "../lib/supabase";
-import { searchChunks } from "../lib/supabaseService";
+import { searchChunks, getNotesByIds } from "../lib/supabaseService";
+
+// Define a more specific type for a search result chunk
+interface SearchResult {
+  note_id: string;
+  content: string;
+  distance: number;
+}
+
+// Define a type for the full note object
+interface Note {
+  id: string;
+  body: string;
+  // Add other note properties if needed, e.g., title, created_at
+}
 
 const Today: React.FC = () => {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<any[]>([]);
-  const [selectedNote, setSelectedNote] = useState<any | null>(null);
-  const [editedText, setEditedText] = useState("");
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [notesMap, setNotesMap] = useState<Map<string, Note>>(new Map());
+  const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const run = async () => {
-      if (!query.trim()) { setResults([]); return; }
+  const handleSearch = useCallback(async (currentQuery: string) => {
+    if (!currentQuery.trim()) {
+      setResults([]);
+      setNotesMap(new Map());
+      return;
+    }
+    setLoading(true);
+    try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const rows = await searchChunks(query, user.id);
-      setResults(rows || []);
-    };
-    const t = setTimeout(run, 300);
-    return () => clearTimeout(t);
-  }, [query]);
 
-  async function handleSelectRow(row: any) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { data, error } = await supabase.from("notes").select("*").eq("id", row.note_id).single();
-    if (!error && data) {
-      setSelectedNote(data);
-      setEditedText(data.body || "");
+      // 1. Fetch relevant chunks
+      const rows = await searchChunks(currentQuery, user.id);
+      const searchResults = rows || [];
+      setResults(searchResults);
+
+      // 2. If chunks are found, fetch all their parent notes at once
+      if (searchResults.length > 0) {
+        const uniqueNoteIds = [...new Set(searchResults.map(r => r.note_id))];
+        const notesData = await getNotesByIds(uniqueNoteIds);
+        
+        // 3. Create a Map for instant lookups
+        const newNotesMap = new Map<string, Note>();
+        (notesData || []).forEach((note: Note) => {
+          newNotesMap.set(note.id, note);
+        });
+        setNotesMap(newNotesMap);
+      }
+
+    } catch (error) {
+      console.error("Search failed:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => handleSearch(query), 300);
+    return () => clearTimeout(timer);
+  }, [query, handleSearch]);
+
+  function handleSelectRow(row: SearchResult) {
+    // 4. Retrieve the pre-fetched note from the Map, no new API call needed
+    const note = notesMap.get(row.note_id);
+    if (note) {
+      setSelectedNote(note);
+    } else {
+      // Fallback or error handling if note not found (should be rare)
+      console.warn(`Note with id ${row.note_id} not found in pre-fetched map.`);
+      setSelectedNote(null);
     }
   }
 
@@ -38,9 +84,10 @@ const Today: React.FC = () => {
         placeholder="검색어를 입력하세요"
         className="input input-bordered w-full"
       />
+      {loading && <div className="text-center p-4">검색 중...</div>}
       <div className="space-y-2">
         {results.map((r, i) => (
-          <button key={i} onClick={() => handleSelectRow(r)} className="block w-full text-left p-2 hover:bg-gray-100 rounded">
+          <button key={`${r.note_id}-${i}`} onClick={() => handleSelectRow(r)} className="block w-full text-left p-2 hover:bg-gray-100 rounded">
             <div className="text-xs opacity-60">score: {typeof r.distance === "number" ? r.distance.toFixed(3) : "-"}</div>
             <div className="line-clamp-2">{r.content}</div>
           </button>
@@ -50,7 +97,8 @@ const Today: React.FC = () => {
       {selectedNote && (
         <div className="mt-4 p-3 border rounded">
           <div className="font-semibold mb-2">선택한 노트</div>
-          <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: editedText }} />
+          {/* Assuming body contains plain text, not HTML. Use dangerouslySetInnerHTML only if you trust the source. */}
+          <div className="prose max-w-none whitespace-pre-wrap">{selectedNote.body}</div>
         </div>
       )}
     </div>

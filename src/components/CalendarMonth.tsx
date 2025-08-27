@@ -1,7 +1,7 @@
 
 import React, { useMemo } from "react";
 
-type Note = { id?: number; content: string; createdAt: number; updatedAt?: number; tags?: string[] };
+import { Note } from "../types/common";
 
 interface Props {
   year: number;

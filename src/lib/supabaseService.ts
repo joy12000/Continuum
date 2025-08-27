@@ -16,7 +16,6 @@ async function generateEmbeddings(chunks: string[]): Promise<number[][]> {
   return data.embeddings as number[][];
 }
 
-// Simple sentence-based chunker with overlap
 function chunkBySentence(htmlOrText: string, size = 512, overlap = 50): string[] {
   const sents = toSentences(htmlOrText);
   const out: string[] = [];
@@ -40,7 +39,6 @@ function chunkBySentence(htmlOrText: string, size = 512, overlap = 50): string[]
 }
 
 export async function addNoteAndChunks(note: { title?: string; body: string; user_id: string }) {
-  // 1) insert note
   const { data: noteData, error: noteError } = await supabase
     .from("notes")
     .insert({ title: note.title, body: note.body, user_id: note.user_id })
@@ -49,13 +47,9 @@ export async function addNoteAndChunks(note: { title?: string; body: string; use
   if (noteError) throw noteError;
   if (!noteData) throw new Error("Failed to insert note");
 
-  // 2) chunk
   const chunks = chunkBySentence(note.body, 512, 50);
-
-  // 3) embed
   const embeddings = await generateEmbeddings(chunks);
 
-  // 4) insert chunks
   const rows = chunks.map((content, i) => ({
     note_id: noteData.id,
     chunk_index: i,
@@ -68,6 +62,35 @@ export async function addNoteAndChunks(note: { title?: string; body: string; use
   if (chunkError) throw chunkError;
 
   return noteData;
+}
+
+export async function listNotes(userId: string) {
+  const { data, error } = await supabase
+    .from("notes")
+    .select("id, title, body, created_at, updated_at")
+    .eq("user_id", userId)
+    .order("updated_at", { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+export async function getNoteById(noteId: string, userId: string) {
+  const { data, error } = await supabase
+    .from("notes")
+    .select("*")
+    .eq("id", noteId)
+    .eq("user_id", userId)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function getNotesByIds(noteIds: string[]) {
+  const { data, error } = await supabase.rpc("get_notes_by_ids", {
+    note_ids: noteIds,
+  });
+  if (error) throw error;
+  return data;
 }
 
 export async function searchChunks(query: string, userId: string) {

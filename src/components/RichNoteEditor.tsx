@@ -2,7 +2,7 @@ import { addNoteAndChunks } from "../lib/supabaseService";
 import { useEffect, useState, useRef } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { Note } from "../lib/db";
+import { Note } from "../types/common";
 import { supabase } from "../lib/supabase";
 
 function Toolbar({ editor }: { editor: any }) {

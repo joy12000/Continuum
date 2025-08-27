@@ -5,8 +5,11 @@ import Toast from "../components/Toast";
 import SkyBackground from "../components/SkyBackground";
 import "../styles/calendar.css";
 import "../styles/toast.css";
+import { supabase } from "../lib/supabase";
+import { listNotes } from "../lib/supabaseService";
 
-type Note = { id?: number; content: string; createdAt: number; updatedAt?: number; tags?: string[] };
+import { Note } from "../types/common";
+
 function ymd(d: Date){const y=d.getFullYear();const m=(d.getMonth()+1).toString().padStart(2,"0");const dd=d.getDate().toString().padStart(2,"0");return `${y}-${m}-${dd}`}
 function ymdFromTs(ts:number){return ymd(new Date(ts));}
 function firstLine(s:string){const line=(s||"" ).split(/\r?\n/)[0].trim();return line || "제목 없음";}
@@ -24,13 +27,35 @@ const CalendarPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
-  useEffect(()=>{(async()=>{
-    setLoading(true);
-    let arr: Note[] = [];
-    try { const mod: any = await import("../lib/db").catch(()=>null); const db = mod?.default || mod; if (db?.notes) arr = await db.notes.orderBy("createdAt").toArray(); } catch {}
-    if (!arr.length && (window as any).__notes) arr = (window as any).__notes as Note[];
-    setNotes(arr||[]); setLoading(false);
-  })();},[]);
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      setLoading(true);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("로그인이 필요합니다.");
+
+        const supabaseNotes = await listNotes(user.id);
+        if (!mounted) return;
+
+        const transformedNotes: Note[] = supabaseNotes.map((n: any) => ({
+          id: n.id,
+          content: n.body || '',
+          title: n.title || '',
+          tags: n.tags || [],
+          createdAt: n.created_at ? new Date(n.created_at).getTime() : 0,
+          updatedAt: n.updated_at ? new Date(n.updated_at).getTime() : 0,
+        }));
+
+        setNotes(transformedNotes);
+      } catch (e: any) {
+        if (mounted) console.error(e);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
 
   const mapByDate = useMemo(()=>{
     const map: Record<string, Note[]> = {}; for(const n of notes){ const k=ymdFromTs(n.createdAt); (map[k] ||= []).push(n); } return map;

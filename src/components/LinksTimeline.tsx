@@ -2,30 +2,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowUpRight } from 'lucide-react';
 import "../styles/links-timeline.css";
+import { supabase } from "../lib/supabase";
+import { listNotes } from "../lib/supabaseService";
 
-// Defensive local types so it compiles even if your project types differ.
-type Id = number | string;
-
-interface Note {
-  id: Id;
-  title?: string;
-  content: string;
-  tags?: string[];
-  createdAt?: number; // epoch ms
-  updatedAt?: number; // epoch ms
-}
-
-interface Embedding { noteId: Id; vector: number[] }
-
-// Try to import your Dexie instance if it exists; fall back to no-op.
-let db: any = null;
-try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  db = require("../lib/db").default || require("../lib/db");
-} catch { /* optional */ }
-
-// Compute connections
-import { rankConnections, type RankedEdge } from "../lib/graph/computeConnections";
+// Note type matching Supabase data
+import { Note } from "../types/common";
 
 // Utilities
 const fmtDate = (ms?: number) => {
@@ -39,18 +20,11 @@ const fmtDate = (ms?: number) => {
 
 type Grouped = Record<string, Note[]>;
 
-/**
- * LinksTimeline
- * Horizontal timeline (days -> columns). Each note shows top related notes as chips.
- * Does NOT require routing changes by itself; export default to add to your router.
- */
 const LinksTimeline: React.FC = () => {
   const [notes, setNotes] = useState<Note[]>([]);
-  const [embeds, setEmbeds] = useState<Embedding[]>([]);
-  const [edgesByNote, setEdgesByNote] = useState<Record<string, RankedEdge[]>>({});
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [highlightedNote, setHighlightedNote] = useState<Id | null>(null);
+  const [highlightedNote, setHighlightedNote] = useState<string | number | null>(null);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [tagFilter, setTagFilter] = useState<string>("");
   const scrollerRef = useRef<HTMLDivElement | null>(null);
@@ -60,20 +34,24 @@ const LinksTimeline: React.FC = () => {
     (async () => {
       try {
         setLoading(true);
-        // Load from Dexie if available; otherwise bail with empty set
-        let allNotes: Note[] = [];
-        let allEmbeds: Embedding[] = [];
-        if (db?.notes) {
-          allNotes = await db.notes.toArray();
-        }
-        if (db?.embeddings) {
-          allEmbeds = await db.embeddings.toArray();
-        }
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("로그인이 필요합니다.");
+
+        const supabaseNotes = await listNotes(user.id);
         if (!mounted) return;
-        setNotes(allNotes);
-        setEmbeds(allEmbeds);
+
+        const transformedNotes: Note[] = supabaseNotes.map((n: any) => ({
+          id: n.id,
+          title: n.title || '',
+          content: n.body || '', // Map body to content
+          tags: n.tags || [],
+          createdAt: n.created_at ? new Date(n.created_at).getTime() : 0,
+          updatedAt: n.updated_at ? new Date(n.updated_at).getTime() : 0,
+        }));
+
+        setNotes(transformedNotes);
       } catch (e: any) {
-        setError(e?.message || String(e));
+        if (mounted) setError(e?.message || String(e));
       } finally {
         if (mounted) setLoading(false);
       }
@@ -83,10 +61,11 @@ const LinksTimeline: React.FC = () => {
 
   const filteredNotes = useMemo(() => {
     if (!tagFilter) return notes;
+    // Note: Tags are not yet implemented in the Supabase 'notes' table schema.
+    // This filter will not work until tags are added to Supabase notes.
     return notes.filter(n => n.tags?.some(t => t.toLowerCase().includes(tagFilter.toLowerCase())));
   }, [notes, tagFilter]);
 
-  // Group by date (YYYY-MM-DD)
   const grouped: Grouped = useMemo(() => {
     const g: Grouped = {};
     for (const n of filteredNotes) {
@@ -94,38 +73,14 @@ const LinksTimeline: React.FC = () => {
       if (!g[key]) g[key] = [];
       g[key].push(n);
     }
-    // sort each day by time asc
     Object.keys(g).forEach(k => g[k].sort((a, b) => (a.createdAt||0) - (b.createdAt||0)));
     return g;
   }, [filteredNotes]);
 
   const days = useMemo(() => {
     const keys = Object.keys(grouped);
-    if (sortOrder === 'asc') {
-      return keys.sort();
-    } else {
-      return keys.sort().reverse();
-    }
+    return sortOrder === 'asc' ? keys.sort() : keys.sort().reverse();
   }, [grouped, sortOrder]);
-
-  // Pre-compute edges for visible notes (simple precompute for all)
-  useEffect(() => {
-    if (!notes.length) return;
-    const map: Record<string, RankedEdge[]> = {};
-    for (const n of notes) {
-      map[String(n.id)] = rankConnections(n, notes, embeds, { k: 3 });
-    }
-    setEdgesByNote(map);
-  }, [notes, embeds]);
-
-  const handleConnectionClick = (toId: Id) => {
-    const target = document.querySelector(`[data-note-id='${String(toId)}']`) as HTMLElement | null;
-    if (target) {
-      target.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
-      setHighlightedNote(toId);
-      setTimeout(() => setHighlightedNote(null), 1000);
-    }
-  };
 
   if (loading) {
     return <div className="p-6 text-center text-sm opacity-80">불러오는 중…</div>;
@@ -173,21 +128,7 @@ const LinksTimeline: React.FC = () => {
                     <p className="text-slate-300 text-[13px] leading-snug line-clamp-4 whitespace-pre-wrap">
                       {note.content?.slice(0, 200)}
                     </p>
-                    {edgesByNote[String(note.id)]?.length ? (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {edgesByNote[String(note.id)].map((e) => (
-                          <button
-                            key={String(e.toId)}
-                            className="text-sm bg-indigo-500/15 border border-indigo-500/30 hover:border-indigo-400 hover:bg-indigo-500/20 text-indigo-200 px-3 py-1.5 rounded-full transition flex items-center gap-1"
-                            title={`연결 점수 ${e.score.toFixed(2)}`}
-                            onClick={() => handleConnectionClick(e.toId)}
-                          >
-                            <ArrowUpRight size={14} />
-                            #{String(e.toId)}
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
+                    {/* Connection rendering is disabled for now */}
                     <footer className="mt-2">
                       <span className="text-xs text-slate-400">tags: {(note.tags||[]).slice(0,3).join(", ")}</span>
                     </footer>
