@@ -188,10 +188,13 @@ export default function HomeSky() {
       <Toasts />
       <canvas ref={canvasRef} className="absolute inset-0 block w-full h-full" />
 
-      <div className="absolute right-4 top-4 z-30 flex items-center gap-2">
-        <button id="save-button" aria-label="Save Note" className="rounded-full p-2.5 hover:scale-105 transition-transform bg-white/10" onClick={handleSave}>
-          <SaveIcon />
+      <div className="absolute top-3 left-3 z-30">
+        <button className="sky-constellation" onClick={handleSave} aria-label="저장">
+          <span className="star s1" /><span className="star s2" /><span className="star s3" /><span className="star s4" />
         </button>
+      </div>
+
+      <div className="absolute right-4 top-4 z-30 flex items-center gap-2">
         <button ref={moonRef} aria-label="Settings" className="rounded-full p-2 hover:scale-105 transition-transform" onClick={onMoonClick} onPointerDown={onMoonPointerDown} onPointerUp={onMoonPointerUp} onPointerCancel={onMoonPointerUp}>
           <CrescentMoonSVG />
         </button>
