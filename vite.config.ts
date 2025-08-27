@@ -20,7 +20,7 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff2,ttf,otf}"],
         runtimeCaching: [
           {
-            urlPattern: /\/models\/ko-sroberta-multitask_quantized\.onnx$/,
+            urlPattern: ({url}) => url.protocol.startsWith('http') && url.pathname.endsWith('/models/ko-sroberta-multitask_quantized.onnx'),
             handler: 'CacheFirst',
             options: {
               cacheName: 'model-cache',
@@ -28,7 +28,7 @@ export default defineConfig({
             }
           },
           {
-            urlPattern: /\.wasm$/,
+            urlPattern: ({url}) => url.protocol.startsWith('http') && url.pathname.endsWith('.wasm'),
             handler: 'CacheFirst',
             options: {
               cacheName: 'wasm-cache',

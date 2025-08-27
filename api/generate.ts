@@ -163,7 +163,7 @@ async function handleGenerateEmbeddings(payload: { texts: string[] }) {
   const model = genAI.getGenerativeModel({ model: "embedding-004" });
 
   const result = await model.batchEmbedContents({
-    requests: texts.map(text => ({ model: "embedding-004", content: { parts: [{ text }] } }))
+    requests: texts.map(text => ({ content: { parts: [{ text }] } }))
   });
 
   const embeddings = result.embeddings.map(e => e.values);

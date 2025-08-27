@@ -22,10 +22,7 @@ export default async function handler(req: any, res: any) {
     const model = genAI.getGenerativeModel({ model: "embedding-004" });
 
     const result = await model.batchEmbedContents({
-      requests: texts.map((text: string) => ({
-        model: "embedding-004",
-        content: { parts: [{ text }] },
-      })),
+      requests: texts.map((text: string) => ({        content: { parts: [{ text }] },      })),
     });
 
     const embeddings = (result as any).embeddings?.map((e: any) => e.values) ?? [];
