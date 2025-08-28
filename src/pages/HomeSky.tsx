@@ -139,6 +139,25 @@ export default function HomeSky() {
     localStorage.setItem("sky.prefs", JSON.stringify(prefs));
   }, [prefs]);
 
+  // Listen for paste event from other pages (e.g., Calendar)
+  useEffect(() => {
+    const handlePaste = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail && typeof detail.text === 'string') {
+        setDraft(detail.text);
+        if (editorRef.current) {
+          editorRef.current.innerText = detail.text;
+        }
+        editorRef.current?.focus();
+      }
+    };
+
+    window.addEventListener('sky:paste', handlePaste);
+    return () => {
+      window.removeEventListener('sky:paste', handlePaste);
+    };
+  }, []); // Empty dependency array ensures this runs only once
+
   // Shooting star animation function
   function spawnClassicMeteor() {
     const host = containerRef.current;

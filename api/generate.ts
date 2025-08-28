@@ -160,7 +160,7 @@ async function handleGenerateEmbeddings(payload: { texts: string[] }) {
   if (!apiKey) throw new ApiError("Missing GEMINI_API_KEY");
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: "embedding-004" });
+  const model = genAI.getGenerativeModel({ model: "embedding-001" });
 
   const result = await model.batchEmbedContents({
     requests: texts.map(text => ({ content: { parts: [{ text }] } }))
