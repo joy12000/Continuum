@@ -19,7 +19,8 @@ export default async function handler(req: any, res: any) {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "embedding-001" });
+    const embeddingModel = process.env.GEMINI_EMBEDDING_MODEL || "embedding-001";
+    const model = genAI.getGenerativeModel({ model: embeddingModel });
 
     const result = await model.batchEmbedContents({
       requests: texts.map((text: string) => ({        content: { parts: [{ text }] },      })),

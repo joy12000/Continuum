@@ -1,34 +1,16 @@
-// Lightweight connection ranking used by the LinksTimeline.
-// Combines: (1) citation/link presence (2) cosine similarity (3) tag overlap.
-// Weights follow: citation 1.0 > cosine 0.6 > tags 0.2 (tweakable).
+import type { NoteLite } from "./types";
 
-export type Id = number | string;
-
-export interface Note {
-  id: Id;
-  content: string;
-  title?: string;
-  tags?: string[];
-  // Optionally, some shapes we try to detect for explicit citations:
-  sourceNoteId?: Id; // single source
-  sourceNoteIds?: Id[]; // multiple sources
-  citations?: Array<{ noteId?: Id }>; // array of objects
-}
-
-export interface Embedding { noteId: Id; vector: number[] }
-
-export interface RankedEdge {
-  toId: Id;
+type Connection = {
+  toId: string;
   score: number;
   reasons: string[];
-}
+};
 
-export interface RankOptions {
-  k?: number;
-  weights?: { cite: number; sim: number; tag: number };
-}
-
-const defaultWeights = { cite: 1.0, sim: 0.6, tag: 0.2 };
+type Weights = {
+  citation: number;
+  sim: number;
+  tag: number;
+};
 
 function cosine(a: number[], b: number[]) {
   if (!a?.length || !b?.length || a.length !== b.length) return 0;
@@ -40,50 +22,93 @@ function cosine(a: number[], b: number[]) {
   return dot / (Math.sqrt(na) * Math.sqrt(nb));
 }
 
-function jaccard(a?: string[], b?: string[]) {
-  const A = new Set((a||[]).map(s => s.toLowerCase()));
-  const B = new Set((b||[]).map(s => s.toLowerCase()));
-  if (!A.size && !B.size) return 0;
-  let inter = 0;
-  for (const x of A) if (B.has(x)) inter++;
-  const union = A.size + B.size - inter;
-  return union ? inter / union : 0;
-}
+/**
+ * 노트 간의 연결 스코어를 계산합니다.
+ *
+ * @param note - 기준 노트
+ * @param allNotes - 모든 노트 목록
+ * @param vecById - ID별 임베딩 벡터 맵
+ * @param weights - 연결 종류별 가중치
+ * @param k - 반환할 상위 연결 개수
+ * @returns 스코어가 높은 순으로 정렬된 연결 목록
+ */
+export function computeConnections(
+  note: NoteLite,
+  allNotes: NoteLite[],
+  vecById: Map<string, number[]>,
+  weights: Weights = { citation: 1.0, sim: 0.6, tag: 0.2 },
+  k = 3,
+): Connection[] {
+  const scores = new Map<string, { score: number; reasons: Set<string> }>();
 
-function hasCitation(from: Note, to: Note): boolean {
-  if ((from.sourceNoteId as any) === to.id) return true;
-  if (Array.isArray(from.sourceNoteIds) && from.sourceNoteIds.includes(to.id)) return true;
-  if (Array.isArray((from as any).links) && (from as any).links.includes(to.id)) return true;
-  if (Array.isArray(from.citations)) {
-    return from.citations.some(c => c?.noteId === to.id);
-  }
-  return false;
-}
-
-export function rankConnections(seed: Note, allNotes: Note[], embeddings: Embedding[], opts: RankOptions = {}): RankedEdge[] {
-  const { k = 3, weights = defaultWeights } = opts;
-  const vecById = new Map<Id, number[]>();
-  for (const e of embeddings || []) vecById.set(e.noteId, e.vector);
-
-  const out: RankedEdge[] = [];
-  for (const n of allNotes) {
-    if (n.id === seed.id) continue;
-    const reasons: string[] = [];
-    let score = 0;
-
-    if (hasCitation(seed, n)) { score += weights.cite; reasons.push("cite"); }
-
-    const v1 = vecById.get(seed.id) || [];
-    const v2 = vecById.get(n.id) || [];
-    const sim = cosine(v1, v2);
-    if (sim > 0) { score += weights.sim * sim; reasons.push(`sim:${sim.toFixed(2)}`); }
-
-    const tj = jaccard(seed.tags, n.tags);
-    if (tj > 0) { score += weights.tag * tj; reasons.push(`tag:${tj.toFixed(2)}`); }
-
-    if (score > 0) out.push({ toId: n.id, score, reasons });
+  // 1. 명시적 인용 (Citations)
+  const citationWeight = weights.citation;
+  const noteCitations = note.citations?.map((c) => c.noteId) || [];
+  
+  // Direct citations from the note
+  for (const citedId of noteCitations) {
+    if (String(citedId) === String(note.id)) continue;
+    const current = scores.get(String(citedId)) || { score: 0, reasons: new Set() };
+    current.score += citationWeight;
+    current.reasons.add("cit");
+    scores.set(String(citedId), current);
   }
 
-  out.sort((a,b) => b.score - a.score);
-  return out.slice(0, k);
+  // Backlinks (other notes citing this one)
+  const citingNotes = allNotes.filter((n) => n.citations?.some((c) => String(c.noteId) === String(note.id)));
+  for (const citingNote of citingNotes) {
+    if (String(citingNote.id) === String(note.id)) continue;
+    const current = scores.get(String(citingNote.id)) || { score: 0, reasons: new Set() };
+    current.score += citationWeight;
+    current.reasons.add("cit_back");
+    scores.set(String(citingNote.id), current);
+  }
+
+  // 2. 코사인 유사도 (Cosine Similarity)
+  const simWeight = weights.sim;
+  const noteVec = vecById.get(String(note.id));
+
+  if (noteVec) {
+    for (const other of allNotes) {
+      if (String(other.id) === String(note.id)) continue;
+      const otherVec = vecById.get(String(other.id));
+      if (otherVec) {
+        const sim = cosine(noteVec, otherVec);
+        if (sim > 0.7) { // Threshold from original spec
+          const current = scores.get(String(other.id)) || { score: 0, reasons: new Set() };
+          current.score += sim * simWeight;
+          current.reasons.add(`sim:${sim.toFixed(2)}`);
+          scores.set(String(other.id), current);
+        }
+      }
+    }
+  }
+
+  // 3. 태그 공유 (Shared Tags)
+  const tagWeight = weights.tag;
+  const noteTags = new Set(note.tags || []);
+  if (noteTags.size > 0) {
+    for (const other of allNotes) {
+      if (String(other.id) === String(note.id)) continue;
+      const otherTags = new Set(other.tags || []);
+      const intersection = new Set([...noteTags].filter((t) => otherTags.has(t)));
+      if (intersection.size > 0) {
+        const current = scores.get(String(other.id)) || { score: 0, reasons: new Set() };
+        current.score += intersection.size * tagWeight;
+        intersection.forEach((t) => current.reasons.add(`tag:${t}`));
+        scores.set(String(other.id), current);
+      }
+    }
+  }
+
+  // Final score calculation and sorting
+  const sortedConnections = Array.from(scores.entries())
+    .map(([toId, { score, reasons }]) => ({
+      toId,
+      score,
+      reasons: Array.from(reasons),
+    }))
+    .sort((a, b) => b.score - a.score);
+
+  return sortedConnections.slice(0, k);
 }

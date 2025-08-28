@@ -11,6 +11,7 @@ export interface Note {
   content: string;
   title?: string;
   tags: string[];
+  citations?: { noteId: string }[];
   createdAt: number;
   updatedAt: number;
 }

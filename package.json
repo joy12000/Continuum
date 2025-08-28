@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "npx tsc -b && npx vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -b --pretty"
+    "typecheck": "tsc -b --pretty",
+    "test": "vitest"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -39,11 +40,13 @@
     "@vercel/node": "^5.3.13",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.20",
+    "jsdom": "^26.1.0",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.10",
     "typescript": "^5.6.2",
     "vite": "^5.4.2",
     "vite-plugin-pwa": "^0.20.5",
+    "vitest": "^3.2.4",
     "workbox-precaching": "^7.3.0"
   }
 }

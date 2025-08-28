@@ -1,5 +1,9 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { computeConnections } from "../lib/graph/computeConnections";
+import { getEmbeddingsMap } from "../lib/embeddings/getEmbeddingsMap";
+import { ConnectionsBadge } from "./ConnectionsBadge";
+import { ConnectionsPanel } from "./ConnectionsPanel";
 import { ArrowUpRight } from 'lucide-react';
 import "../styles/links-timeline.css";
 import { supabase } from "../lib/supabase";
@@ -28,6 +32,8 @@ const LinksTimeline: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [tagFilter, setTagFilter] = useState<string>("");
   const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const [vecById, setVecById] = useState<Map<string, number[]>>(new Map());
+  const [openPanelId, setOpenPanelId] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -82,6 +88,14 @@ const LinksTimeline: React.FC = () => {
     return sortOrder === 'asc' ? keys.sort() : keys.sort().reverse();
   }, [grouped, sortOrder]);
 
+  useEffect(() => {
+    if (notes.length > 0) {
+      getEmbeddingsMap(notes).then(setVecById);
+    }
+  }, [notes]);
+
+  const weights = { citation: 1.0, sim: 0.6, tag: 0.2 } as const;
+
   if (loading) {
     return <div className="p-6 text-center text-sm opacity-80">불러오는 중…</div>;
   }
@@ -119,22 +133,36 @@ const LinksTimeline: React.FC = () => {
                 {day}
               </div>
               <div className="flex flex-col gap-4">
-                {grouped[day].map((note) => (
-                  <article key={String(note.id)} className={`rounded-2xl bg-slate-800/40 border border-slate-700/60 p-3 transition-all duration-500 ${highlightedNote === note.id ? 'bg-indigo-500/20' : ''}`}>
-                    <header className="mb-2">
-                      <h3 className="text-slate-100 text-sm font-semibold line-clamp-2">{note.title || (note.content?.slice(0, 48) || "제목 없음")}</h3>
-                      <div className="text-[11px] text-slate-400 mt-1">{fmtDate(note.createdAt || note.updatedAt)}</div>
-                    </header>
-                    <p className="text-slate-300 text-[13px] leading-snug line-clamp-4 whitespace-pre-wrap">
-                      {note.content?.slice(0, 200)}
-                    </p>
-                    {/* Connection rendering is disabled for now */}
-                    <footer className="mt-2">
-                      <span className="text-xs text-slate-400">tags: {(note.tags||[]).slice(0,3).join(", ")}</span>
-                    </footer>
-                    <div data-note-id={String(note.id)} />
-                  </article>
-                ))}
+                {grouped[day].map((note) => {
+                  const neighbors = computeConnections(note, notes, vecById, weights, 3)
+                    .map(n => ({ ...n, title: notes.find(x => x.id === n.toId)?.title }));
+                  const isOpen = openPanelId === note.id;
+                  const navigateToNote = (id: string | number) => console.log("Navigating to note:", id);
+                  return (
+                    <article key={String(note.id)} className={`rounded-2xl bg-slate-800/40 border border-slate-700/60 p-3 transition-all duration-500 ${highlightedNote === note.id ? 'bg-indigo-500/20' : ''}`}>
+                      <header className="mb-2">
+                        <h3 className="text-slate-100 text-sm font-semibold line-clamp-2">{note.title || (note.content?.slice(0, 48) || "제목 없음")}</h3>
+                        <div className="text-[11px] text-slate-400 mt-1">{fmtDate(note.createdAt || note.updatedAt)}</div>
+                      </header>
+                      <p className="text-slate-300 text-[13px] leading-snug line-clamp-4 whitespace-pre-wrap">
+                        {note.content?.slice(0, 200)}
+                      </p>
+                      <div className="mt-2">
+                        <ConnectionsBadge count={neighbors.length} onClick={() => setOpenPanelId(isOpen ? null : String(note.id))} />
+                        {isOpen && (
+                          <ConnectionsPanel
+                            neighbors={neighbors}
+                            onSelect={(id) => navigateToNote(id)}
+                          />
+                        )}
+                      </div>
+                      <footer className="mt-2">
+                        <span className="text-xs text-slate-400">tags: {(note.tags||[]).slice(0,3).join(", ")}</span>
+                      </footer>
+                      <div data-note-id={String(note.id)} />
+                    </article>
+                  );
+                })}
               </div>
             </div>
           ))}
