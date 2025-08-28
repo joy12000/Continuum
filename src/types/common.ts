@@ -10,7 +10,7 @@ export interface Note {
   id: string;
   content: string;
   title?: string;
-  tags: string[];
+  tags?: string[];
   citations?: { noteId: string }[];
   createdAt: number;
   updatedAt: number;
