@@ -44,6 +44,8 @@ const Today: React.FC = () => {
       // 1. Fetch relevant chunks
       const rows = await searchChunks(currentQuery, user.id);
       const searchResults = rows || [];
+      // Sort results by distance (lower is better)
+      searchResults.sort((a, b) => a.distance - b.distance);
       setResults(searchResults);
 
       // 2. If chunks are found, fetch all their parent notes at once

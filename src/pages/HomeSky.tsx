@@ -145,9 +145,6 @@ export default function HomeSky() {
       const detail = (e as CustomEvent).detail;
       if (detail && typeof detail.text === 'string') {
         setDraft(detail.text);
-        if (editorRef.current) {
-          editorRef.current.innerText = detail.text;
-        }
         editorRef.current?.focus();
       }
     };
@@ -157,6 +154,13 @@ export default function HomeSky() {
       window.removeEventListener('sky:paste', handlePaste);
     };
   }, []); // Empty dependency array ensures this runs only once
+
+  // Sync editor with draft state
+  useEffect(() => {
+    if (editorRef.current && editorRef.current.innerText !== draft) {
+      editorRef.current.innerText = draft;
+    }
+  }, [draft]);
 
   // Shooting star animation function
   function spawnClassicMeteor() {
