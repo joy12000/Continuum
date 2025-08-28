@@ -41,6 +41,29 @@ export function computeConnections(
 ): Connection[] {
   const scores = new Map<string, { score: number; reasons: Set<string> }>();
 
+  // 1. 명시적 인용 (Citations)
+  const citationWeight = weights.citation;
+  const noteCitations = note.citations?.map((c) => c.noteId) || [];
+  
+  // Direct citations from the note
+  for (const citedId of noteCitations) {
+    if (String(citedId) === String(note.id)) continue;
+    const current = scores.get(String(citedId)) || { score: 0, reasons: new Set() };
+    current.score += citationWeight;
+    current.reasons.add("cit");
+    scores.set(String(citedId), current);
+  }
+
+  // Backlinks (other notes citing this one)
+  const citingNotes = allNotes.filter((n) => n.citations?.some((c) => String(c.noteId) === String(note.id)));
+  for (const citingNote of citingNotes) {
+    if (String(citingNote.id) === String(note.id)) continue;
+    const current = scores.get(String(citingNote.id)) || { score: 0, reasons: new Set() };
+    current.score += citationWeight;
+    current.reasons.add("cit_back");
+    scores.set(String(citingNote.id), current);
+  }
+
   // 2. 코사인 유사도 (Cosine Similarity)
   const simWeight = weights.sim;
   const noteVec = vecById.get(String(note.id));
@@ -57,6 +80,23 @@ export function computeConnections(
           current.reasons.add(`sim:${sim.toFixed(2)}`);
           scores.set(String(other.id), current);
         }
+      }
+    }
+  }
+
+  // 3. 태그 공유 (Shared Tags)
+  const tagWeight = weights.tag;
+  const noteTags = new Set(note.tags || []);
+  if (noteTags.size > 0) {
+    for (const other of allNotes) {
+      if (String(other.id) === String(note.id)) continue;
+      const otherTags = new Set(other.tags || []);
+      const intersection = new Set([...noteTags].filter((t) => otherTags.has(t)));
+      if (intersection.size > 0) {
+        const current = scores.get(String(other.id)) || { score: 0, reasons: new Set() };
+        current.score += intersection.size * tagWeight;
+        intersection.forEach((t) => current.reasons.add(`tag:${t}`));
+        scores.set(String(other.id), current);
       }
     }
   }

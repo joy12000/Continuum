@@ -67,7 +67,7 @@ export async function addNoteAndChunks(note: { title?: string; body: string; use
 export async function listNotes(userId: string) {
   const { data, error } = await supabase
     .from("notes")
-    .select("id, title, body, created_at, updated_at")
+    .select("id, title, body, created_at, updated_at, tags, citations")
     .eq("user_id", userId)
     .order("updated_at", { ascending: false });
   if (error) throw error;
