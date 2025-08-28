@@ -2,19 +2,31 @@ import type { NoteLite } from "../graph/types";
 
 export async function getEmbeddingsMap(notes: NoteLite[]): Promise<Map<string, number[]>> {
   const map = new Map<string, number[]>();
+  const notesWithContent = notes.filter(n => n.content && n.content.trim().length > 0);
+
+  if (notesWithContent.length === 0) {
+    return map;
+  }
+
   try {
-    // TODO: 실제 임베딩 API/유틸로 교체
-    const vecs = await fetch("/api/embeddings/batch", {
+    const resp = await fetch("/api/embeddings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids: notes.map(n => n.id) }),
-    }).then(r => r.ok ? r.json() : null);
+      body: JSON.stringify({ texts: notesWithContent.map(n => n.content || '') }),
+    });
 
-    if (vecs && Array.isArray(vecs)) {
-      for (const v of vecs) {
-        if (v?.id && Array.isArray(v?.embedding)) map.set(v.id, v.embedding);
+    if (resp.ok) {
+      const data = await resp.json();
+      const embeddings = data.embeddings as number[][];
+      if (embeddings && embeddings.length === notesWithContent.length) {
+        for (let i = 0; i < notesWithContent.length; i++) {
+          map.set(notesWithContent[i].id, embeddings[i]);
+        }
       }
     }
-  } catch { /* no-op: 빈 맵 폴백 */ }
+  } catch (e) {
+    console.error("Failed to get embeddings map:", e);
+    /* no-op: 빈 맵 폴백 */
+  }
   return map;
 }
