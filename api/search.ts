@@ -1,91 +1,59 @@
-
+// api/search.ts
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
-import { getEmbedding } from './lib/generativeai';
-import { BM25 } from '../server-lib/lib/bm25';
-import { rrf } from './lib/rrf';
-import { tokenize } from './lib/tokenizer';
 
 export const config = { runtime: 'nodejs' };
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_KEY!,
+  { auth: { persistSession: false } }
+);
 
-// Placeholder for snippet generation
-function generateSnippet(text: string, query: string): string {
-  const index = text.toLowerCase().indexOf(query.toLowerCase());
-  if (index === -1) return text.slice(0, 150) + '...';
-  const start = Math.max(0, index - 50);
-  const end = Math.min(text.length, index + query.length + 50);
-  const snippet = text.slice(start, end);
-  return `...${snippet.replace(new RegExp(query, 'ig'), '<em>$&</em>')}...`;
+async function embedWithGoogle(text: string) {
+  const { GoogleGenerativeAI } = await import('@google/generative-ai');
+  const key = process.env.GOOGLE_API_KEY;
+  if (!key) throw new Error('GOOGLE_API_KEY not set');
+  const genAI = new GoogleGenerativeAI(key);
+  const model = genAI.getGenerativeModel({ model: 'text-embedding-004' });
+  const out = await model.embedContent({ content: text });
+  return out.embedding.values as number[];
+}
+
+async function embedWithOpenAI(text: string) {
+  const OpenAI = (await import('openai')).default;
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) throw new Error('OPENAI_API_KEY not set');
+  const client = new OpenAI({ apiKey: key });
+  const out = await client.embeddings.create({ model: 'text-embedding-3-small', input: text });
+  return out.data[0].embedding as number[];
+}
+
+async function getEmbedding(text: string) {
+  // Google 우선, 없으면 OpenAI
+  if (process.env.GOOGLE_API_KEY) return embedWithGoogle(text);
+  if (process.env.OPENAI_API_KEY) return embedWithOpenAI(text);
+  throw new Error('No embedding key set (GOOGLE_API_KEY or OPENAI_API_KEY)');
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
-  }
-
   try {
-    const token = req.headers.authorization?.split(' ')?.[1];
-    if (!token) return res.status(401).json({ error: 'Authentication required.' });
-
-    const supabase = createClient(supabaseUrl!, supabaseAnonKey!, {
-      global: { headers: { Authorization: `Bearer ${token}` } },
-      auth: { persistSession: false },
-    });
-
-    const { q } = req.query;
-    if (!q || typeof q !== 'string') {
-      return res.status(400).json({ error: 'Query parameter "q" is required.' });
+    if (req.method !== 'GET') {
+      res.setHeader('Allow', 'GET');
+      return res.status(405).send('Method Not Allowed');
     }
+    const qraw = Array.isArray(req.query.q) ? req.query.q[0] : req.query.q;
+    const q = (qraw || '').toString().trim();
+    if (!q) return res.status(200).json([]);
 
-    // --- Parallel Hybrid Search ---
-    const [semanticResults, keywordResults] = await Promise.all([
-      // 1. Semantic Search
-      (async () => {
-        const queryEmbedding = await getEmbedding(q);
-        const { data } = await supabase.rpc('match_notes', {
-          query_embedding: queryEmbedding,
-          match_threshold: 0.7, // a reasonable default
-          match_count: 20,
-        });
-        return data || [];
-      })(),
+    const q_emb = await getEmbedding(q);
+    const limit_k = Number(Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit) || 12;
 
-      // 2. Keyword Search (BM25)
-      (async () => {
-        const { data: notes } = await supabase.from('notes').select('id, body');
-        if (!notes) return [];
-        const tokenizedDocs = notes.map(n => tokenize(n.body));
-        const bm25 = new BM25(tokenizedDocs);
-        const queryTokens = tokenize(q);
-        const scores = bm25.search(queryTokens);
-        return scores.map((score, i) => ({ id: notes[i].id, score })).filter(r => r.score > 0);
-      })(),
-    ]);
+    const { data, error } = await supabase.rpc('search_note_chunks', { q_emb, limit_k });
+    if (error) return res.status(500).json({ error: '[supabase] ' + error.message });
 
-    // 3. Reciprocal Rank Fusion (RRF)
-    const fusedResults = rrf([keywordResults, semanticResults]);
-
-    // 4. Fetch details and generate snippets for top results
-    const topIds = fusedResults.slice(0, 10).map(r => r.id);
-    const { data: finalNotes } = await supabase.from('notes').select('id, title, body').in('id', topIds);
-
-    const response = fusedResults.slice(0, 10).map(fused => {
-      const note = finalNotes?.find(n => n.id === fused.id);
-      return {
-        note_id: fused.id,
-        title: note?.title || 'Untitled',
-        score: fused.score,
-        snippet_html: note ? generateSnippet(note.body, q) : '',
-      };
-    });
-
-    return res.status(200).json(response);
-
+    return res.status(200).json(data || []);
   } catch (e: any) {
-    console.error('[api/search] Error:', e.message);
-    return res.status(500).json({ error: 'Internal Server Error' });
+    return res.status(500).json({ error: e?.message || 'search failed' });
   }
 }
