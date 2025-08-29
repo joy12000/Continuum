@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db, Note } from '../lib/db';
+import { supabase } from '../lib/supabase';
+import { Note } from '../types/common';
 import { Weights } from '../components/ConnectionsWeights';
 import { VecMap } from '../lib/graph/computeConnections';
 import { getEmbeddingsMap } from '../lib/embeddings/getEmbeddingsMap';
@@ -11,6 +11,7 @@ export const useConnections = () => {
   const [vecById, setVecById] = useState<VecMap>(new Map());
   const [neighbors, setNeighbors] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [notes, setNotes] = useState<Note[] | null>(null);
 
   const workerRef = useRef<Worker | null>(null);
 
@@ -32,7 +33,31 @@ export const useConnections = () => {
     };
   }, []);
 
-  const notes = useLiveQuery(() => db.notes.toArray(), []);
+  // Fetch notes from Supabase
+  useEffect(() => {
+    const fetchNotes = async () => {
+      setLoading(true);
+      const { data, error } = await supabase.from('notes').select('*');
+      if (error) {
+        console.error("Error fetching notes from supabase", error);
+        setNotes([]);
+      } else {
+        const mappedNotes: Note[] = data.map((n: any) => ({
+          id: n.id,
+          content: n.body,
+          title: n.title,
+          tags: n.tags || [],
+          citations: n.citations || [],
+          createdAt: new Date(n.created_at).getTime(),
+          updatedAt: new Date(n.updated_at).getTime(),
+        }));
+        setNotes(mappedNotes);
+      }
+      setLoading(false);
+    };
+    fetchNotes();
+  }, []);
+
   const notesById = useMemo(() => {
     const map = new Map<string, Note>();
     for (const note of notes || []) {
@@ -68,7 +93,7 @@ export const useConnections = () => {
     }
   }, [selectedNote, notes, vecById, weights]);
 
-  const panelNeighbors = useMemo(() => 
+  const panelNeighbors = useMemo(() =>
     neighbors.map(n => ({
       ...n,
       title: notesById.get(n.toId)?.title || n.toId,
