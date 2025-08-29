@@ -1,4 +1,3 @@
-// qEmb를 서버리스 함수에 전달해 Supabase RPC 검색 수행
 export async function searchChunks({
   qEmb,
   limit = 12,

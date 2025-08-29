@@ -1,4 +1,3 @@
-// 텍스트 -> 임베딩 생성 (서버리스 함수 호출)
 export async function getQueryEmbedding(text: string, opts?: { signal?: AbortSignal }): Promise<number[]> {
   const res = await fetch('/api/embeddings/query', {
     method: 'POST',
