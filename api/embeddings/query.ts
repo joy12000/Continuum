@@ -14,7 +14,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Request body must contain a non-empty \'text\' field.' });
     }
 
-    const model = getGenerativeModel('text-embedding-004');
+    const model = getGenerativeModel({ model: 'text-embedding-004' });
     const out = await model.embedContent(text);
     
     return res.status(200).json({ embedding: out.embedding.values });

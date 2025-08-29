@@ -1,18 +1,11 @@
 {
-  "functions": {
-    "api/embeddings.ts": {
-      "memory": 1024
-    },
-    "api/generate.ts": {
-      "memory": 2048
-    },
-    "api/search-chunks.ts": {
-      "memory": 1024
-    },
-    "api/embeddings/batch.ts": {
-      "memory": 1024
-    }
-  },
+  "builds": [
+    { "src": "api/embeddings.ts", "use": "@vercel/node" },
+    { "src": "api/generate.ts", "use": "@vercel/node" },
+    { "src": "api/search-chunks.ts", "use": "@vercel/node" },
+    { "src": "api/embeddings/batch.ts", "use": "@vercel/node" },
+    { "src": "api/embeddings/query.ts", "use": "@vercel/node" }
+  ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/(.*)", "destination": "/" }

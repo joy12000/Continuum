@@ -40,7 +40,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const model = genAI.getGenerativeModel({ model: 'text-embedding-004' });
 
     const result = await model.batchEmbedContents({
-      requests: texts.map(text => ({ content: { parts: [{ text }] } }))
+      requests: texts.map(text => ({ content: { role: 'user', parts: [{ text }] } }))
     });
 
     const embeddings = result.embeddings.map(e => e.values);
