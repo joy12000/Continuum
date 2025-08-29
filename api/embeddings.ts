@@ -39,16 +39,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const genAI = new GoogleGenerativeAI(key);
     const model = genAI.getGenerativeModel({ model: 'text-embedding-004' });
 
-    const embeddings: number[][] = [];
-    for (const text of texts) {
-      try {
-        const out = await model.embedContent(text);
-        embeddings.push(out.embedding.values);
-      } catch (e: any) {
-        console.error(`Failed to embed text: "${text}"`, e);
-        embeddings.push(Array(768).fill(0)); // 임베딩 실패 시 0으로 채워진 배열 반환
-      }
-    }
+    const result = await model.batchEmbedContents({
+      requests: texts.map(text => ({ content: { parts: [{ text }] } }))
+    });
+
+    const embeddings = result.embeddings.map(e => e.values);
 
     return res.status(200).json({ embeddings });
 
