@@ -1,170 +1,97 @@
-import { useEffect, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { db, Snapshot, Note } from "../lib/db";
-import ConfirmModal from "../components/ConfirmModal";
-import { toast } from "../lib/toast";
-import { DedupSuggestions } from "../components/DedupSuggestions";
-import { ArrowLeft, LogOut } from 'lucide-react';
-import { BackupRestore } from "../components/BackupRestore";
-import DevToolsLink from "../components/settings/DevToolsLink";
-import EmbeddingMode from "../components/settings/EmbeddingMode";
-import { supabase } from "../lib/supabase";
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
+import ConfirmModal from '../components/ConfirmModal';
+import { toast } from '../lib/toast';
+import BackupRestore from '../components/BackupRestore';
 
-interface SettingsProps {
-  engine: 'auto' | 'remote';
-  setEngine: (engine: 'auto' | 'remote') => void;
-  modelStatus: string;
-}
-
-// A reusable section component for settings
-const SettingSection = ({ title, children }: { title: string, children: React.ReactNode }) => (
-  <div className="border-b border-gray-700/50 pb-6 mb-6">
-    <h2 className="text-xl font-semibold mb-4 text-gray-200">{title}</h2>
-    <div className="space-y-4">{children}</div>
-  </div>
-);
-
-export default function Settings({ engine, setEngine, modelStatus }: SettingsProps) {
+const Settings: React.FC = () => {
   const navigate = useNavigate();
-  const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [modalState, setModalState] = useState<{ isOpen: boolean; snapshot: Snapshot | null }>({ isOpen: false, snapshot: null });
-
-  const fetchSnapshots = useCallback(async () => {
-    try {
-      setLoading(true);
-      const snapshotData = await db.snapshots.orderBy("createdAt").reverse().toArray();
-      setSnapshots(snapshotData);
-    } catch (err) {
-      setError("스냅샷을 불러오는 데 실패했습니다.");
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const fetchNotes = useCallback(async () => {
-    try {
-      const allNotes = await db.notes.toArray();
-      setNotes(allNotes);
-    } catch (err) {
-      console.error("노트를 불러오는 데 실패했습니다.", err);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchSnapshots();
-    fetchNotes();
-  }, [fetchSnapshots, fetchNotes]);
-
-  const handleCreateSnapshot = async () => {
-    try {
-      const noteCount = await db.notes.count();
-      const snapshot = { id: crypto.randomUUID(), createdAt: Date.now(), noteCount };
-      await db.snapshots.add(snapshot);
-      toast.success("스냅샷이 생성되었습니다!");
-      fetchSnapshots();
-    } catch (err) {
-      toast.error("스냅샷 생성에 실패했습니다.");
-      console.error(err);
-    }
-  };
-
-  const handleRestoreClick = (snapshot: Snapshot) => setModalState({ isOpen: true, snapshot });
-  const handleConfirmRestore = async () => {
-    if (!modalState.snapshot) return;
-    toast.info("스냅샷 복원 기능은 아직 구현되지 않았습니다.");
-    setModalState({ isOpen: false, snapshot: null });
-  };
-  const handleCancelRestore = () => setModalState({ isOpen: false, snapshot: null });
-
-  const handleMerge = async (keep: string, remove: string[]) => {
-    try {
-      await db.mergeNotes(keep, remove);
-      toast.success(`${remove.length}개의 노트가 병합되었습니다.`);
-      fetchNotes();
-    } catch (error) {
-      toast.error("노트 병합에 실패했습니다.");
-      console.error(error);
-    }
-  };
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
 
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      toast.error("로그아웃 중 오류가 발생했습니다.");
-      console.error('Error logging out:', error);
-    } else {
-      navigate('/login');
+    await supabase.auth.signOut();
+    navigate('/login');
+  };
+
+  const handleDeleteAllNotes = async () => {
+    if (confirmText !== "내 모든 노트 삭제") {
+      toast.error('확인 문구를 정확히 입력하세요.');
+      return;
+    }
+
+    try {
+      // IMPORTANT: Assumes an RPC function `delete_all_my_notes` exists on Supabase
+      const { error } = await supabase.rpc('delete_all_my_notes');
+      if (error) throw error;
+      toast.success('모든 노트가 삭제되었습니다.');
+      setShowDeleteConfirm(false);
+      setConfirmText("");
+      // Optionally, navigate away or refresh
+      navigate('/');
+    } catch (error: any) {
+      toast.error(`삭제 중 오류가 발생했습니다: ${error.message}`);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-200 font-sans">
-      <header className="sticky top-0 z-10 flex items-center justify-between p-4 bg-gray-900/80 backdrop-blur-sm border-b border-gray-700/50">
-        <h1 className="text-2xl font-bold">설정</h1>
-        <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-gray-700">
-          <ArrowLeft size={24} />
+    <div className="p-4 md:p-6 max-w-2xl mx-auto">
+      <h1 className="text-2xl font-bold mb-6">설정</h1>
+
+      <div className="space-y-4 mb-8">
+        <button onClick={handleLogout} className="w-full text-left p-3 bg-slate-700/50 rounded-lg hover:bg-slate-700">
+          로그아웃
         </button>
-      </header>
+        {/* Other settings can go here */}
 
-      <main className="p-4 max-w-3xl mx-auto">
-        <SettingSection title="데이터 관리">
-          <BackupRestore onNotesImported={fetchNotes} />
-        </SettingSection>
+        {/*
+          <div className="p-3 bg-slate-700/50 rounded-lg">
+            <h2 className="font-medium mb-2">백업 및 복원</h2>
+            <p className="text-sm text-slate-400 mb-4">
+              현재 백업/복원 기능은 클라우드 데이터베이스(Supabase)가 아닌, 브라우저 내부의 로컬 데이터베이스(Dexie)에 대해서만 동작합니다.
+              따라서 앱의 핵심 데이터와 호환되지 않아 비활성화되어 있습니다.
+              이 기능을 클라우드 데이터와 연동되도록 개선하는 작업이 필요합니다.
+            </p>
+            <BackupRestore />
+          </div>
+        */}
+      </div>
 
-        <SettingSection title="스냅샷 관리">
-          <button onClick={handleCreateSnapshot} disabled={loading} className="btn bg-indigo-600 hover:bg-indigo-700 text-white mb-4 w-full">
-            {loading ? '생성 중...' : '현재 상태 스냅샷 생성'}
-          </button>
-          {error && <div className="text-red-400 mb-4 p-3 bg-red-900/50 rounded-md">{error}</div>}
-          {snapshots.length === 0 ? (
-            <p className="text-gray-400 text-center py-4">저장된 스냅샷이 없습니다.</p>
-          ) : (
-            <ul className="space-y-2">
-              {snapshots.map(snapshot => (
-                <li key={snapshot.id} className="flex justify-between items-center p-3 bg-gray-800/50 rounded-lg">
-                  <div>
-                    <p className="font-medium">{new Date(snapshot.createdAt).toLocaleString()}</p>
-                    <p className="text-sm text-gray-400">{snapshot.noteCount}개의 노트</p>
-                  </div>
-                  <button onClick={() => handleRestoreClick(snapshot)} className="btn btn-sm bg-gray-700 hover:bg-gray-600 text-white">복원</button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </SettingSection>
+      {/* Danger Zone */}
+      <div className="mt-12 p-4 border border-red-500/50 rounded-lg">
+        <h2 className="text-lg font-bold text-red-400">위험 구역</h2>
+        <p className="text-sm text-slate-400 mt-1 mb-4">
+          이곳의 작업은 되돌릴 수 없습니다. 신중하게 진행하세요.
+        </p>
+        <button 
+          onClick={() => setShowDeleteConfirm(true)} 
+          className="bg-red-600/80 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg"
+        >
+          모든 노트 삭제...
+        </button>
+      </div>
 
-        <SettingSection title="중복 노트 관리">
-          <DedupSuggestions notes={notes} engine={engine} onMerge={handleMerge} />
-        </SettingSection>
-
-        <SettingSection title="고급 설정">
-          <EmbeddingMode />
-          <DevToolsLink />
-        </SettingSection>
-
-        <div className="border-t border-red-500/30 pt-6 mt-6">
-          <h2 className="text-xl font-semibold mb-4 text-red-400">위험 구역</h2>
-          <button 
-            onClick={handleLogout} 
-            className="btn w-full bg-red-600/80 hover:bg-red-600 text-white flex items-center justify-center gap-2"
-          >
-            <LogOut size={18} />
-            로그아웃
-          </button>
-        </div>
-      </main>
-
-      <ConfirmModal
-        isOpen={modalState.isOpen}
-        title="스냅샷 복원 확인"
-        message="정말로 이 스냅샷을 복원하시겠습니까? 현재 모든 데이터가 스냅샷 시점의 데이터로 대체됩니다. 이 작업은 되돌릴 수 없습니다."
-        onConfirm={handleConfirmRestore}
-        onCancel={handleCancelRestore}
-      />
+      {showDeleteConfirm && (
+        <ConfirmModal
+          title="모든 노트를 삭제하시겠습니까?"
+          onClose={() => setShowDeleteConfirm(false)}
+          onConfirm={handleDeleteAllNotes}
+        >
+          <p className="text-sm text-slate-300 mb-4">
+            이 작업은 되돌릴 수 없으며, 모든 노트와 관련 데이터가 영구적으로 삭제됩니다. 계속하려면 아래에 "<strong className='text-red-400'>내 모든 노트 삭제</strong>" 라고 정확히 입력하세요.
+          </p>
+          <input 
+            type="text"
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            className="w-full p-2 bg-slate-800 border border-slate-600 rounded-md"
+            placeholder='내 모든 노트 삭제'
+          />
+        </ConfirmModal>
+      )}
     </div>
   );
-}
+};
+
+export default Settings;
