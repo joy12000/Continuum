@@ -4,7 +4,7 @@
       "memory": 1024
     },
     "api/generate.ts": {
-      "memory": 3008
+      "memory": 2048
     },
     "api/search-chunks.ts": {
       "memory": 1024
