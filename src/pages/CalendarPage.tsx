@@ -1,8 +1,7 @@
-
-import React, { useState, useMemo } from 'react';
-import CalendarMonth from '../components/CalendarMonth'; // Corrected: default import
-import { db, Note } from '../lib/db';
-import { useLiveQuery } from 'dexie-react-hooks';
+import React, { useState, useMemo, useEffect } from 'react';
+import CalendarMonth from '../components/CalendarMonth';
+import { supabase } from '../lib/supabase';
+import { Note } from '../types/common';
 
 const WEEK_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -16,21 +15,48 @@ function ymd(d: Date): string {
 const CalendarPage = () => {
   const [selectedDate, setSelectedDate] = useState<string>(ymd(new Date()));
   const [displayDate, setDisplayDate] = useState(new Date());
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const year = displayDate.getFullYear();
   const month = displayDate.getMonth(); // 0-indexed
 
-  // 1. Fetch all notes for the currently displayed month
-  const notesForMonth = useLiveQuery(() => {
-    const start = new Date(year, month, 1);
-    const end = new Date(year, month + 1, 0, 23, 59, 59);
-    return db.notes.where('createdAt').between(start, end).toArray();
-  }, [year, month], [] as Note[]);
+  useEffect(() => {
+    const fetchNotesForMonth = async () => {
+      setLoading(true);
+      const start = new Date(year, month, 1);
+      const end = new Date(year, month + 1, 0, 23, 59, 59);
 
-  // 2. Transform the flat notes array into a structure grouped by date (YYYY-MM-DD)
+      const { data, error } = await supabase
+        .from('notes')
+        .select('*')
+        .gte('created_at', start.toISOString())
+        .lte('created_at', end.toISOString());
+
+      if (error) {
+        console.error("Error fetching notes for month:", error);
+        setNotes([]);
+      } else {
+        const mappedNotes: Note[] = data.map((n: any) => ({
+          id: n.id,
+          content: n.body,
+          title: n.title,
+          tags: n.tags || [],
+          citations: n.citations || [],
+          createdAt: new Date(n.created_at).getTime(),
+          updatedAt: new Date(n.updated_at).getTime(),
+        }));
+        setNotes(mappedNotes);
+      }
+      setLoading(false);
+    };
+
+    fetchNotesForMonth();
+  }, [year, month]);
+
   const notesByDate = useMemo(() => {
     const map: Record<string, Note[]> = {};
-    for (const note of notesForMonth) {
+    for (const note of notes) {
       const key = ymd(new Date(note.createdAt));
       if (!map[key]) {
         map[key] = [];
@@ -38,11 +64,10 @@ const CalendarPage = () => {
       map[key].push(note);
     }
     return map;
-  }, [notesForMonth]);
+  }, [notes]);
 
   const notesForSelectedDay = notesByDate[selectedDate] || [];
 
-  // Handler to change month (not fully implemented, but for structure)
   const handleMonthChange = (offset: number) => {
     setDisplayDate(current => new Date(current.getFullYear(), current.getMonth() + offset, 1));
   };
@@ -60,14 +85,18 @@ const CalendarPage = () => {
       </div>
       <div className="flex flex-col md:flex-row gap-8">
         <div className="md:w-1/2">
-          <CalendarMonth 
-            year={year}
-            month={month}
-            weekLabels={WEEK_LABELS}
-            notesByDate={notesByDate}
-            selectedDate={selectedDate}
-            onSelectDate={setSelectedDate}
-          />
+          {loading ? (
+            <div>Loading...</div>
+          ) : (
+            <CalendarMonth 
+              year={year}
+              month={month}
+              weekLabels={WEEK_LABELS}
+              notesByDate={notesByDate}
+              selectedDate={selectedDate}
+              onSelectDate={setSelectedDate}
+            />
+          )}
         </div>
         <div className="md:w-1/2">
           <h2 className="text-xl font-semibold">Notes for {selectedDate}</h2>
