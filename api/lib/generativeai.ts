@@ -1,3 +1,4 @@
+
 import { GoogleGenerativeAI, ModelParams } from '@google/generative-ai';
 
 // Cache the client instance
@@ -19,4 +20,17 @@ export function getGenerativeModel(params?: Omit<ModelParams, 'model'> & { model
   const modelName = params?.model || process.env.GEMINI_MODEL || "gemini-1.5-flash";
   
   return client.getGenerativeModel({ ...params, model: modelName });
+}
+
+// New function to get the embedding model
+export function getEmbeddingModel() {
+  const client = getClient();
+  return client.getGenerativeModel({ model: "text-embedding-004" });
+}
+
+// New function to get a single embedding
+export async function getEmbedding(text: string): Promise<number[]> {
+  const model = getEmbeddingModel();
+  const result = await model.embedContent(text);
+  return result.embedding.values;
 }

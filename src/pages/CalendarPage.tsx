@@ -1,133 +1,91 @@
-import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import CalendarMonth from "../components/CalendarMonth";
-import Toast from "../components/Toast";
-import SkyBackground from "../components/SkyBackground";
-import "../styles/calendar.css";
-import "../styles/toast.css";
-import { supabase } from "../lib/supabase";
-import { listNotes } from "../lib/supabaseService";
 
-import { Note } from "../types/common";
+import React, { useState, useMemo } from 'react';
+import CalendarMonth from '../components/CalendarMonth'; // Corrected: default import
+import { db, Note } from '../lib/db';
+import { useLiveQuery } from 'dexie-react-hooks';
 
-function ymd(d: Date){const y=d.getFullYear();const m=(d.getMonth()+1).toString().padStart(2,"0");const dd=d.getDate().toString().padStart(2,"0");return `${y}-${m}-${dd}`}
-function ymdFromTs(ts:number){return ymd(new Date(ts));}
-function firstLine(s:string){const line=(s||"" ).split(/\r?\n/)[0].trim();return line || "제목 없음";}
+const WEEK_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-const K_WEEK=["일","월","화","수","목","금","토"];
-const K_MONTH=["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
+function ymd(d: Date): string {
+  const y = d.getFullYear();
+  const m = (d.getMonth() + 1).toString().padStart(2, '0');
+  const dd = d.getDate().toString().padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
 
-const CalendarPage: React.FC = () => {
-  const nav = useNavigate();
-  const today = new Date();
-  const [y, setY] = useState<number>(today.getFullYear());
-  const [m, setM] = useState<number>(today.getMonth());
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [selDate, setSelDate] = useState<string>(ymd(today));
-  const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+const CalendarPage = () => {
+  const [selectedDate, setSelectedDate] = useState<string>(ymd(new Date()));
+  const [displayDate, setDisplayDate] = useState(new Date());
 
-  const fetchNotes = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("로그인이 필요합니다.");
+  const year = displayDate.getFullYear();
+  const month = displayDate.getMonth(); // 0-indexed
 
-      const supabaseNotes = await listNotes(user.id);
-      const transformedNotes: Note[] = supabaseNotes.map((n: any) => ({
-        id: n.id,
-        content: n.body || '',
-        title: n.title || '',
-        tags: n.tags || [],
-        createdAt: n.created_at ? new Date(n.created_at).getTime() : 0,
-        updatedAt: n.updated_at ? new Date(n.updated_at).getTime() : 0,
-      }));
-      setNotes(transformedNotes);
-    } catch (e: any) {
-      console.error(e);
-    } finally {
-      setLoading(false);
+  // 1. Fetch all notes for the currently displayed month
+  const notesForMonth = useLiveQuery(() => {
+    const start = new Date(year, month, 1);
+    const end = new Date(year, month + 1, 0, 23, 59, 59);
+    return db.notes.where('createdAt').between(start, end).toArray();
+  }, [year, month], [] as Note[]);
+
+  // 2. Transform the flat notes array into a structure grouped by date (YYYY-MM-DD)
+  const notesByDate = useMemo(() => {
+    const map: Record<string, Note[]> = {};
+    for (const note of notesForMonth) {
+      const key = ymd(new Date(note.createdAt));
+      if (!map[key]) {
+        map[key] = [];
+      }
+      map[key].push(note);
     }
-  }, []);
+    return map;
+  }, [notesForMonth]);
 
-  useEffect(() => {
-    fetchNotes();
-    window.addEventListener('notes:updated', fetchNotes);
-    return () => {
-      window.removeEventListener('notes:updated', fetchNotes);
-    };
-  }, [fetchNotes]);
+  const notesForSelectedDay = notesByDate[selectedDate] || [];
 
-  const mapByDate = useMemo(()=>{
-    const map: Record<string, Note[]> = {}; for(const n of notes){ const k=ymdFromTs(n.createdAt); (map[k] ||= []).push(n); } return map;
-  },[notes]);
-
-  const onPrev=( )=>{
-    const d=new Date(y,m,1);
-    d.setMonth(d.getMonth()-1);
-    setY(d.getFullYear());
-    setM(d.getMonth());
-  };
-  const onNext=( )=>{
-    const d=new Date(y,m,1);
-    d.setMonth(d.getMonth()+1);
-    setY(d.getFullYear());
-    setM(d.getMonth());
-  };
-  const onToday=( )=>{
-    const d=new Date();
-    setY(d.getFullYear());
-    setM(d.getMonth());
-    setSelDate(ymd(d));
-  };
-
-  const monthTitle = `${K_MONTH[m]} ${y}`;
-  const dayNotes = mapByDate[selDate] || [];
-
-  const pasteToSky = (t:string)=>{
-    window.dispatchEvent(new CustomEvent("sky:paste",{ detail:{ text:t } }));
-    setToast({ message: "노트를 밤하늘에 불러왔습니다.", type: 'success' });
-    setTimeout(() => {
-      setToast(null);
-      nav("/"); 
-    }, 1800);
+  // Handler to change month (not fully implemented, but for structure)
+  const handleMonthChange = (offset: number) => {
+    setDisplayDate(current => new Date(current.getFullYear(), current.getMonth() + offset, 1));
   };
 
   return (
-    <div className="relative w-full h-full">
-      <SkyBackground />
-      <div className="calendar-wrap content-offset">
-        <header className="cal-head">
-          <div className="cal-title">
-            <button aria-label="이전 달로 이동" onClick={onPrev}>‹</button>
-            <h1>{monthTitle}</h1>
-            <button aria-label="다음 달로 이동" onClick={onNext}>›</button>
-          </div>
-          <div className="cal-actions"><button onClick={onToday} aria-label="오늘 날짜로 이동">오늘</button></div>
-        </header>
-
-        <CalendarMonth year={y} month={m} weekLabels={K_WEEK} notesByDate={mapByDate} selectedDate={selDate} onSelectDate={setSelDate} />
-
-        <section className="cal-detail" aria-live="polite">
-          <div className="detail-head"><h2>{selDate}</h2>{!loading && <span className="count">{dayNotes.length}개 노트</span>}</div>
-          <div className="detail-list">
-            {loading && <div className="empty">로딩 중…</div>}
-            {!loading && dayNotes.length===0 && <div className="empty">오늘의 이야기를 기록해 보세요.</div>}
-            {dayNotes.map((n)=>(
-              <article key={String(n.id)+n.createdAt} className="detail-item">
-                <h3>{firstLine(n.content)}</h3>
-                <p className="snippet">{(n.content||"").slice(0,160)}</p>
-                <div className="detail-actions">
-                  <button onClick={()=>pasteToSky(n.content)}>이어쓰기</button>
-                  {n.id!=null && <button onClick={()=>window.dispatchEvent(new CustomEvent("open:note",{ detail:{ id:n.id } }))}>노트 열기</button>}
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-        {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+    <div className="p-4">
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold">
+          {displayDate.toLocaleString('default', { month: 'long' })} {year}
+        </h1>
+        <div className="space-x-2">
+          <button onClick={() => handleMonthChange(-1)} className="p-2 border rounded">Prev</button>
+          <button onClick={() => handleMonthChange(1)} className="p-2 border rounded">Next</button>
+        </div>
+      </div>
+      <div className="flex flex-col md:flex-row gap-8">
+        <div className="md:w-1/2">
+          <CalendarMonth 
+            year={year}
+            month={month}
+            weekLabels={WEEK_LABELS}
+            notesByDate={notesByDate}
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
+          />
+        </div>
+        <div className="md:w-1/2">
+          <h2 className="text-xl font-semibold">Notes for {selectedDate}</h2>
+          {notesForSelectedDay.length > 0 ? (
+            <ul className="mt-4 space-y-2">
+              {notesForSelectedDay.map(note => (
+                <li key={note.id} className="p-2 border rounded-lg hover:bg-gray-100">
+                  {note.title || 'Untitled Note'}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-4 text-gray-500">No notes for this day.</p>
+          )}
+        </div>
       </div>
     </div>
   );
 };
+
 export default CalendarPage;
