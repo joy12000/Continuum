@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { supabase } from '../supabase';
 
 type NoteLite = { id: string };
 export async function getEmbeddingsMap(notes: NoteLite[]): Promise<Map<string, number[]>> {
