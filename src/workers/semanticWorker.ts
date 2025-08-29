@@ -105,13 +105,17 @@ class SemanticPipeline {
         };
         ort.env.wasm.numThreads = Math.min(4, (self as any).navigator?.hardwareConcurrency || 1);
 
-        const MODEL_DIR = '/models/ko-sroberta';
-        console.log('[SemanticWorker] Initializing...', { MODEL_DIR });
+        const { getActiveModelId } = await import('../lib/semantic/model');
+        const activeModelId = getActiveModelId();
+        
+        const MODEL_DIR = `/models/${activeModelId}`;
+        console.log('[SemanticWorker] Initializing with model:', { MODEL_DIR });
 
-        this.session = await ort.InferenceSession.create(await __fetchModelOnce(`${MODEL_DIR}/ko-sroberta-multitask_quantized.onnx`)).catch(async () => {
-          return await ort.InferenceSession.create(await __fetchModelOnce(`${MODEL_DIR}/model_qint8_avx512_vnni.onnx`));
-        });
-        this.tokenizer = await AutoTokenizer.from_pretrained('ko-sroberta');
+        // Assuming the model file name follows a pattern like ${modelId}-multitask_quantized.onnx
+        const modelPath = `${MODEL_DIR}/${activeModelId}-multitask_quantized.onnx`;
+
+        this.session = await ort.InferenceSession.create(await __fetchModelOnce(modelPath));
+        this.tokenizer = await AutoTokenizer.from_pretrained(activeModelId);
 
         this.inputNames = (this.session as any).inputNames || [];
         this.ready = true;

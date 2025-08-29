@@ -1,28 +1,67 @@
 // src/components/settings/EmbeddingMode.tsx
 import { useState, useEffect } from 'react';
-import type { HybridMode } from '@/lib/semantic/mode';
-import { getEmbeddingMode, setEmbeddingMode } from '@/lib/semantic/mode';
+import { CheckCircleIcon } from '@heroicons/react/24/solid';
+import { embeddingModels } from '@/lib/semantic/models';
+import { getActiveModelId, setActiveModelId } from '@/lib/semantic/model';
 
 export default function EmbeddingMode() {
-  const [mode, setMode] = useState<HybridMode>('local-first');
-  useEffect(() => { setMode(getEmbeddingMode()); }, []);
-  const onChange = (m: HybridMode) => { setMode(m); setEmbeddingMode(m); };
+  const [activeModel, setActiveModel] = useState('');
+
+  useEffect(() => {
+    // Load the active model from storage on component mount
+    setActiveModel(getActiveModelId());
+  }, []);
+
+  const handleSelectModel = (modelId: string) => {
+    setActiveModelId(modelId);
+    setActiveModel(modelId);
+  };
 
   return (
-    <div className="space-y-2 p-3 rounded-lg border border-slate-200">
-      <div className="font-medium">임베딩 모드</div>
-      <label className="flex items-center gap-2">
-        <input type="radio" name="emb" checked={mode==='local-only'} onChange={()=>onChange('local-only')} />
-        <span>Local only <span className="text-xs text-gray-500">오프라인, 토큰 0</span></span>
-      </label>
-      <label className="flex items-center gap-2">
-        <input type="radio" name="emb" checked={mode==='local-first'} onChange={()=>onChange('local-first')} />
-        <span>Local first <span className="text-xs text-green-600">추천: 로컬 우선, 실패 시 서버</span></span>
-      </label>
-      <label className="flex items-center gap-2">
-        <input type="radio" name="emb" checked={mode==='remote-only'} onChange={()=>onChange('remote-only')} />
-        <span>Remote only <span className="text-xs text-rose-600">토큰 사용</span></span>
-      </label>
+    <div className="space-y-4 p-4 rounded-lg border border-neutral-700 bg-neutral-800/50">
+      <div className="text-lg font-semibold text-white">임베딩 모델 선택</div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {embeddingModels.map((model) => {
+          const isActive = activeModel === model.id;
+          const isDownloaded = model.status !== 'NOT_DOWNLOADED';
+
+          return (
+            <div
+              key={model.id}
+              onClick={() => isDownloaded && handleSelectModel(model.id)}
+              className={`
+                p-4 rounded-lg border-2 transition-all duration-200
+                ${isActive ? 'border-sky-500 bg-sky-900/30' : 'border-neutral-600 hover:border-neutral-500'}
+                ${isDownloaded ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}
+              `}
+            >
+              <div className="flex justify-between items-start">
+                <div className="font-bold text-white">{model.name}</div>
+                {isActive && (
+                  <CheckCircleIcon className="h-6 w-6 text-sky-400" />
+                )}
+              </div>
+              <p className="text-sm text-neutral-400 mt-2 mb-3">{model.description}</p>
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-mono px-2 py-1 rounded bg-neutral-700 text-neutral-300">
+                  {model.size}
+                </span>
+                {!isDownloaded && (
+                    <button 
+                        className="text-xs px-3 py-1 rounded-md bg-sky-600 text-white hover:bg-sky-500"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            alert('다운로드 기능은 아직 구현되지 않았습니다.');
+                        }}
+                    >
+                        다운로드
+                    </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
