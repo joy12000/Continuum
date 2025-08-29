@@ -1,5 +1,3 @@
 # Ignore helper libraries and utilities that are not serverless functions
-api/lib/
-api/generate/utils/
 api/generate/handlers/
 api/generate/types.ts

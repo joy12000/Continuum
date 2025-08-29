@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getGenerativeModel } from '../lib/generativeai';
+import { getGenerativeModel } from '../../server-lib/lib/generativeai';
 export const config = { runtime: 'nodejs' };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
