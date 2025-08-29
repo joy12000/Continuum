@@ -1,5 +1,4 @@
 import React from "react";
-
 export function ConnectionsBadge({ count, onClick }: { count: number; onClick?: () => void }) {
   if (!count) return null;
   return (

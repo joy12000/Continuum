@@ -117,15 +117,6 @@ export async function getNotesByIds(noteIds: string[]) {
   return data;
 }
 
-export async function getAllChunks(userId: string) {
-  const { data, error } = await supabase
-    .from("note_chunks")
-    .select("note_id, content")
-    .eq("user_id", userId);
-  if (error) throw error;
-  return data;
-}
-
 export async function searchChunks(query: string, userId: string) {
   const [q] = await generateEmbeddings([query]);
   const { data, error } = await supabase.rpc("search_chunks", {
