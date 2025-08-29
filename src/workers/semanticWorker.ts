@@ -188,9 +188,19 @@ class SemanticPipeline {
   }
 }
 
+import { computeConnections, Note, VecMap } from '../lib/graph/computeConnections';
+
 self.onmessage = async (event: MessageEvent) => {
   const { id, type, payload } = (event.data || {}) as any;
   try {
+    if (type === 'compute_connections') {
+      const { note, notes, vecByIdObject, weights } = payload;
+      const vecById: VecMap = new Map(Object.entries(vecByIdObject));
+      const result = computeConnections(note, notes, vecById, weights);
+      (self as any).postMessage({ id, ok: true, result });
+      return;
+    }
+
     const pipe = SemanticPipeline.getInstance();
     if (type === 'ensure') {
       await pipe.init();
