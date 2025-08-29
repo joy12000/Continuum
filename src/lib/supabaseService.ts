@@ -64,6 +64,30 @@ export async function addNoteAndChunks(note: { title?: string; body: string; use
   return noteData;
 }
 
+export async function recalculateChunksAndEmbeddings(noteId: string, newBody: string) {
+  // 1. Delete old chunks
+  const { error: deleteError } = await supabase.from("note_chunks").delete().eq("note_id", noteId);
+  if (deleteError) throw deleteError;
+
+  // 2. Create new chunks and embeddings
+  const chunks = chunkBySentence(newBody, 512, 50);
+  if (chunks.length === 0) return; // Nothing to do
+
+  const embeddings = await generateEmbeddings(chunks);
+
+  // 3. Insert new chunks
+  const rows = chunks.map((content, i) => ({
+    note_id: noteId,
+    chunk_index: i,
+    content,
+    embedding: embeddings[i],
+    lang: "ko",
+  }));
+
+  const { error: chunkError } = await supabase.from("note_chunks").insert(rows);
+  if (chunkError) throw chunkError;
+}
+
 export async function listNotes(userId: string) {
   const { data, error } = await supabase
     .from("notes")

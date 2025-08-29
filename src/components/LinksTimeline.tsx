@@ -1,5 +1,5 @@
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { computeConnections } from "../lib/graph/computeConnections";
 import { getEmbeddingsMap } from "../lib/embeddings/getEmbeddingsMap";
 import { ConnectionsBadge } from "./ConnectionsBadge";
@@ -35,40 +35,39 @@ const LinksTimeline: React.FC = () => {
   const [vecById, setVecById] = useState<Map<string, number[]>>(new Map());
   const [openPanelId, setOpenPanelId] = useState<string | null>(null);
 
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        setLoading(true);
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error("로그인이 필요합니다.");
+  const fetchNotes = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("로그인이 필요합니다.");
 
-        const supabaseNotes = await listNotes(user.id);
-        if (!mounted) return;
-
-        const transformedNotes: Note[] = supabaseNotes.map((n: any) => ({
-          id: n.id,
-          title: n.title || '',
-          content: n.body || '', // Map body to content
-          tags: n.tags || [],
-          createdAt: n.created_at ? new Date(n.created_at).getTime() : 0,
-          updatedAt: n.updated_at ? new Date(n.updated_at).getTime() : 0,
-        }));
-
-        setNotes(transformedNotes);
-      } catch (e: any) {
-        if (mounted) setError(e?.message || String(e));
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => { mounted = false; };
+      const supabaseNotes = await listNotes(user.id);
+      const transformedNotes: Note[] = supabaseNotes.map((n: any) => ({
+        id: n.id,
+        title: n.title || '',
+        content: n.body || '', // Map body to content
+        tags: n.tags || [],
+        createdAt: n.created_at ? new Date(n.created_at).getTime() : 0,
+        updatedAt: n.updated_at ? new Date(n.updated_at).getTime() : 0,
+      }));
+      setNotes(transformedNotes);
+    } catch (e: any) {
+      setError(e?.message || String(e));
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchNotes();
+    window.addEventListener('notes:updated', fetchNotes);
+    return () => {
+      window.removeEventListener('notes:updated', fetchNotes);
+    };
+  }, [fetchNotes]);
 
   const filteredNotes = useMemo(() => {
     if (!tagFilter) return notes;
-    // Note: Tags are not yet implemented in the Supabase 'notes' table schema.
-    // This filter will not work until tags are added to Supabase notes.
     return notes.filter(n => n.tags?.some(t => t.toLowerCase().includes(tagFilter.toLowerCase())));
   }, [notes, tagFilter]);
 
@@ -140,9 +139,11 @@ const LinksTimeline: React.FC = () => {
                   const navigateToNote = (id: string | number) => console.log("Navigating to note:", id);
                   return (
                     <article key={String(note.id)} className={`rounded-2xl bg-slate-800/40 border border-slate-700/60 p-3 transition-all duration-500 ${highlightedNote === note.id ? 'bg-indigo-500/20' : ''}`}>
-                      <header className="mb-2">
-                        <h3 className="text-slate-100 text-sm font-semibold line-clamp-2">{note.title || (note.content?.slice(0, 48) || "제목 없음")}</h3>
-                        <div className="text-[11px] text-slate-400 mt-1">{fmtDate(note.createdAt || note.updatedAt)}</div>
+                      <header className="mb-2 flex justify-between items-start">
+                        <h3 className="text-slate-100 text-sm font-semibold line-clamp-2 flex-grow cursor-pointer" onClick={()=>window.dispatchEvent(new CustomEvent("open:note",{ detail:{ id:note.id } }))}>{note.title || (note.content?.slice(0, 48) || "제목 없음")}</h3>
+                        <button onClick={()=>window.dispatchEvent(new CustomEvent("open:note",{ detail:{ id:note.id } }))} className="p-1 hover:text-accent transition-colors flex-shrink-0">
+                            <ArrowUpRight size={18} />
+                        </button>
                       </header>
                       <p className="text-slate-300 text-[13px] leading-snug line-clamp-4 whitespace-pre-wrap">
                         {note.content?.slice(0, 200)}

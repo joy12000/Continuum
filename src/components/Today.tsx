@@ -1,6 +1,4 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-import { computeConnections } from "../lib/graph/computeConnections";
-import { getEmbeddingsMap } from "../lib/embeddings/getEmbeddingsMap";
 import { ConnectionsPanel } from "./ConnectionsPanel";
 import { supabase } from "../lib/supabase";
 import { searchChunks, getNotesByIds } from "../lib/supabaseService";
@@ -26,9 +24,7 @@ const Today: React.FC = () => {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [notesMap, setNotesMap] = useState<Map<string, Note>>(new Map());
-  const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [loading, setLoading] = useState(false);
-  const [vecById, setVecById] = useState<Map<string, number[]>>(new Map());
 
   const handleSearch = useCallback(async (currentQuery: string) => {
     if (!currentQuery.trim()) {
@@ -74,38 +70,17 @@ const Today: React.FC = () => {
   }, [query, handleSearch]);
 
   useEffect(() => {
-    const notes = Array.from(notesMap.values());
-    if (notes.length > 0) {
-      // @ts-ignore
-      getEmbeddingsMap(notes).then(setVecById);
-    }
-  }, [notesMap]);
-
-    const neighbors = useMemo(() => {
-    const allNotes = Array.from(notesMap.values());
-    if (!selectedNote || allNotes.length === 0) return [];
-    // @ts-ignore
-    return computeConnections(selectedNote, allNotes, vecById, { citation:1.0, sim:0.6, tag:0.2 }, 3)
-      .map(n => ({ ...n, title: notesMap.get(String(n.toId))?.title || notesMap.get(String(n.toId))?.body.slice(0,40) || n.toId }));
-  }, [selectedNote, notesMap, vecById]);
-
-  const navigateToNote = (id: string | number) => {
-    const note = notesMap.get(String(id));
-    if (note) {
-      setSelectedNote(note);
-    }
-  };
+    const handleNotesUpdated = () => {
+      handleSearch(query);
+    };
+    window.addEventListener('notes:updated', handleNotesUpdated);
+    return () => {
+      window.removeEventListener('notes:updated', handleNotesUpdated);
+    };
+  }, [query, handleSearch]);
 
   function handleSelectRow(row: SearchResult) {
-    // 4. Retrieve the pre-fetched note from the Map, no new API call needed
-    const note = notesMap.get(row.note_id);
-    if (note) {
-      setSelectedNote(note);
-    } else {
-      // Fallback or error handling if note not found (should be rare)
-      console.warn(`Note with id ${row.note_id} not found in pre-fetched map.`);
-      setSelectedNote(null);
-    }
+    window.dispatchEvent(new CustomEvent('open:note', { detail: { id: row.note_id } }));
   }
 
   return (
@@ -125,17 +100,6 @@ const Today: React.FC = () => {
           </button>
         ))}
       </div>
-
-      {selectedNote && (
-        <div className="mt-4 p-3 border rounded">
-          <div className="font-semibold mb-2">선택한 노트</div>
-          {/* Assuming body contains plain text, not HTML. Use dangerouslySetInnerHTML only if you trust the source. */}
-          <div className="prose max-w-none whitespace-pre-wrap">{selectedNote.body}</div>
-          <aside className="mt-4">
-            <ConnectionsPanel neighbors={neighbors} onSelect={(id) => navigateToNote(id)} />
-          </aside>
-        </div>
-      )}
     </div>
   );
 };

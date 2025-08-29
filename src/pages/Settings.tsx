@@ -3,9 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import ConfirmModal from '../components/ConfirmModal';
 import { toast } from '../lib/toast';
-import BackupRestore from '../components/BackupRestore';
 
-const Settings: React.FC = () => {
+interface SettingsProps {
+  engine: 'auto' | 'remote';
+  setEngine: React.Dispatch<React.SetStateAction<'auto' | 'remote'>>;
+  modelStatus: string;
+}
+
+const Settings: React.FC<SettingsProps> = ({ engine, setEngine, modelStatus }) => {
   const navigate = useNavigate();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [confirmText, setConfirmText] = useState("");

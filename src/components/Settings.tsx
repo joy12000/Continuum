@@ -214,13 +214,15 @@ export function Settings({ engine, setEngine, onNavigateHome, onNavigateToDiagno
         </div>
       </div>
 
-      <ConfirmModal
-        isOpen={modalState.isOpen}
-        title="스냅샷 복원 확인"
-        message="정말로 이 스냅샷을 복원하시겠습니까? 현재 모든 데이터가 스냅샷 시점의 데이터로 대체됩니다. 이 작업은 되돌릴 수 없습니다."
-        onConfirm={handleConfirmRestore}
-        onCancel={handleCancelRestore}
-      />
+      {modalState.isOpen && (
+        <ConfirmModal
+          title="스냅샷 복원 확인"
+          onConfirm={handleConfirmRestore}
+          onClose={handleCancelRestore}
+        >
+          정말로 이 스냅샷을 복원하시겠습니까? 현재 모든 데이터가 스냅샷 시점의 데이터로 대체됩니다. 이 작업은 되돌릴 수 없습니다.
+        </ConfirmModal>
+      )}
     </div>
   );
 }

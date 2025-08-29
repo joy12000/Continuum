@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import CalendarMonth from "../components/CalendarMonth";
 import Toast from "../components/Toast";
@@ -27,35 +27,36 @@ const CalendarPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      setLoading(true);
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error("로그인이 필요합니다.");
+  const fetchNotes = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("로그인이 필요합니다.");
 
-        const supabaseNotes = await listNotes(user.id);
-        if (!mounted) return;
-
-        const transformedNotes: Note[] = supabaseNotes.map((n: any) => ({
-          id: n.id,
-          content: n.body || '',
-          title: n.title || '',
-          tags: n.tags || [],
-          createdAt: n.created_at ? new Date(n.created_at).getTime() : 0,
-          updatedAt: n.updated_at ? new Date(n.updated_at).getTime() : 0,
-        }));
-
-        setNotes(transformedNotes);
-      } catch (e: any) {
-        if (mounted) console.error(e);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => { mounted = false; };
+      const supabaseNotes = await listNotes(user.id);
+      const transformedNotes: Note[] = supabaseNotes.map((n: any) => ({
+        id: n.id,
+        content: n.body || '',
+        title: n.title || '',
+        tags: n.tags || [],
+        createdAt: n.created_at ? new Date(n.created_at).getTime() : 0,
+        updatedAt: n.updated_at ? new Date(n.updated_at).getTime() : 0,
+      }));
+      setNotes(transformedNotes);
+    } catch (e: any) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchNotes();
+    window.addEventListener('notes:updated', fetchNotes);
+    return () => {
+      window.removeEventListener('notes:updated', fetchNotes);
+    };
+  }, [fetchNotes]);
 
   const mapByDate = useMemo(()=>{
     const map: Record<string, Note[]> = {}; for(const n of notes){ const k=ymdFromTs(n.createdAt); (map[k] ||= []).push(n); } return map;
