@@ -12,6 +12,7 @@ export function ConnectionsPanel({ neighbors, onSelect }: { neighbors: Neighbor[
               {n.title || n.toId}
             </button>
             <div className="shrink-0 tabular-nums text-[11px] text-neutral-500">{n.score.toFixed(2)}</div>
+            <div className="shrink-0 text-[10px] text-neutral-500/80 truncate">{n.reasons.join(', ')}</div>
           </li>
         ))}
       </ul>
