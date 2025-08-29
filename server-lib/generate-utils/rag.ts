@@ -1,22 +1,9 @@
 import type { Id, Note, Sentence } from '../types';
 
 export function splitSentences(s: string): string[] {
-  if (!s || typeof s !== "string") return [];
-  const hardSplit = s
-    .replace(/\n+/g, " ")
-    .split(/(?<=[\]\.\!\?])\s*|(?<=(다|요))\s*/g)
-    .map(x => (x || "").trim())
-    .filter(Boolean);
-  const merged: string[] = [];
-  for (const seg of hardSplit) {
-    if (!merged.length) { merged.push(seg); continue; }
-    if (seg.length < 8 && merged[merged.length - 1].length < 40) {
-      merged[merged.length - 1] = `${merged[merged.length - 1]} ${seg}`.trim();
-    } else {
-      merged.push(seg);
-    }
-  }
-  return merged;
+  if (!s || typeof s !== 'string') return [];
+  const sentences = s.match(/(.*?[.!?다요])(?=\s|$)/g) || [];
+  return sentences.map(sentence => sentence.trim()).filter(Boolean);
 }
 
 function normalizeTokens(s: string): string[] {
