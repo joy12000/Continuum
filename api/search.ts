@@ -45,6 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const qraw = Array.isArray(req.query.q) ? req.query.q[0] : req.query.q;
     const q = (qraw || '').toString().trim();
     if (!q) return res.status(200).json([]);
+    if (q.length < 2) return res.status(400).json({ error: 'Query too short. Minimum 2 characters.' });
 
     const q_emb = await getEmbedding(q);
     const limit_k = Number(Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit) || 12;

@@ -48,6 +48,11 @@ export async function addNoteAndChunks(note: { title?: string; body: string; use
   if (!noteData) throw new Error("Failed to insert note");
 
   const chunks = chunkBySentence(note.body, 512, 50);
+
+  if (chunks.length === 0) {
+    return noteData;
+  }
+
   const embeddings = await generateEmbeddings(chunks);
 
   const rows = chunks.map((content, i) => ({
