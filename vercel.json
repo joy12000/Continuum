@@ -1,13 +1,5 @@
 {
-  "builds": [
-    { "src": "api/embeddings.ts", "use": "@vercel/node" },
-    { "src": "api/generate.ts", "use": "@vercel/node" },
-    { "src": "api/search-chunks.ts", "use": "@vercel/node" },
-    { "src": "api/embeddings/batch.ts", "use": "@vercel/node" },
-    { "src": "api/embeddings/query.ts", "use": "@vercel/node" }
-  ],
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/(.*)", "destination": "/" }
   ]
 }
