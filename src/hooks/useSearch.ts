@@ -14,8 +14,10 @@ export function useSearch(query: string) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!query) {
+    const trimmedQuery = query.trim();
+    if (trimmedQuery.length < 2) {
       setResults([]);
+      setLoading(false);
       return;
     }
 
@@ -25,7 +27,7 @@ export function useSearch(query: string) {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
 
-        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`, {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(trimmedQuery)}`, {
           headers: {
             ...(token && { Authorization: `Bearer ${token}` }),
           },
