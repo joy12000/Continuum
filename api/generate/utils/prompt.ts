@@ -1,4 +1,6 @@
+import type { Note } from '../types';
 
+export const RAG_PROMPT = `
 너는 철저한 근거주의 어시스턴트다. 반드시 아래 규칙을 지켜라.
 
 [규칙]
@@ -16,4 +18,26 @@
   "answer": "string",
   "sentences": [{"text":"string","sourceNoteId":"string|null"}],
   "sources": [{"noteId":"string","snippet":"string"}]
+}
+`.trim();
+
+export function buildSystemPrompt(): string {
+    return RAG_PROMPT;
+}
+
+export function buildUserPrompt({ question, context }: { question: string, context: Note[] }): string {
+  const ctxText = context.map(n => {
+    const title = n.title ? ` (${n.title})` : "";
+    return `- [${n.id}]${title} ${n.content}`;
+  }).join("\n");
+
+  const user = `
+CONTEXT:
+${ctxText}
+
+QUESTION:
+${question}
+`.trim();
+
+  return user;
 }

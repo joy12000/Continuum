@@ -42,7 +42,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const embeddings: number[][] = [];
     for (const text of texts) {
       try {
-        const out = await model.embedContent({ content: text });
+        const out = await model.embedContent(text);
         embeddings.push(out.embedding.values);
       } catch (e: any) {
         console.error(`Failed to embed text: "${text}"`, e);
