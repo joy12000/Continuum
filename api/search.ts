@@ -1,9 +1,10 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
-import { getEmbedding } from './lib/generativeai'; // Assuming this helper exists
-import { BM25 } from './lib/bm25'; // Assuming we adapt this from client-side
-import { rrf } from './lib/rrf'; // Assuming we adapt this from client-side
+import { getEmbedding } from './lib/generativeai';
+import { BM25 } from '../server-lib/lib/bm25';
+import { rrf } from './lib/rrf';
+import { tokenize } from './lib/tokenizer';
 
 export const config = { runtime: 'nodejs' };
 
@@ -56,8 +57,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       (async () => {
         const { data: notes } = await supabase.from('notes').select('id, body');
         if (!notes) return [];
-        const bm25 = new BM25(notes.map(n => n.body.split(/\s+/)));
-        const scores = bm25.search(q.split(/\s+/));
+        const tokenizedDocs = notes.map(n => tokenize(n.body));
+        const bm25 = new BM25(tokenizedDocs);
+        const queryTokens = tokenize(q);
+        const scores = bm25.search(queryTokens);
         return scores.map((score, i) => ({ id: notes[i].id, score })).filter(r => r.score > 0);
       })(),
     ]);
