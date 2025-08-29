@@ -1,7 +1,7 @@
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getGenerativeModel } from '../../lib/generativeai';
 import type { Note, RagOptions } from '../types';
-import { ApiError } from '../types';
+import { ApiError } from '../../lib/errors';
 import { trimContext } from '../utils/trim';
 import { buildSystemPrompt, buildUserPrompt } from '../utils/prompt';
 import { tryParseJSON } from '../utils/json';
@@ -11,14 +11,8 @@ export async function handleRag(payload: { question: string, context: Note[], op
   const { question, context, options } = payload;
   if (!question) throw new ApiError("question required", 400, 'client');
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new ApiError("Missing GEMINI_API_KEY");
-
   const trimmed = trimContext(context, options?.trim);
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const modelName = process.env.GEMINI_MODEL || "gemini-1.5-flash";
-  const model = genAI.getGenerativeModel({ 
-    model: modelName,
+  const model = getGenerativeModel({ 
     systemInstruction: buildSystemPrompt(),
   });
   const prompt = buildUserPrompt({ question, context: trimmed });

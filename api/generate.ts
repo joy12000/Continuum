@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { handleDailySummary } from './generate/handlers/dailySummary';
 import { handleGenerateQuestions } from './generate/handlers/generateQuestions';
 import { handleRag } from './generate/handlers/rag';
-import { ApiError } from './generate/types';
+import { ApiError } from './lib/errors';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');

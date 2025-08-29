@@ -1,5 +1,5 @@
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getGenerativeModel } from '../../lib/generativeai';
 import type { QA } from '../types';
 import { tryParseJSON } from '../utils/json';
 
@@ -24,9 +24,7 @@ export async function handleDailySummary(payload: { context: QA[], tomorrow?: st
   if (!apiKey) return localFallback();
 
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const modelName = process.env.GEMINI_MODEL || "gemini-1.5-flash";
-    const model = genAI.getGenerativeModel({ model: modelName });
+    const model = getGenerativeModel();
     const prompt = [
       "다음의 Q/A를 한 편의 **하루 일기**로 요약하세요.",
       "반드시 순수 JSON만. 형식: { \"title\": \"...\", \"summary\": \"...\", \"bullets\": [\"...\"], \"tomorrow\": \"...\", \"tags\": [\"#daily\"] }",

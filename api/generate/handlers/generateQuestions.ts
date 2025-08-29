@@ -1,18 +1,14 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getGenerativeModel } from '../../lib/generativeai';
 import type { Note } from '../types';
-import { ApiError } from '../types';
+import { ApiError } from '../../lib/errors';
 import { trimContext } from '../utils/trim';
 import { tryParseJSON } from '../utils/json';
 
 export async function handleGenerateQuestions(payload: { context: Note[] }) {
   const { context } = payload;
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new ApiError("Missing GEMINI_API_KEY");
 
   const trimmed = trimContext(context, { maxNotes: 10, maxCharsPerNote: 800, maxTotalChars: 6000 });
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const modelName = process.env.GEMINI_MODEL || "gemini-1.5-flash";
-  const model = genAI.getGenerativeModel({ model: modelName });
+  const model = getGenerativeModel();
   const qPrompt = [
     "아래 노트들에서 사용자가 던질 법한 흥미롭고 구체적인 질문 3개를 만드세요.",
     "반드시 유니코드 안전한 순수 JSON으로만 응답하세요.",

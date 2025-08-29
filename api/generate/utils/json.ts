@@ -1,9 +1,13 @@
-
 export function tryParseJSON(text: string): any {
   try {
     return JSON.parse(text);
-  } catch (e) {
-    // JSON 파싱에 실패하면 null을 반환합니다.
-    return null;
+  } catch (_) {
+    const match = text.match(/\{[\s\S]*\}/);
+    if (match) {
+      try {
+        return JSON.parse(match[0]);
+      } catch (_) {}
+    }
   }
+  return null;
 }
