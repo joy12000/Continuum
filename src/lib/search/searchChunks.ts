@@ -1,4 +1,4 @@
-// qEmb(질의 임베딩)를 명시적으로 전달해 서버에서 그대로 사용하게 합니다.
+// qEmb를 서버리스 함수에 전달해 Supabase RPC 검색 수행
 export async function searchChunks({
   qEmb,
   limit = 12,
@@ -8,12 +8,12 @@ export async function searchChunks({
   limit?: number;
   signal?: AbortSignal;
 }) {
-  const res = await fetch(`/api/search-chunks`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+  const res = await fetch('/api/search-chunks', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ q_emb: qEmb, limit }),
     signal,
   });
-  if (!res.ok) throw new Error("search failed");
+  if (!res.ok) throw new Error('search failed');
   return await res.json();
 }

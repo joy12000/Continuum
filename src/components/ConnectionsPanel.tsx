@@ -1,12 +1,12 @@
-import React from "react";
+import React from 'react';
 type Neighbor = { toId: string; score: number; reasons: string[]; title?: string };
-export function ConnectionsPanel({ neighbors, onSelect }: { neighbors: Neighbor[]; onSelect: (id: string) => void; }) {
+export function ConnectionsPanel({ neighbors, onSelect }: { neighbors: Neighbor[]; onSelect: (id: string) => void }) {
   if (!neighbors?.length) return null;
   return (
     <div className="rounded-lg border p-2 text-sm">
       <div className="mb-1 font-medium">연결된 노트</div>
       <ul className="space-y-1">
-        {neighbors.map(n => (
+        {neighbors.map((n) => (
           <li key={n.toId} className="flex items-start justify-between gap-2">
             <button onClick={() => onSelect(n.toId)} className="text-left hover:underline" title={n.title || n.toId}>
               {n.title || n.toId}

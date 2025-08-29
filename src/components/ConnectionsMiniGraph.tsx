@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react';
 export function ConnectionsMiniGraph({ selfId, neighbors }: { selfId: string; neighbors: { id: string; score: number }[] }) {
   const nodes = useMemo(() => {
     const center = { x: 32, y: 16 };
