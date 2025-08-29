@@ -1,3 +1,4 @@
+// 쿼리 문자열을 임베딩 벡터(number[])로 바꿔오는 클라이언트 유틸
 export async function getQueryEmbedding(text: string, opts?: { signal?: AbortSignal }): Promise<number[]> {
   const res = await fetch("/api/embeddings/query", {
     method: "POST",

@@ -1,3 +1,4 @@
+// qEmb(질의 임베딩)를 명시적으로 전달해 서버에서 그대로 사용하게 합니다.
 export async function searchChunks({
   qEmb,
   limit = 12,
