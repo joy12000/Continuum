@@ -10,10 +10,11 @@ interface SearchBarProps {
   suggestionError: string | null;
   isModelReady: boolean;
   modelStatus: string;
+  className?: string;
 }
 
 export function SearchBar({
-  q, setQ, onFocus, suggestedQuestions, isLoadingSuggestions, suggestionError, isModelReady, modelStatus
+  q, setQ, onFocus, suggestedQuestions, isLoadingSuggestions, suggestionError, isModelReady, modelStatus, className
 }: SearchBarProps) {
   return (
     <div className="relative w-full max-w-md">
@@ -27,7 +28,7 @@ export function SearchBar({
           onChange={(e) => setQ(e.target.value)}
           onFocus={onFocus}
           placeholder={isModelReady ? "Ask your past self..." : modelStatus}
-          className="w-full p-3 pl-10 bg-surface-2 text-text-primary rounded-lg shadow-sm focus:ring-2 focus:ring-accent focus:outline-none transition disabled:opacity-50"
+          className={`w-full p-3 pl-10 bg-surface-2 text-text-primary rounded-lg shadow-sm focus:ring-2 focus:ring-accent focus:outline-none transition disabled:opacity-50 ${className}`}
           disabled={!isModelReady}
         />
       </div>

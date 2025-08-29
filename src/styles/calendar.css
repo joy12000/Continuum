@@ -1,164 +1,51 @@
-.calendar-wrap {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  color: #e9f2ff;
-}
-.cal-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(4px);
-}
-.cal-head .nav-btn {
-  background-color: rgba(120, 180, 255, 0.2);
-  padding: 6px 12px;
-}
-.cal-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.cal-title h1 {
-  margin: 0;
-  font-size: 16px;
-}
-.cal-title button {
-  min-width: 32px;
-  min-height: 32px;
-  font-size: 18px;
-}
+/* src/styles/calendar.css */
+
 .cal-grid {
-  padding: 8px 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  @apply flex flex-col;
 }
+
 .cal-weekhead {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 6px;
-  padding: 0 2px;
-  color: rgba(240, 245, 255, 0.8);
-  font-size: 12px;
+  @apply grid grid-cols-7 text-center text-xs text-gray-400 pb-2 border-b border-white/10;
 }
-.wcell.sun {
-  color: #ffd3d3;
-}
-.wcell.sat {
-  color: #cfe3ff;
-}
+
+.wcell.sun { @apply text-red-400; }
+.wcell.sat { @apply text-sky-400; }
+
 .cal-cells {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 6px;
+  @apply grid grid-cols-7 gap-1 mt-2;
 }
+
 .ccell {
-  aspect-ratio: 1 / 1.05;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
-  color: #eaf3ff;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: flex-start;
-  padding: 8px;
-  gap: 4px;
-  text-align: left;
-  position: relative;
+  @apply relative h-24 rounded-md text-left p-2 transition-colors duration-200;
+  @apply hover:bg-white/5;
 }
-.ccell.dim {
-  opacity: 0.55;
-}
-.ccell.today {
-  box-shadow: 0 0 0 2px rgba(120, 180, 255, 0.35) inset;
-}
-.ccell.active {
-  outline: 2px solid rgba(120, 180, 255, 0.7);
-}
+
 .ccell .date {
-  font-weight: 600;
-  font-size: 13px;
+  @apply text-sm font-medium;
 }
+
+.ccell.dim .date {
+  @apply text-gray-600;
+}
+
+.ccell.today .date {
+  @apply text-sky-300 font-bold;
+}
+
+.ccell.active {
+  @apply bg-sky-800/50 border border-sky-500;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+}
+
 .ccell .dots {
-  position: absolute;
-  right: 6px;
-  bottom: 6px;
-  display: flex;
-  gap: 4px;
-  align-items: center;
+  @apply absolute bottom-2 left-2 flex items-center gap-1;
 }
+
 .ccell .dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: linear-gradient(
-    180deg,
-    rgba(200, 220, 255, 0.95),
-    rgba(120, 180, 255, 0.9)
-  );
-  box-shadow: 0 0 8px rgba(120, 180, 255, 0.45);
+  @apply block w-1.5 h-1.5 bg-yellow-400 rounded-full;
+  box-shadow: 0 0 3px rgba(250, 204, 21, 0.7);
 }
+
 .ccell .more {
-  font-size: 11px;
-  color: rgba(235, 245, 255, 0.8);
-}
-.cal-detail {
-  padding: 8px 12px 90px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.detail-head {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-}
-.detail-head h2 {
-  margin: 0;
-  font-size: 15px;
-}
-.detail-head .count {
-  font-size: 12px;
-  color: rgba(235, 245, 255, 0.75);
-}
-.detail-list {
-  display: grid;
-  gap: 8px;
-}
-.detail-item {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
-  padding: 10px;
-}
-.detail-item h3 {
-  margin: 0 0 6px 0;
-  font-size: 14px;
-}
-.detail-item .snippet {
-  margin: 0 0 8px 0;
-  color: rgba(235, 245, 255, 0.85);
-}
-.detail-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.detail-actions button {
-  min-height: 32px;
-  padding: 6px 10px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.06);
-  color: #eaf3ff;
-}
-@media (min-width: 1024px) {
-  .calendar-wrap {
-    padding-left: 84px;
-  }
+  @apply text-xs text-gray-400 ml-1;
 }

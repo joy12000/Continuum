@@ -5,6 +5,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import { toast } from '../lib/toast';
 import EmbeddingMode from '../components/settings/EmbeddingMode';
 import { ArrowLeft } from 'lucide-react';
+import PageLayout from '../components/PageLayout';
 
 interface SettingsProps {
   engine: 'auto' | 'remote';
@@ -41,31 +42,24 @@ const Settings: React.FC<SettingsProps> = ({ engine, setEngine, modelStatus }) =
   };
 
   return (
-    <div className="p-4 md:p-6 max-w-2xl mx-auto">
-      <div className="flex items-center mb-6">
-        <button onClick={() => navigate(-1)} className="p-2 mr-2 rounded-full hover:bg-slate-700/50">
-          <ArrowLeft size={24} />
-        </button>
-        <h1 className="text-2xl font-bold">설정</h1>
-      </div>
-
-      <div className="space-y-6">
+    <PageLayout title="설정">
+      <div className="space-y-8">
         <EmbeddingMode />
 
         <div className="space-y-4">
-          <button onClick={handleLogout} className="w-full text-left p-3 bg-slate-700/50 rounded-lg hover:bg-slate-700">
+          <button onClick={handleLogout} className="w-full text-left p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
             로그아웃
           </button>
         </div>
 
-        <div className="mt-12 p-4 border border-red-500/50 rounded-lg">
+        <div className="mt-12 p-4 border border-red-500/30 rounded-lg bg-red-900/20">
           <h2 className="text-lg font-bold text-red-400">위험 구역</h2>
-          <p className="text-sm text-slate-400 mt-1 mb-4">
+          <p className="text-sm text-red-200/80 mt-1 mb-4">
             이곳의 작업은 되돌릴 수 없습니다. 신중하게 진행하세요.
           </p>
           <button 
             onClick={() => setShowDeleteConfirm(true)} 
-            className="bg-red-600/80 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg"
+            className="bg-red-600/80 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition-colors"
           >
             모든 노트 삭제...
           </button>
@@ -78,19 +72,19 @@ const Settings: React.FC<SettingsProps> = ({ engine, setEngine, modelStatus }) =
           onClose={() => setShowDeleteConfirm(false)}
           onConfirm={handleDeleteAllNotes}
         >
-          <p className="text-sm text-slate-300 mb-4">
+          <p className="text-sm text-gray-300 mb-4">
             이 작업은 되돌릴 수 없으며, 모든 노트와 관련 데이터가 영구적으로 삭제됩니다. 계속하려면 아래에 "<strong className='text-red-400'>내 모든 노트 삭제</strong>" 라고 정확히 입력하세요.
           </p>
           <input 
             type="text"
             value={confirmText}
             onChange={(e) => setConfirmText(e.target.value)}
-            className="w-full p-2 bg-slate-800 border border-slate-600 rounded-md"
+            className="w-full p-2 bg-gray-800 border border-gray-600 rounded-md focus:ring-red-500 focus:border-red-500"
             placeholder='내 모든 노트 삭제'
           />
         </ConfirmModal>
       )}
-    </div>
+    </PageLayout>
   );
 };
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { getQueryEmbedding } from '../lib/embeddings/getQueryEmbedding';
-import { searchChunks } from '../lib/search/searchChunks';
+import { searchChunksGET } from '../lib/search/searchChunks';
 import { hybridScore, semanticScoreFromDistance } from '../lib/search/hybridScore';
 
 export function useSearchPro({ limit = 12, alpha = 0.8, beta = 0.2 } = {}) {
@@ -17,8 +17,7 @@ export function useSearchPro({ limit = 12, alpha = 0.8, beta = 0.2 } = {}) {
         if (abortRef.current) abortRef.current.abort();
         const ac = new AbortController();
         abortRef.current = ac;
-        const qEmb = await getQueryEmbedding(query, { signal: ac.signal });
-        const rows = await searchChunks({ qEmb, limit, signal: ac.signal });
+        const rows = await searchChunksGET({ q: query, limit, signal: ac.signal });
         const scored = (rows || []).map((r: any) => ({
           ...r,
           semScore: semanticScoreFromDistance(r.distance),

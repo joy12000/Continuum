@@ -2,6 +2,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import CalendarMonth from '../components/CalendarMonth';
 import { supabase } from '../lib/supabase';
 import { Note } from '../types/common';
+import PageLayout from '../components/PageLayout';
+import '../styles/calendar.css'; // Import the new styles
 
 const WEEK_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -73,20 +75,17 @@ const CalendarPage = () => {
   };
 
   return (
-    <div className="p-4">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">
-          {displayDate.toLocaleString('default', { month: 'long' })} {year}
-        </h1>
+    <PageLayout title={`${displayDate.toLocaleString('default', { month: 'long' })} ${year}`}>
+      <div className="flex justify-end items-center mb-4">
         <div className="space-x-2">
-          <button onClick={() => handleMonthChange(-1)} className="p-2 border rounded">Prev</button>
-          <button onClick={() => handleMonthChange(1)} className="p-2 border rounded">Next</button>
+          <button onClick={() => handleMonthChange(-1)} className="p-2 rounded-md bg-white/5 hover:bg-white/10 transition-colors">Prev</button>
+          <button onClick={() => handleMonthChange(1)} className="p-2 rounded-md bg-white/5 hover:bg-white/10 transition-colors">Next</button>
         </div>
       </div>
       <div className="flex flex-col md:flex-row gap-8">
-        <div className="md:w-1/2">
+        <div className="md:w-3/5">
           {loading ? (
-            <div>Loading...</div>
+            <div className="text-center p-8">Loading...</div>
           ) : (
             <CalendarMonth 
               year={year}
@@ -98,22 +97,22 @@ const CalendarPage = () => {
             />
           )}
         </div>
-        <div className="md:w-1/2">
-          <h2 className="text-xl font-semibold">Notes for {selectedDate}</h2>
+        <div className="md:w-2/5">
+          <h2 className="text-xl font-semibold text-sky-300 mb-4">Notes for {selectedDate}</h2>
           {notesForSelectedDay.length > 0 ? (
-            <ul className="mt-4 space-y-2">
+            <ul className="space-y-3">
               {notesForSelectedDay.map(note => (
-                <li key={note.id} className="p-2 border rounded-lg hover:bg-gray-100">
+                <li key={note.id} className="p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors cursor-pointer">
                   {note.title || 'Untitled Note'}
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="mt-4 text-gray-500">No notes for this day.</p>
+            <p className="mt-4 text-gray-400">No notes for this day.</p>
           )}
         </div>
       </div>
-    </div>
+    </PageLayout>
   );
 };
 

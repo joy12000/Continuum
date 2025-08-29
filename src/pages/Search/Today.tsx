@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { searchChunks } from "@/lib/search/searchChunks";
+import { searchChunksGET } from '@/lib/search/searchChunks';
 import { getQueryEmbedding } from "@/lib/embeddings/getQueryEmbedding";
 
 export default function Today() {
@@ -12,8 +12,7 @@ export default function Today() {
     (async () => {
       try {
         setLoading(true);
-        const qEmb = await getQueryEmbedding(query);
-        const r = await searchChunks({ qEmb, limit: 12 });
+        const r = await searchChunksGET({ q: query, limit: 12 });
         setResults(r);
       } finally {
         setLoading(false);

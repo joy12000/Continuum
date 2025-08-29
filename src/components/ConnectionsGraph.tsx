@@ -10,7 +10,24 @@ function initPositions(nodes: Node[], w: number, h: number): Map<string, SimNode
   }
   return map;
 }
-export function ConnectionsGraph({ nodes, links, onSelect, height=380 }:{ nodes: Node[]; links: Link[]; onSelect?: (id:string)=>void; height?: number }) {
+
+interface ConnectionsGraphProps {
+  nodes: Node[];
+  links: Link[];
+  onSelect?: (id: string) => void;
+  height?: number;
+  nodeColor?: string;
+  linkColor?: string;
+}
+
+export function ConnectionsGraph({ 
+  nodes, 
+  links, 
+  onSelect, 
+  height = 380, 
+  nodeColor = '#e0f2fe', // sky-100
+  linkColor = 'rgba(125, 211, 252, 0.4)' // sky-300 with alpha
+}: ConnectionsGraphProps) {
   const ref = useRef<HTMLCanvasElement | null>(null);
   useEffect(() => {
     const canvas = ref.current!;
@@ -37,12 +54,18 @@ export function ConnectionsGraph({ nodes, links, onSelect, height=380 }:{ nodes:
     }
     function draw() {
       ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);
-      ctx.save(); ctx.strokeStyle = '#999'; ctx.globalAlpha = 0.7;
+      ctx.save();
+      ctx.strokeStyle = linkColor;
+      ctx.globalAlpha = 0.7;
       for (const e of links) {
         const a = map.get(e.source); const b = map.get(e.target); if (!a || !b) continue;
-        ctx.lineWidth = Math.max(1, (e.weight || 1) * 1.5); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+        ctx.lineWidth = Math.max(0.5, (e.weight || 1) * 1.2);
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
       }
-      ctx.globalAlpha = 1; ctx.fillStyle = '#111';
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = nodeColor;
+      ctx.shadowColor = 'rgba(125, 211, 252, 0.8)';
+      ctx.shadowBlur = 8;
       for (const n of map.values()) { ctx.beginPath(); ctx.arc(n.x, n.y, 5, 0, Math.PI*2); ctx.fill(); }
       ctx.restore();
     }
@@ -55,6 +78,6 @@ export function ConnectionsGraph({ nodes, links, onSelect, height=380 }:{ nodes:
     }
     canvas.addEventListener('click', onClick);
     return () => { cancelAnimationFrame(raf); canvas.removeEventListener('click', onClick); };
-  }, [nodes, links, onSelect]);
-  return <div className="rounded-lg border p-2"><canvas ref={ref} style={{ width: '100%', height }} /></div>;
+  }, [nodes, links, onSelect, nodeColor, linkColor]);
+  return <div className="rounded-lg bg-black/20 border border-white/10 p-2"><canvas ref={ref} style={{ width: '100%', height }} /></div>;
 }
