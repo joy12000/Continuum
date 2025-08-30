@@ -1,11 +1,14 @@
 
 import { useEffect, useState, useCallback } from "react";
-import { db, Snapshot, Note } from "../lib/db";
+import { db, Snapshot } from "../lib/db";
+import type { Note } from "../types/common";
 import ConfirmModal from "./ConfirmModal";
 import { toast } from "../lib/toast";
 import { DedupSuggestions } from "./DedupSuggestions";
 import { Home } from 'lucide-react';
 import { ModelStatus } from "./ModelStatus";
+import { supabase } from "../lib/supabase";
+import { deleteAllUserData, bulkAddNotes, listNotes } from "../lib/supabaseService";
 
 type Engine = "auto" | "remote";
 
@@ -121,13 +124,35 @@ export function Settings({ engine, setEngine, onNavigateHome, onNavigateToDiagno
       const reader = new FileReader();
       reader.onload = async (e) => {
         try {
-          const importedNotes: Note[] = JSON.parse(e.target?.result as string);
-          if (!Array.isArray(importedNotes) || !importedNotes.every(note => 'content' in note && 'createdAt' in note)) {
+          const importedNotes: any[] = JSON.parse(e.target?.result as string);
+          if (!Array.isArray(importedNotes) || !importedNotes.every(note => ('content' in note || 'body' in note))) {
             throw new Error('유효하지 않은 JSON 파일 형식입니다. 노트 배열이 필요합니다.');
           }
-          await db.notes.bulkPut(importedNotes);
-          toast.success(`${importedNotes.length}개의 노트가 성공적으로 가져와졌습니다!`);
-          fetchNotes();
+
+          const confirmed = confirm(`가져오기를 진행하시겠습니까? 현재 모든 데이터가 가져온 파일의 내용으로 대체됩니다. (${importedNotes.length}개의 노트)`);
+          if (!confirmed) {
+            toast.info("가져오기가 취소되었습니다.");
+            return;
+          }
+
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) {
+            toast.error("로그인이 필요합니다.");
+            return;
+          }
+
+          toast.info("기존 데이터를 삭제하는 중... (시간이 걸릴 수 있습니다)");
+          await deleteAllUserData(user.id);
+
+          toast.info(`${importedNotes.length}개의 노트를 가져오는 중... (시간이 매우 오래 걸릴 수 있습니다)`);
+          const notesToBulkAdd = importedNotes.map(n => ({ title: n.title, body: n.content || n.body }));
+          await bulkAddNotes(notesToBulkAdd, user.id);
+
+          await db.notes.clear();
+          
+          toast.success(`가져오기 완료: ${importedNotes.length}개의 노트. 페이지를 새로고침합니다.`);
+          setTimeout(() => window.location.reload(), 1500);
+
         } catch (parseError) {
           console.error('Failed to parse imported file:', parseError);
           toast.error(`파일 파싱 오류: ${(parseError as Error).message}`);

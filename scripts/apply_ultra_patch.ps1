@@ -67,17 +67,17 @@ $ntlTxt = @"
   NODE_VERSION = "20"
 
 [[redirects]]
-  from = "/api/generate"
+  from = "/api/remote/generate"
   to = "/.netlify/functions/generate"
   status = 200
 "@
   Write-All $ntl $ntlTxt
   Write-Host "  + Created netlify.toml"
-} elseif ($ntlTxt -notmatch "/api/generate") {
+} elseif ($ntlTxt -notmatch "/api/remote/generate") {
   $ntlTxt += @"
 
 [[redirects]]
-  from = "/api/generate"
+  from = "/api/remote/generate"
   to = "/.netlify/functions/generate"
   status = 200
 "
@@ -101,10 +101,10 @@ Write-Host "  + Wrote netlify/functions/generate.js (Gemini proxy)."
 $config = Join-Path $root "src\lib\config.ts"
 $cfgTxt = Read-All $config
 if ($cfgTxt -and $cfgTxt -match "genEndpoint") {
-  $new = $cfgTxt -replace "genEndpoint\s*:\s*null", 'genEndpoint: "/api/generate"'
+  $new = $cfgTxt -replace "genEndpoint\s*:\s*null", 'genEndpoint: "/api/remote/generate"'
   if ($new -ne $cfgTxt) {
     Write-All $config $new
-    Write-Host "  * Set default genEndpoint to /api/generate"
+    Write-Host "  * Set default genEndpoint to /api/remote/generate"
   }
 }
 

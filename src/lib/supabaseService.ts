@@ -1,8 +1,9 @@
 import { supabase } from "./supabase";
+import { db } from "../store/db";
 import { toSentences } from "./rag/chunker";
 
 async function generateEmbeddings(chunks: string[]): Promise<number[][]> {
-  const resp = await fetch("/api/embeddings", {
+  const resp = await fetch("/api/remote/create-embedding", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ texts: chunks }),
@@ -47,6 +48,16 @@ export async function addNoteAndChunks(note: { title?: string; body: string; use
   if (noteError) throw noteError;
   if (!noteData) throw new Error("Failed to insert note");
 
+  // Add to local DB as well for caching
+  await db.notes.put({
+    id: noteData.id,
+    title: noteData.title,
+    content: noteData.body,
+    createdAt: new Date(noteData.created_at).getTime(),
+    updatedAt: new Date(noteData.updated_at).getTime(),
+    tags: [],
+  });
+
   const chunks = chunkBySentence(note.body, 512, 50);
 
   if (chunks.length === 0) {
@@ -64,7 +75,11 @@ export async function addNoteAndChunks(note: { title?: string; body: string; use
   }));
 
   const { error: chunkError } = await supabase.from("note_chunks").insert(rows);
-  if (chunkError) throw chunkError;
+  if (chunkError) {
+    // Rollback local DB change if chunk insertion fails
+    await db.notes.delete(noteData.id);
+    throw chunkError;
+  }
 
   return noteData;
 }
@@ -131,4 +146,41 @@ export async function searchChunks(query: string, userId: string) {
   });
   if (error) throw error;
   return data as Array<{ note_id: string; chunk_index: number; content: string; distance: number }>;
+}
+
+export async function deleteAllUserData(userId: string) {
+  const { data: notes, error: notesError } = await supabase
+    .from("notes")
+    .select("id")
+    .eq("user_id", userId);
+
+  if (notesError) throw notesError;
+
+  const noteIds = notes.map(n => n.id);
+
+  if (noteIds.length > 0) {
+    const { error: chunkError } = await supabase
+      .from("note_chunks")
+      .delete()
+      .in("note_id", noteIds);
+    if (chunkError) console.error("Error deleting chunks:", chunkError); // Log error but continue
+
+    const { error: noteError } = await supabase
+      .from("notes")
+      .delete()
+      .in("id", noteIds);
+    if (noteError) throw noteError;
+  }
+}
+
+export async function bulkAddNotes(notes: { title?: string; body: string }[], user_id: string) {
+  // This is a simple iterative implementation. A more robust solution would handle transactions and batching.
+  for (const note of notes) {
+    try {
+      await addNoteAndChunks({ ...note, user_id });
+    } catch (error) {
+      console.error("Failed to add a note during bulk operation:", error, note);
+      // Decide on error handling: continue, stop, or collect failures.
+    }
+  }
 }

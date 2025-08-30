@@ -20,14 +20,14 @@ Ensure-Dir $pubDir
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot "..\public\_redirects") -Destination (Join-Path $pubDir "_redirects") -Force
 Write-Host "  + public/_redirects"
 
-# 4) default endpoint -> /api/generate
+# 4) default endpoint -> /api/remote/generate
 $configPath = Join-Path $root "src\lib\config.ts"
 if (Test-Path $configPath) {
   $c = Get-Content -LiteralPath $configPath -Raw
   if ($c -match "genEndpoint:\s*null") {
-    $c = $c -replace "genEndpoint:\s*null", "genEndpoint: \"/api/generate\""
+    $c = $c -replace "genEndpoint:\s*null", "genEndpoint: \"/api/remote/generate\""
     Set-Content -LiteralPath $configPath -Value $c -Encoding UTF8
-    Write-Host "  * updated default genEndpoint -> /api/generate"
+    Write-Host "  * updated default genEndpoint -> /api/remote/generate"
   } else {
     Write-Host "  = genEndpoint default already set"
   }

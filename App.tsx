@@ -17,6 +17,8 @@ import HomeSky from './components/HomeSky';
 import AnswerCardsModal from './components/AnswerCardsModal';
 import OverlayEditor from './components/OverlayEditor';
 import { GeneratedAnswer } from './components/GeneratedAnswer';
+import { addNoteAndChunks } from './lib/supabaseService';
+import { supabase } from './lib/supabase';
 
 // --- 타입 정의 ---
 type View = 'today' | 'settings' | 'diagnostics';
@@ -290,19 +292,19 @@ React.useEffect(() => {
     }
   }, [notes, suggestedQuestions, isLoadingSuggestions]);
 
-  const handleNewNote = useCallback(() => {
-    const now = Date.now();
-    const newNoteId = crypto.randomUUID();
-    db.notes.add({
-      id: newNoteId,
-      content: '',
-      createdAt: now,
-      updatedAt: now,
-      tags: [],
+  const handleNewNote = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.error("User not logged in");
+      return;
+    }
+    const noteData = await addNoteAndChunks({
+      body: '',
+      user_id: user.id,
     });
     setQ('');
-    setActiveNoteId(newNoteId);
-  }, []);
+    setActiveNoteId(noteData.id);
+  }, [setQ, setActiveNoteId]);
 
   const activeNote = useMemo(() => {
     if (!activeNoteId) return undefined;
@@ -360,14 +362,15 @@ React.useEffect(() => {
         open={editorOpen}
         onClose={() => setEditorOpen(false)}
         onSubmit={async (text) => {
-          const now = Date.now();
-          const newNoteId = crypto.randomUUID();
-          await db.notes.add({
-            id: newNoteId,
-            content: text,
-            createdAt: now,
-            updatedAt: now,
-            tags: [],
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) {
+            console.error("User not logged in");
+            return;
+          }
+          await addNoteAndChunks({
+            title: text.slice(0, 50),
+            body: text,
+            user_id: user.id,
           });
           window.dispatchEvent(new CustomEvent('sky:record-complete'));
           setEditorOpen(false);

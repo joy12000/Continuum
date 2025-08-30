@@ -1,6 +1,7 @@
 
 import { useEffect, useRef, useState } from "react";
-import { db, Note } from "../lib/db";
+import { addNoteAndChunks } from "../lib/supabaseService";
+import { supabase } from "../lib/supabase";
 
 export function NoteEditor({ onSaved }: { onSaved?: () => void }) {
   const [content, setContent] = useState("");
@@ -12,16 +13,22 @@ export function NoteEditor({ onSaved }: { onSaved?: () => void }) {
   }, []);
 
   async function save() {
-    const now = Date.now();
-    const note: Note = {
-      id: crypto.randomUUID(),
-      content: content.trim(),
-      tags: tags.split(",").map(t => t.trim()).filter(Boolean),
-      createdAt: now,
-      updatedAt: now
-    };
-    if (!note.content) return;
-    await db.notes.add(note);
+    const trimmedContent = content.trim();
+    if (!trimmedContent) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.error("User not logged in");
+      return;
+    }
+
+    // TODO: Handle tags. The `addNoteAndChunks` function doesn't support tags yet.
+    await addNoteAndChunks({
+      title: trimmedContent.slice(0, 50),
+      body: trimmedContent,
+      user_id: user.id,
+    });
+
     setContent("");
     setTags("");
     onSaved?.();

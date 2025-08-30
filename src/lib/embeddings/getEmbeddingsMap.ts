@@ -12,7 +12,7 @@ export async function getEmbeddingsMap(notes: NoteLite[]): Promise<Map<string, n
   }
   const token = session.access_token;
 
-  const res = await fetch("/api/embeddings/batch", {
+  const res = await fetch("/api/on-device-support/get-embeddings-batch", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

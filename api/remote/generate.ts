@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { generativeModel } from '../server-lib/lib/generativeai';
-import { trim, RagContext, RagInput, dailySummaryHandler, generateQuestionsHandler, ragHandler } from '../server-lib/generate-utils/rag';
+import { generativeModel } from '../../server-lib/lib/generativeai';
+import { trim, RagContext, RagInput, dailySummaryHandler, generateQuestionsHandler, ragHandler } from '../../server-lib/generate-utils/rag';
 
 export const config = { runtime: 'nodejs' };
 

@@ -87,10 +87,10 @@ export default function Diagnostics({ onBack }: Props){
 
   async function runRagTests(){
     setRag(null); setLog('');
-    append('Starting RAG tests (calls /api/generate)...');
+    append('Starting RAG tests (calls /api/remote/generate)...');
     const rows:any[] = [];
     for (const tc of RAG_TEST_CASES){
-      const res = await postJSON('/api/generate', { question: tc.question, context: tc.context });
+      const res = await postJSON('/api/remote/generate', { question: tc.question, context: tc.context });
       let answerPass = false, sourcePass = false;
       let detail = '';
       if (res.ok && res.data){
@@ -147,7 +147,7 @@ export default function Diagnostics({ onBack }: Props){
 
       <section className="mb-6">
         <h2 className="text-lg font-semibold mb-2">RAG 품질 테스트</h2>
-        <p className="text-sm text-gray-600 mb-2">각 테스트 케이스에 대해 /api/generate를 호출하고, 답변/출처 정확도를 검증합니다.</p>
+        <p className="text-sm text-gray-600 mb-2">각 테스트 케이스에 대해 /api/remote/generate를 호출하고, 답변/출처 정확도를 검증합니다.</p>
         <button className="px-3 py-1 rounded-lg bg-black text-white" onClick={runRagTests}>RAG 테스트 시작</button>
         {rag && (
           <table className="mt-3 w-full text-sm">

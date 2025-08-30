@@ -1,15 +1,17 @@
 
-import { db, Note } from "../lib/db";
+import { db } from "../lib/db";
 import { encryptJSON, decryptJSON } from "../lib/crypto";
 import { toast } from "../lib/toast";
+import { supabase } from "../lib/supabase";
+import { deleteAllUserData, bulkAddNotes, listNotes } from "../lib/supabaseService";
 
 /**
  * Calculates the SHA-256 hash of the content of all notes.
- * @param {Note[]} notes - An array of note objects.
+ * @param {any[]} notes - An array of note objects.
  * @returns {Promise<string>} The SHA-256 hash as a hex string.
  */
-async function calculateNotesHash(notes: Note[]): Promise<string> {
-  const allContent = notes.map(note => note.content).join('');
+async function calculateNotesHash(notes: any[]): Promise<string> {
+  const allContent = notes.map(note => note.content || note.body || '').join('');
   const encoder = new TextEncoder();
   const data = encoder.encode(allContent);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
@@ -30,13 +32,21 @@ export function BackupRestore({ onNotesImported }: { onNotesImported?: () => voi
     }
 
     try {
-      const notes = await db.notes.toArray();
-      const attachments = await db.attachments.toArray();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("로그인이 필요합니다.");
+        return;
+      }
+
+      toast.info("노트를 가져오는 중...");
+      const notes = await listNotes(user.id);
+      // TODO: Handle attachments
+      // const attachments = await db.attachments.toArray();
       const hash = await calculateNotesHash(notes);
       
       const backupData = {
         notes,
-        attachments,
+        // attachments,
         metadata: {
           hash,
           timestamp: Date.now(),
@@ -78,7 +88,7 @@ export function BackupRestore({ onNotesImported }: { onNotesImported?: () => voi
         const data = await decryptJSON(file, password);
 
         if (Array.isArray(data.notes)) {
-          const restoredNotes = data.notes as Note[];
+          const restoredNotes = data.notes as any[];
           const storedHash = data.metadata?.hash;
 
           if (storedHash) {
@@ -94,16 +104,27 @@ export function BackupRestore({ onNotesImported }: { onNotesImported?: () => voi
           
           const confirmed = confirm(`복원을 진행하시겠습니까? 현재 모든 데이터가 백업 파일의 내용으로 대체됩니다. (${restoredNotes.length}개의 노트)`);
           if (!confirmed) {
-            toast.info("복원이 취-소되었습니다.");
+            toast.info("복원이 취소되었습니다.");
             return;
           }
 
-          await db.notes.clear();
-          await db.attachments.clear();
-          await db.notes.bulkAdd(restoredNotes);
-          if (data.attachments) {
-            await db.attachments.bulkAdd(data.attachments);
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) {
+            toast.error("로그인이 필요합니다.");
+            return;
           }
+
+          toast.info("기존 데이터를 삭제하는 중... (시간이 걸릴 수 있습니다)");
+          await deleteAllUserData(user.id);
+
+          toast.info(`${restoredNotes.length}개의 노트를 복원하는 중... (시간이 매우 오래 걸릴 수 있습니다)`);
+          const notesToBulkAdd = restoredNotes.map(n => ({ title: n.title, body: n.content }));
+          await bulkAddNotes(notesToBulkAdd, user.id);
+
+          // Clear local cache to force a re-sync on reload
+          await db.notes.clear();
+          // TODO: Handle attachments
+          // await db.attachments.clear();
           
           toast.success(`복원 완료: ${restoredNotes.length}개의 노트. 페이지를 새로고침합니다.`);
           setTimeout(() => window.location.reload(), 1500);
