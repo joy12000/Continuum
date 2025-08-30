@@ -16,8 +16,13 @@ const DEFAULT_PREFS: QuickPrefs = {
 
 const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
 
+interface HomeSkyProps {
+  answerSignal?: number;
+  onOpenAnswer?: () => void;
+}
+
 // Main Component
-export default function HomeSky() {
+export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
   const navigate = useNavigate();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null); // Ref for meteor container
@@ -34,9 +39,16 @@ export default function HomeSky() {
   const [draft, setDraft] = useState<string>("");
   const editorRef = useRef<HTMLDivElement | null>(null);
   const [showQuick, setShowQuick] = useState(false);
+  const [showAnswerStar, setShowAnswerStar] = useState(false);
   const longPressTimer = useRef<number | null>(null);
   const moonRef = useRef<HTMLButtonElement | null>(null);
   const starsRef = useRef<{ x: number; y: number; r: number; tw: number }[]>([]);
+
+  useEffect(() => {
+    if (answerSignal && answerSignal > 0) {
+      setShowAnswerStar(true);
+    }
+  }, [answerSignal]);
 
   // Canvas resize and star seeding effect
   useEffect(() => {
@@ -218,6 +230,18 @@ export default function HomeSky() {
       </div>
 
       <div className="absolute right-4 top-4 z-30 flex items-center gap-2">
+        {showAnswerStar && (
+          <button
+            className="p-2 rounded-full hover:scale-105 transition-transform animate-pulse"
+            onClick={() => {
+              onOpenAnswer?.();
+              setShowAnswerStar(false);
+            }}
+            aria-label="답변 보기"
+          >
+            <AnswerStarSVG />
+          </button>
+        )}
         <button ref={moonRef} aria-label="Settings" className="rounded-full p-2 hover:scale-105 transition-transform" onClick={onMoonClick} onPointerDown={onMoonPointerDown} onPointerUp={onMoonPointerUp} onPointerCancel={onMoonPointerUp}>
           <CrescentMoonSVG />
         </button>
@@ -270,6 +294,20 @@ function Slider({ label, min, max, step, value, onChange }: { label: string; min
       <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} className="w-full accent-sky-300" />
       <div className="mt-0.5 text-right text-[11px] text-white/50">{value.toFixed(2)}</div>
     </label>
+  );
+}
+
+function AnswerStarSVG() {
+  return (
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="url(#answer-gradient)" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <defs>
+        <linearGradient id="answer-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style={{stopColor: '#fde047', stopOpacity: 1}} />
+          <stop offset="100%" style={{stopColor: '#f97316', stopOpacity: 1}} />
+        </linearGradient>
+      </defs>
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.77 5.82 22 7 14.14 2 9.27l6.91-1.01L12 2z" />
+    </svg>
   );
 }
 
