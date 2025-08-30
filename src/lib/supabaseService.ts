@@ -58,7 +58,7 @@ export async function addNoteAndChunks(note: { title?: string; body: string; use
     tags: [],
   });
 
-  const chunks = chunkBySentence(note.body, 512, 50);
+  const chunks = chunkBySentence(note.body, 512, 50).filter(c => c.trim().length > 0);
 
   if (chunks.length === 0) {
     return noteData;
@@ -90,7 +90,7 @@ export async function recalculateChunksAndEmbeddings(noteId: string, newBody: st
   if (deleteError) throw deleteError;
 
   // 2. Create new chunks and embeddings
-  const chunks = chunkBySentence(newBody, 512, 50);
+  const chunks = chunkBySentence(newBody, 512, 50).filter(c => c.trim().length > 0);
   if (chunks.length === 0) return; // Nothing to do
 
   const embeddings = await generateEmbeddings(chunks);
