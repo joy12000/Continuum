@@ -3,8 +3,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 import { supabase as supabaseService } from './lib/supabaseClient'; // Renamed to avoid conflict
 import { getEmbeddings } from './lib/embedding';
-import { getEmbedding as getGeminiEmbedding, generativeModel } from './lib/generativeai';
-import { trim, RagContext, RagInput } from './generate-utils/rag';
+import { getEmbedding as getGeminiEmbedding, getGenerativeModel } from './lib/generativeai';
+import { trimContext as trim } from './generate-utils/trim';
 
 export const config = { runtime: 'nodejs' };
 

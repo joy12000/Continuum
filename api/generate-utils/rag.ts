@@ -1,4 +1,4 @@
-import type { Id, Note, Sentence } from '../types';
+import type { Id, Note, Sentence } from '../../src/types/common';
 
 export function splitSentences(s: string): string[] {
   if (!s || typeof s !== 'string') return [];

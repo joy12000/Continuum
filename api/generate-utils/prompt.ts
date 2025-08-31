@@ -1,4 +1,4 @@
-import type { Note } from '../types';
+import type { Note } from '../../src/types/common';
 
 export const RAG_PROMPT = `
 너는 철저한 근거주의 어시스턴트다. 반드시 아래 규칙을 지켜라.

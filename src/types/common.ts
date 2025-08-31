@@ -39,3 +39,10 @@ export interface Chunk {
   start: number;
   end: number;
 }
+
+export type Id = string;
+
+export interface Sentence {
+  text: string;
+  sourceNoteId: Id | null;
+}

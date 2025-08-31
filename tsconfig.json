@@ -10,6 +10,7 @@
       "DOM",
       "WebWorker"
     ],
+    
     "baseUrl": "src",
     "paths": {
       "@/*": [
@@ -23,5 +24,8 @@
   ],
   "exclude": [
     "src/**/*.spec.ts"
+  ],
+  "references": [
+    { "path": "./api" }
   ]
 }

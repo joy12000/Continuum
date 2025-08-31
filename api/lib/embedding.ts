@@ -10,7 +10,7 @@ async function embedWithGoogle(texts: string[], taskType: TaskType) {
   // Handle single text case for convenience
   if (texts.length === 1) {
     const res = await model.embedContent({ 
-      content: { parts: [{ text: texts[0] }] },
+      content: { role: 'user', parts: [{ text: texts[0] }] },
       taskType: taskType
     });
     return [res.embedding.values];
@@ -19,7 +19,7 @@ async function embedWithGoogle(texts: string[], taskType: TaskType) {
   // Handle batch case
   const response = await model.batchEmbedContents({
     requests: texts.map(t => ({ 
-      content: { parts: [{ text: t }] },
+      content: { role: 'user', parts: [{ text: t }] },
       taskType: taskType
     }))
   });
