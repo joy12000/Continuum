@@ -1,14 +1,8 @@
 // api/search.ts
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../../server-lib/lib/supabaseClient';
 
 export const config = { runtime: 'nodejs' };
-
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!,
-  { auth: { persistSession: false } }
-);
 
 const EMPTY_PLACEHOLDER = 'empty-note';
 
