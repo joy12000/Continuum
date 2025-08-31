@@ -1,5 +1,5 @@
 
-import { GoogleGenerativeAI, ModelParams } from '@google/generative-ai';
+import { GoogleGenerativeAI, ModelParams, TaskType } from '@google/generative-ai';
 
 // Cache the client instance
 let genAI: GoogleGenerativeAI | null = null;
@@ -29,8 +29,11 @@ export function getEmbeddingModel() {
 }
 
 // New function to get a single embedding
-export async function getEmbedding(text: string): Promise<number[]> {
+export async function getEmbedding(text: string, taskType: TaskType): Promise<number[]> {
   const model = getEmbeddingModel();
-  const result = await model.embedContent(text);
+  const result = await model.embedContent({
+    content: { parts: [{ text }] },
+    taskType: taskType
+  });
   return result.embedding.values;
 }

@@ -1,6 +1,7 @@
 // api/v1.ts
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
+import { TaskType } from '@google/generative-ai';
 import { supabase as supabaseService } from './lib/supabaseClient'; // Renamed to avoid conflict
 import { getEmbedding, getGenerativeModel } from './lib/generativeai';
 import { trimContext as trim } from './generate-utils/trim';
@@ -21,7 +22,7 @@ async function handleSearch(req: VercelRequest, res: VercelResponse) {
       auth: { persistSession: false },
     });
 
-    const query_embedding = await getEmbedding(q);
+    const query_embedding = await getEmbedding(q, TaskType.RETRIEVAL_QUERY);
 
     const { data, error } = await supabase.rpc('match_notes', {
       query_embedding: query_embedding,
@@ -51,7 +52,7 @@ async function handleCreateGeminiEmbedding(req: VercelRequest, res: VercelRespon
     if (!text || typeof text !== 'string') {
       return res.status(400).json({ error: 'text field is required.' });
     }
-    const embedding = await getEmbedding(text);
+    const embedding = await getEmbedding(text, TaskType.RETRIEVAL_DOCUMENT);
     return res.status(200).json({ embedding });
   } catch (e: any) {
     return res.status(500).json({ error: e?.message || 'Failed to create Gemini embedding' });
@@ -67,11 +68,7 @@ async function handleGenerate(req: VercelRequest, res: VercelResponse) {
     }
 
     const model = getGenerativeModel();
-    const prompt = `Context: ${JSON.stringify(context)}
-
-Question: ${input.query}
-
-Answer:`
+    const prompt = `Context: ${JSON.stringify(context)}\n\nQuestion: ${input.query}\n\nAnswer:`
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
@@ -139,7 +136,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleCalendar(req, res);
       default:
         return res.status(400).json({ error: 'Invalid action' });
-    } 
+    }
   } catch (e: any) {
     return res.status(500).json({ error: e?.message || 'API handler failed' });
   }
