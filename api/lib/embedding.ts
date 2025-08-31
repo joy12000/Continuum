@@ -49,5 +49,5 @@ export async function getEmbeddings(texts: string[], type: 'query' | 'document')
   if (process.env.OPENAI_API_KEY) {
     return embedWithOpenAI(validTexts);
   }
-  throw new Error('No embedding key set (GOOGLE_API_KEY or OPENAI_API_KEY)');
+  throw new Error('No embedding key set on server (GOOGLE_API_KEY or OPENAI_API_KEY)');
 }

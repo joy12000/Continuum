@@ -1,10 +1,10 @@
 // api/v1.ts
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
-import { supabase as supabaseService } from '../lib/supabaseClient'; // Renamed to avoid conflict
-import { getEmbeddings } from '../lib/embedding';
-import { getEmbedding as getGeminiEmbedding, generativeModel } from '../lib/generativeai';
-import { trim, RagContext, RagInput } from '../generate-utils/rag';
+import { supabase as supabaseService } from './lib/supabaseClient'; // Renamed to avoid conflict
+import { getEmbeddings } from './lib/embedding';
+import { getEmbedding as getGeminiEmbedding, generativeModel } from './lib/generativeai';
+import { trim, RagContext, RagInput } from './generate-utils/rag';
 
 export const config = { runtime: 'nodejs' };
 
@@ -52,7 +52,22 @@ async function handleSearch(req: VercelRequest, res: VercelResponse) {
 }
 
 // Create Embedding Handler
-async function handleCreateEmbedding(req: VercelRequest, res: VercelResponse) { /* ... */ }
+async function handleCreateEmbedding(req: VercelRequest, res: VercelResponse) {
+  try {
+    const { texts } = req.body;
+    if (!texts || !Array.isArray(texts)) {
+      return res.status(400).json({ error: 'texts field is required and must be an array.' });
+    }
+    const embeddings = await getEmbeddings(texts, 'document');
+    return res.status(200).json({ embeddings });
+  } catch (e: any) {
+    if (e.message.includes('No embedding key set')) {
+      return res.status(400).json({ error: 'Embedding API key is not configured on the server.' });
+    }
+    console.error('Create embedding handler failed:', e);
+    return res.status(500).json({ error: e?.message || 'API handler failed' });
+  }
+}
 
 // Create Gemini Embedding Handler
 async function handleCreateGeminiEmbedding(req: VercelRequest, res: VercelResponse) {
