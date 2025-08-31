@@ -1,9 +1,9 @@
 // server-lib/lib/embedding.ts
 import { GoogleGenerativeAI, TaskType } from '@google/generative-ai';
 
-async function embedWithGoogle(texts: string[], taskType: TaskType) {
-  const key = process.env.GOOGLE_API_KEY;
-  if (!key) throw new Error('GOOGLE_API_KEY not set');
+async function embedWithGemini(texts: string[], taskType: TaskType) {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) throw new Error('GEMINI_API_KEY not set');
   const genAI = new GoogleGenerativeAI(key);
   const model = genAI.getGenerativeModel({ model: 'text-embedding-004' });
 
@@ -42,12 +42,12 @@ export async function getEmbeddings(texts: string[], type: 'query' | 'document')
     return [];
   }
 
-  if (process.env.GOOGLE_API_KEY) {
+  if (process.env.GEMINI_API_KEY) {
     const taskType = type === 'query' ? TaskType.RETRIEVAL_QUERY : TaskType.RETRIEVAL_DOCUMENT;
-    return embedWithGoogle(validTexts, taskType);
+    return embedWithGemini(validTexts, taskType);
   }
   if (process.env.OPENAI_API_KEY) {
     return embedWithOpenAI(validTexts);
   }
-  throw new Error('No embedding key set on server (GOOGLE_API_KEY or OPENAI_API_KEY)');
+  throw new Error('No embedding key set on server (GEMINI_API_KEY or OPENAI_API_KEY)');
 }

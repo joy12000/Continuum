@@ -64,7 +64,7 @@ npm run preview
 ## 원격 시맨틱(무료 API 하이브리드) 사용법
 
 1) **프록시 배포(Cloudflare Workers)**  
-   - 아래 템플릿(zip)을 참고해 배포 → 환경변수 `GOOGLE_API_KEY` 등록, `MODEL_ID`(기본: `text-embedding-004`) 설정 가능.
+   - 아래 템플릿(zip)을 참고해 배포 → 환경변수 `GEMINI_API_KEY` 등록, `MODEL_ID`(기본: `text-embedding-004`) 설정 가능.
    - 로컬 개발 시 `wrangler dev`가 보통 `http://127.0.0.1:8787`에서 뜹니다.
 
 2) **프론트엔드 연결**  
