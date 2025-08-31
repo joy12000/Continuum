@@ -60,12 +60,6 @@ const SearchResultsList = ({ results, loading }: { results: SearchResult[], load
   );
 };
 
-import { Session } from '@supabase/supabase-js';
-
-// ... (rest of the imports)
-
-// ... (SearchResultsList component)
-
 // Main Search Page Component
 const SearchPage = ({ session }: { session: Session | null }) => {
   const [query, setQuery] = useState('');
