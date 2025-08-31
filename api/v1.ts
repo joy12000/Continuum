@@ -1,45 +1,60 @@
-// api/v1.ts
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 import { TaskType } from '@google/generative-ai';
-import { supabase as supabaseService } from './lib/supabaseClient.js'; // Renamed to avoid conflict
+import { supabase as supabaseService } from './lib/supabaseClient.js';
 import { getEmbedding, getGenerativeModel } from './lib/generativeai.js';
 import { trimContext as trim } from './generate-utils/trim.js';
 
 export const config = { runtime: 'nodejs' };
 
-// Search Handler
-async function handleSearch(req: VercelRequest, res: VercelResponse) {
-  try {
-    const { q } = req.query;
-    if (!q || typeof q !== 'string') {
-      return res.status(400).json({ error: "Query parameter 'q' is required." });
-    }
-
-    console.log('Search request received. Authorization header present:', !!req.headers.authorization);
-    const token = req.headers.authorization?.split(' ')?.[1];
-    const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!, {
+// 안전한 Supabase 클라이언트 선택: (1) 헤더+ANON, 없으면 (2) SERVICE
+function pickSupabase(req: VercelRequest) {
+  const hasAuth = !!req.headers.authorization;
+  const anon = process.env.SUPABASE_ANON_KEY;
+  if (hasAuth && anon) {
+    const token = req.headers.authorization!.split(' ')?.[1];
+    return createClient(process.env.SUPABASE_URL!, anon, {
       global: { headers: { Authorization: `Bearer ${token}` } },
       auth: { persistSession: false },
     });
+  }
+  // 폴백: 서비스 키 (주의: RPC는 RLS 무시됨. 필터 인자를 꼭 전달)
+  return supabaseService;
+}
 
-    const query_embedding = await getEmbedding(q, TaskType.RETRIEVAL_QUERY);
+async function handleSearch(req: VercelRequest, res: VercelResponse) {
+  try {
+    const rawQ = Array.isArray(req.query.q) ? req.query.q[0] : req.query.q;
+    const q = (rawQ ?? '').toString().trim();
+    if (!q) return res.status(200).json([]);
 
-    const { data, error } = await supabase.rpc('match_notes', {
-      query_embedding: query_embedding,
-      match_threshold: 0.7,
-      match_count: 10,
-    });
+    // uid는 쿼리/헤더 어느 쪽이든 허용
+    const qUid = Array.isArray(req.query.uid) ? req.query.uid[0] : req.query.uid;
+    const hUid = (req.headers['x-user-id'] as string | undefined) || '';
+    const uid = (qUid || hUid || '').toString().trim();
 
-    if (error) throw error;
-    return res.status(200).json(data || []);
+    const sb = pickSupabase(req);
+    const qEmb = await getEmbedding(q, TaskType.RETRIEVAL_QUERY);
+    const limit_k = Number(Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit) || 12;
 
-  } catch (e: any) {
-    if (e.message.includes('JWT')) {
-      return res.status(401).json({ error: 'Invalid authentication token.' });
+    // 1차: match_notes 시도
+    const args1: any = { query_embedding: qEmb, match_threshold: 0.7, match_count: limit_k, uid: uid || undefined };
+    let { data, error } = await sb.rpc('match_notes', args1);
+
+    // 함수 없음/권한 등으로 실패하면 2차: search_note_chunks 시도
+    if (error) {
+      console.log('[search] rpc `match_notes` failed, falling back to `search_note_chunks`. Error:', error.message);
+      const args2: any = { q_emb: qEmb, limit_k, uid: uid || undefined };
+      const fallback = await sb.rpc('search_note_chunks', args2);
+      data = fallback.data; error = fallback.error;
     }
-    console.error('Search handler failed:', e);
-    return res.status(500).json({ error: e?.message || 'API handler failed' });
+
+    if (error) return res.status(500).json({ error: `[supabase] ${error.message}` });
+    return res.status(200).json(data || []);
+  } catch (e: any) {
+    const msg = e?.message || 'v1 failed';
+    const tag = /^[\[(supabase|google|openai|config)\]]/.test(msg) ? '' : '[unknown] ';
+    return res.status(500).json({ error: `${tag}${msg}` });
   }
 }
 
@@ -60,7 +75,9 @@ async function handleCreateGeminiEmbedding(req: VercelRequest, res: VercelRespon
 
     return res.status(200).json({ embeddings });
   } catch (e: any) {
-    return res.status(500).json({ error: e?.message || 'Failed to create Gemini embedding' });
+    const msg = e?.message || 'Failed to create Gemini embedding';
+    const tag = /^[\[(supabase|google|openai|config)\]]/.test(msg) ? '' : '[google] ';
+    return res.status(500).json({ error: `${tag}${msg}` });
   }
 }
 
@@ -81,8 +98,9 @@ async function handleGenerate(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ text });
 
   } catch (e: any) {
-    console.error('Generate handler failed:', e);
-    return res.status(500).json({ error: e?.message || 'API handler failed' });
+    const msg = e?.message || 'Generate handler failed';
+    const tag = /^[\[(supabase|google|openai|config)\]]/.test(msg) ? '' : '[google] ';
+    return res.status(500).json({ error: `${tag}${msg}` });
   }
 }
 
@@ -94,10 +112,9 @@ async function handleCalendar(req: VercelRequest, res: VercelResponse) {
   try {
     const token = req.headers.authorization?.split(' ')?.[1];
     if (!token) {
-      return res.status(401).json({ error: 'Authentication token not provided.' });
+      return res.status(401).json({ error: '[config] Authentication token not provided.' });
     }
 
-    // This needs to create a new client with the user's token
     const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!, {
       global: { headers: { Authorization: `Bearer ${token}` } },
       auth: { persistSession: false },
@@ -118,9 +135,11 @@ async function handleCalendar(req: VercelRequest, res: VercelResponse) {
 
   } catch (e: any) {
     if (e.message.includes('JWT')) {
-      return res.status(401).json({ error: 'Invalid authentication token.' });
+      return res.status(401).json({ error: '[supabase] Invalid authentication token.' });
     }
-    throw e; // Re-throw to be caught by the main handler
+    const msg = e?.message || 'Calendar handler failed';
+    const tag = /^[\[(supabase|google|openai|config)\]]/.test(msg) ? '' : '[supabase] ';
+    return res.status(500).json({ error: `${tag}${msg}` });
   }
 }
 

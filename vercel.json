@@ -1,4 +1,5 @@
 {
+  "name": "continuum",
   "rewrites": [
     { "source": "/(.*)", "destination": "/" }
   ]
