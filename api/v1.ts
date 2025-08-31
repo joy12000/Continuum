@@ -13,9 +13,10 @@ async function handleSearch(req: VercelRequest, res: VercelResponse) {
   try {
     const { q } = req.query;
     if (!q || typeof q !== 'string') {
-      return res.status(400).json({ error: 'Query parameter \'q\' is required.' });
+      return res.status(400).json({ error: "Query parameter 'q' is required." });
     }
 
+    console.log('Search request received. Authorization header present:', !!req.headers.authorization);
     const token = req.headers.authorization?.split(' ')?.[1];
     const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!, {
       global: { headers: { Authorization: `Bearer ${token}` } },
@@ -132,6 +133,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     switch (action) {
       case 'search':
         return await handleSearch(req, res);
+      case 'create-embedding': // Legacy endpoint name for compatibility
       case 'create-gemini-embedding':
         return await handleCreateGeminiEmbedding(req, res);
       case 'generate':
