@@ -12,7 +12,7 @@ async function embedWithGoogle(texts: string[]) {
   
   const response = await model.batchEmbedContents({
     requests: texts.map(t => ({ 
-      content: t,
+      content: { parts: [{ text: t }] },
       taskType: TaskType.RETRIEVAL_DOCUMENT
     }))
   });
