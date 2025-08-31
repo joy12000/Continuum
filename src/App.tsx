@@ -62,7 +62,7 @@ const MainLayout = () => {
       setGeneratedAnswer({ data: null, isLoading: true, error: null });
   
       // 1. Search for similar notes
-      const searchRes = await fetch(`/api/remote/search?q=${encodeURIComponent(noteText)}&uid=${userId}`);
+      const searchRes = await fetch(`/api/v1?action=search&q=${encodeURIComponent(noteText)}&uid=${userId}`);
       if (!searchRes.ok) throw new Error("Failed to search for similar notes.");
       const similarChunks = await searchRes.json();
   
@@ -84,7 +84,7 @@ const MainLayout = () => {
       if (!contextNotes) throw new Error("Failed to fetch context notes.");
   
       // 4. Call generate API
-      const generateRes = await fetch('/api/remote/generate', {
+      const generateRes = await fetch('/api/v1?action=generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

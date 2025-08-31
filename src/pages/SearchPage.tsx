@@ -68,7 +68,7 @@ const SearchPage = () => {
           throw new Error("Could not fetch context notes.");
         }
 
-        const generateRes = await fetch('/api/remote/generate', {
+        const generateRes = await fetch('/api/v1?action=generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
