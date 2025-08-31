@@ -11,7 +11,8 @@ export async function searchChunksGET({
   uid?: string;
   signal?: AbortSignal;
 }) {
-  const url = new URL('/api/remote/search', window.location.origin);
+  const url = new URL('/api/v1', window.location.origin);
+  url.searchParams.set('action', 'search');
   url.searchParams.set('q', q);
   if (limit) url.searchParams.set('limit', String(limit));
   if (uid) url.searchParams.set('uid', uid);

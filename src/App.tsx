@@ -16,6 +16,7 @@ import { Session } from '@supabase/supabase-js';
 import { AnswerData, Note } from './types/common';
 import AnswerCardsModal from './components/AnswerCardsModal';
 import { GeneratedAnswer } from './components/GeneratedAnswer';
+import DeveloperPage from './pages/DeveloperPage';
 
 // Main layout component to handle conditional nav bar and protected routes
 const MainLayout = () => {
@@ -183,6 +184,7 @@ const MainLayout = () => {
               <Route path="/search" element={<SearchPage />} />
               <Route path="/recall" element={<LinksPage />} />
               <Route path="/diagnostics" element={<Diagnostics onBack={() => window.history.back()} />} />
+              <Route path="/developer" element={<DeveloperPage />} />
             </>
           ) : (
             <Route path="*" element={<LoginPage />} />

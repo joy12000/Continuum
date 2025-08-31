@@ -90,7 +90,7 @@ export default function Diagnostics({ onBack }: Props){
     append('Starting RAG tests (calls /api/remote/generate)...');
     const rows:any[] = [];
     for (const tc of RAG_TEST_CASES){
-      const res = await postJSON('/api/remote/generate', { question: tc.question, context: tc.context });
+      const res = await postJSON('/api/v1?action=generate', { type: 'rag', input: { query: tc.question }, context: tc.context });
       let answerPass = false, sourcePass = false;
       let detail = '';
       if (res.ok && res.data){

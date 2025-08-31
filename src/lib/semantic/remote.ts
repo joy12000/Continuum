@@ -3,7 +3,7 @@ export interface RemoteOptions { endpoint?: string; dims?: number; }
 
 export async function embedRemote(texts: string[], opts: RemoteOptions = {}) {
   // Always use /api/remote/create-embedding to generate new embeddings from text.
-  const endpoint = '/api/remote/create-embedding';
+  const endpoint = '/api/v1?action=create-embedding';
   const body = JSON.stringify({ texts, ...(opts.dims ? { output_dimensionality: opts.dims } : {}) });
   const r = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
   if (!r.ok) { const t = await r.text().catch(()=> ''); throw new Error(`remote ${endpoint} ${r.status}: ${t || r.statusText}`); }

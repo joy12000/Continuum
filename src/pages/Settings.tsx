@@ -47,6 +47,12 @@ const Settings: React.FC<SettingsProps> = ({ engine, setEngine, modelStatus }) =
         <EmbeddingMode />
 
         <div className="space-y-4">
+          <button onClick={() => navigate('/developer')} className="w-full text-left p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+            개발자 페이지
+          </button>
+        </div>
+
+        <div className="space-y-4">
           <button onClick={handleLogout} className="w-full text-left p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
             로그아웃
           </button>
