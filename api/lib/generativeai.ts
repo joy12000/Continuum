@@ -32,7 +32,7 @@ export function getEmbeddingModel() {
 export async function getEmbedding(text: string, taskType: TaskType): Promise<number[]> {
   const model = getEmbeddingModel();
   const result = await model.embedContent({
-    content: { parts: [{ text }] },
+    content: { role: "user", parts: [{ text }] },
     taskType: taskType
   });
   return result.embedding.values;
