@@ -1,3 +1,4 @@
+import { Session } from '@supabase/supabase-js';
 import React, { useState, useEffect } from 'react';
 import { SearchBar } from '../components/SearchBar';
 import { useSearch, SearchResult } from '../hooks/useSearch';
@@ -59,10 +60,17 @@ const SearchResultsList = ({ results, loading }: { results: SearchResult[], load
   );
 };
 
+import { Session } from '@supabase/supabase-js';
+
+// ... (rest of the imports)
+
+// ... (SearchResultsList component)
+
 // Main Search Page Component
-const SearchPage = () => {
+const SearchPage = ({ session }: { session: Session | null }) => {
   const [query, setQuery] = useState('');
-  const { results, loading } = useSearch(query);
+  const token = session?.access_token;
+  const { results, loading } = useSearch(query, token);
   const [generatedAnswer, setGeneratedAnswer] = useState<{ data: AnswerData | null; isLoading: boolean; error: string | null }>({
     data: null,
     isLoading: false,

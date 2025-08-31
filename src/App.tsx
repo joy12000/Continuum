@@ -170,7 +170,7 @@ const MainLayout = () => {
               <Route path="/" element={<HomeSky onOpenAnswer={() => setAnswerOpen(true)} answerSignal={answerSignal} />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/calendar" element={<CalendarPage />} />
-              <Route path="/search" element={<SearchPage />} />
+              <Route path="/search" element={<SearchPage session={session} />} />
               <Route path="/recall" element={<LinksPage />} />
               <Route path="/diagnostics" element={<Diagnostics onBack={() => window.history.back()} />} />
               <Route path="/developer" element={<DeveloperPage />} />

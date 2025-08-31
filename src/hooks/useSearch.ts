@@ -10,13 +10,13 @@ export type SearchResult = {
   score: number;
 };
 
-export function useSearch(query: string) {
+export function useSearch(query: string, token: string | undefined) {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const trimmedQuery = query.trim();
-    if (trimmedQuery.length < 2) {
+    if (trimmedQuery.length < 2 || !token) {
       setResults([]);
       setLoading(false);
       return;
@@ -25,13 +25,9 @@ export function useSearch(query: string) {
     const performSearch = async () => {
       setLoading(true);
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const token = session?.access_token;
-        
-
         const res = await fetch(`/api/v1?action=search&q=${encodeURIComponent(trimmedQuery)}`, {
           headers: {
-            ...(token && { Authorization: `Bearer ${token}` }),
+            Authorization: `Bearer ${token}`,
           },
         });
 
@@ -57,7 +53,7 @@ export function useSearch(query: string) {
     return () => {
       clearTimeout(handler);
     };
-  }, [query]);
+  }, [query, token]);
 
   return { results, loading };
 }
