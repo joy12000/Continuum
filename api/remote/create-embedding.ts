@@ -1,17 +1,20 @@
 // api/embeddings.ts
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { GoogleGenerativeAI, TaskType } from '@google/generative-ai';
 
 export const config = { runtime: 'nodejs' };
 
 async function embedWithGoogle(texts: string[]) {
-  const { GoogleGenerativeAI } = await import('@google/generative-ai');
   const key = process.env.GOOGLE_API_KEY;
   if (!key) throw new Error('GOOGLE_API_KEY not set');
   const genAI = new GoogleGenerativeAI(key);
   const model = genAI.getGenerativeModel({ model: 'text-embedding-004' });
   
   const response = await model.batchEmbedContents({
-    requests: texts.map(t => ({ content: t }))
+    requests: texts.map(t => ({ 
+      content: t,
+      taskType: TaskType.RETRIEVAL_DOCUMENT
+    }))
   });
   
   return response.embeddings.map(e => e.values);
