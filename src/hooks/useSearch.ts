@@ -25,10 +25,13 @@ export function useSearch(query: string, token: string | undefined) {
     const performSearch = async () => {
       setLoading(true);
       try {
+        const headers: HeadersInit = {};
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+
         const res = await fetch(`/api/v1?action=search&q=${encodeURIComponent(trimmedQuery)}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers,
         });
 
         if (!res.ok) {
