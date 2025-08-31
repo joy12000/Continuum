@@ -61,8 +61,15 @@ const MainLayout = () => {
     try {
       setGeneratedAnswer({ data: null, isLoading: true, error: null });
   
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
       // 1. Search for similar notes
-      const searchRes = await fetch(`/api/v1?action=search&q=${encodeURIComponent(noteText)}&uid=${userId}`);
+      const searchRes = await fetch(`/api/v1?action=search&q=${encodeURIComponent(noteText)}&uid=${userId}`, {
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      });
       if (!searchRes.ok) throw new Error("Failed to search for similar notes.");
       const similarChunks = await searchRes.json();
   

@@ -3,7 +3,7 @@ import { db } from "../store/db";
 import { toSentences } from "./rag/chunker";
 
 async function generateEmbeddings(chunks: string[]): Promise<number[][]> {
-  const resp = await fetch("/api/v1?action=create-embedding", {
+  const resp = await fetch("/api/v1?action=create-gemini-embedding", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ texts: chunks }),
