@@ -16,10 +16,10 @@ export const embeddingModels: EmbeddingModel[] = [
     status: 'DOWNLOADED',
   },
   {
-    id: 'other-model-placeholder',
-    name: '다른 모델 (준비중)',
-    description: '향후 추가될 고성능 모델입니다.',
-    size: '미정',
-    status: 'NOT_DOWNLOADED',
+    id: 'gemini-api',
+    name: 'Gemini API',
+    description: 'Google의 Gemini API를 사용하여 임베딩을 생성합니다. 인터넷 연결이 필요합니다.',
+    size: 'API',
+    status: 'DOWNLOADED',
   },
 ];

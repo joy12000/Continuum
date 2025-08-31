@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { getActiveModelId } from '../lib/semantic/model';
 
 export type SearchResult = {
   note_id: string;
@@ -26,8 +27,9 @@ export function useSearch(query: string) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
+        const model = getActiveModelId();
 
-        const res = await fetch(`/api/v1?action=search&q=${encodeURIComponent(trimmedQuery)}`, {
+        const res = await fetch(`/api/v1?action=search&q=${encodeURIComponent(trimmedQuery)}&model=${model}`, {
           headers: {
             ...(token && { Authorization: `Bearer ${token}` }),
           },

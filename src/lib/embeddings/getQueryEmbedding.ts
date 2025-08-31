@@ -1,8 +1,16 @@
 import { toast } from "../toast";
+import { getActiveModelId } from "../semantic/model";
 
 export async function getQueryEmbedding(text: string): Promise<number[]> {
   try {
-    const res = await fetch('/api/on-device-support/create-query-embedding', {
+    const activeModel = getActiveModelId();
+    
+    let endpoint = '/api/on-device-support/create-query-embedding';
+    if (activeModel === 'gemini-api') {
+      endpoint = '/api/v1?action=create-gemini-embedding';
+    }
+
+    const res = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),

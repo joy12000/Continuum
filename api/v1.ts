@@ -3,19 +3,93 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 import { supabase as supabaseService } from '../lib/supabaseClient'; // Renamed to avoid conflict
 import { getEmbeddings } from '../lib/embedding';
-import { generativeModel } from '../lib/generativeai';
+import { getEmbedding as getGeminiEmbedding, generativeModel } from '../lib/generativeai';
 import { trim, RagContext, RagInput } from '../generate-utils/rag';
 
 export const config = { runtime: 'nodejs' };
 
 // Search Handler
-async function handleSearch(req: VercelRequest, res: VercelResponse) { /* ... */ }
+async function handleSearch(req: VercelRequest, res: VercelResponse) {
+  try {
+    const { q, model } = req.query;
+    if (!q || typeof q !== 'string') {
+      return res.status(400).json({ error: 'Query parameter \'q\' is required.' });
+    }
+
+    const token = req.headers.authorization?.split(' ')?.[1];
+    const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+      auth: { persistSession: false },
+    });
+
+    let query_embedding: number[];
+    if (model === 'gemini-api') {
+      query_embedding = await getGeminiEmbedding(q);
+    } else {
+      const embeddings = await getEmbeddings([q], 'query');
+      if (embeddings.length === 0) {
+        return res.status(400).json({ error: 'Failed to generate embedding for query.' });
+      }
+      query_embedding = embeddings[0];
+    }
+
+    const { data, error } = await supabase.rpc('match_notes', {
+      query_embedding: query_embedding,
+      match_threshold: 0.7,
+      match_count: 10,
+    });
+
+    if (error) throw error;
+    return res.status(200).json(data || []);
+
+  } catch (e: any) {
+    if (e.message.includes('JWT')) {
+      return res.status(401).json({ error: 'Invalid authentication token.' });
+    }
+    console.error('Search handler failed:', e);
+    return res.status(500).json({ error: e?.message || 'API handler failed' });
+  }
+}
 
 // Create Embedding Handler
 async function handleCreateEmbedding(req: VercelRequest, res: VercelResponse) { /* ... */ }
 
+// Create Gemini Embedding Handler
+async function handleCreateGeminiEmbedding(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
+  try {
+    const { text } = req.body;
+    if (!text || typeof text !== 'string') {
+      return res.status(400).json({ error: 'text field is required.' });
+    }
+    const embedding = await getGeminiEmbedding(text);
+    return res.status(200).json({ embedding });
+  } catch (e: any) {
+    return res.status(500).json({ error: e?.message || 'Failed to create Gemini embedding' });
+  }
+}
+
 // Generate Handler
 async function handleGenerate(req: VercelRequest, res: VercelResponse) { /* ... */ }
+
+// Create Gemini Embedding Handler
+async function handleCreateGeminiEmbedding(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
+  try {
+    const { text } = req.body;
+    if (!text || typeof text !== 'string') {
+      return res.status(400).json({ error: 'text field is required.' });
+    }
+    const embedding = await getGeminiEmbedding(text);
+    return res.status(200).json({ embedding });
+  } catch (e: any) {
+    return res.status(500).json({ error: e?.message || 'Failed to create Gemini embedding' });
+  }
+}
 
 // Calendar Handler
 async function handleCalendar(req: VercelRequest, res: VercelResponse) {
@@ -66,8 +140,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleSearch(req, res);
       case 'create-embedding':
         return await handleCreateEmbedding(req, res);
+      case 'create-gemini-embedding':
+        return await handleCreateGeminiEmbedding(req, res);
       case 'generate':
         return await handleGenerate(req, res);
+      case 'create-gemini-embedding':
+        return await handleCreateGeminiEmbedding(req, res);
       case 'calendar':
         return await handleCalendar(req, res);
       default:
