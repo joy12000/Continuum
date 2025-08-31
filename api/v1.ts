@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@supabase/supabase-js';
 import { TaskType } from '@google/generative-ai';
 import { supabase as supabaseService } from './lib/supabaseClient.js';
@@ -8,7 +9,7 @@ import { trimContext as trim } from './generate-utils/trim.js';
 export const config = { runtime: 'nodejs' };
 
 // 안전한 Supabase 클라이언트 선택: (1) 헤더+ANON, 없으면 (2) SERVICE
-function pickSupabase(req: VercelRequest) {
+function pickSupabase(req: VercelRequest): SupabaseClient {
   const hasAuth = !!req.headers.authorization;
   const anon = process.env.SUPABASE_ANON_KEY;
   if (hasAuth && anon) {
