@@ -74,23 +74,6 @@ async function handleCreateGeminiEmbedding(req: VercelRequest, res: VercelRespon
 // Generate Handler
 async function handleGenerate(req: VercelRequest, res: VercelResponse) { /* ... */ }
 
-// Create Gemini Embedding Handler
-async function handleCreateGeminiEmbedding(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
-  }
-  try {
-    const { text } = req.body;
-    if (!text || typeof text !== 'string') {
-      return res.status(400).json({ error: 'text field is required.' });
-    }
-    const embedding = await getGeminiEmbedding(text);
-    return res.status(200).json({ embedding });
-  } catch (e: any) {
-    return res.status(500).json({ error: e?.message || 'Failed to create Gemini embedding' });
-  }
-}
-
 // Calendar Handler
 async function handleCalendar(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
@@ -144,8 +127,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleCreateGeminiEmbedding(req, res);
       case 'generate':
         return await handleGenerate(req, res);
-      case 'create-gemini-embedding':
-        return await handleCreateGeminiEmbedding(req, res);
       case 'calendar':
         return await handleCalendar(req, res);
       default:

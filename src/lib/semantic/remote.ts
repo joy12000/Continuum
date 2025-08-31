@@ -14,7 +14,7 @@ export async function embedRemote(texts: string[], opts: RemoteOptions = {}) {
 
 export class RemoteAdapter {
   endpoint: string; dims?: number;
-  constructor(opts: RemoteOptions = {}) { this.endpoint = '/api/remote/create-embedding'; this.dims = opts.dims; }
+  constructor(opts: RemoteOptions = {}) { this.endpoint = '/api/v1?action=create-embedding'; this.dims = opts.dims; }
   async embed(texts: string[] | string) {
     const arr = Array.isArray(texts) ? texts : [texts];
     return embedRemote(arr, { endpoint: this.endpoint, dims: this.dims });
