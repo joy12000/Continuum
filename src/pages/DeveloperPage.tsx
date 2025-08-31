@@ -44,8 +44,7 @@ const DeveloperPage = () => {
       }),
     });
     if (!res.ok) throw new Error(`Generate failed with status ${res.status}`);
-    // Generate returns a stream, so we read it as text
-    return res.text();
+    return res.json();
   };
 
   const TestButton = ({ name, onClick }: { name: string, onClick: () => void }) => (

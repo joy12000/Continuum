@@ -36,7 +36,8 @@ export function useSearch(query: string) {
         });
 
         if (!res.ok) {
-          throw new Error('Search request failed');
+          const errorBody = await res.json().catch(() => ({ error: 'Could not parse error body' }));
+          throw new Error(`Search failed with status ${res.status}${errorBody.error ? `: ${errorBody.error}` : ''}`);
         }
         const data = await res.json();
         setResults(data);

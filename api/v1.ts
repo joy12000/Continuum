@@ -48,12 +48,16 @@ async function handleCreateGeminiEmbedding(req: VercelRequest, res: VercelRespon
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
   try {
-    const { text } = req.body;
-    if (!text || typeof text !== 'string') {
-      return res.status(400).json({ error: 'text field is required.' });
+    const { texts } = req.body;
+    if (!texts || !Array.isArray(texts) || texts.some(t => typeof t !== 'string')) {
+      return res.status(400).json({ error: '`texts` field must be an array of strings.' });
     }
-    const embedding = await getEmbedding(text, TaskType.RETRIEVAL_DOCUMENT);
-    return res.status(200).json({ embedding });
+
+    const embeddings = await Promise.all(
+      texts.map(text => getEmbedding(text, TaskType.RETRIEVAL_DOCUMENT))
+    );
+
+    return res.status(200).json({ embeddings });
   } catch (e: any) {
     return res.status(500).json({ error: e?.message || 'Failed to create Gemini embedding' });
   }
