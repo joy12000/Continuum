@@ -1,7 +1,7 @@
 
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { computeConnections } from "../lib/graph/computeConnections";
-import { getEmbeddingsMap } from "../lib/embeddings/getEmbeddingsMap";
+
 import { ConnectionsBadge } from "./ConnectionsBadge";
 import { ConnectionsPanel } from "./ConnectionsPanel";
 import { ArrowUpRight } from 'lucide-react';
@@ -87,11 +87,7 @@ const LinksTimeline: React.FC = () => {
     return sortOrder === 'asc' ? keys.sort() : keys.sort().reverse();
   }, [grouped, sortOrder]);
 
-  useEffect(() => {
-    if (notes.length > 0) {
-      getEmbeddingsMap(notes).then(setVecById);
-    }
-  }, [notes]);
+  
 
   const weights = { citation: 1.0, sim: 0.6, tag: 0.2 } as const;
 
@@ -133,7 +129,7 @@ const LinksTimeline: React.FC = () => {
               </div>
               <div className="flex flex-col gap-4">
                 {grouped[day].map((note) => {
-                  const neighbors = computeConnections(note, notes, vecById, weights, 3)
+                  const neighbors = computeConnections(note, notes, new Map(), weights, 3)
                     .map(n => ({ ...n, title: notes.find(x => x.id === n.toId)?.title }));
                   const isOpen = openPanelId === note.id;
                   const navigateToNote = (id: string | number) => console.log("Navigating to note:", id);

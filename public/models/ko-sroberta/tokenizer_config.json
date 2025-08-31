@@ -1,6 +1,0 @@
-{
-  "model_max_length": 512,
-  "do_lower_case": false,
-  "clean_text": true,
-  "tokenizer_class": "BertTokenizerFast"
-}

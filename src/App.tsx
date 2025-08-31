@@ -7,7 +7,7 @@ import SearchPage from './pages/SearchPage';
 import LinksPage from './pages/LinksPage';
 import Diagnostics from './components/Diagnostics';
 import { Toasts } from './components/Toasts';
-import { getSemanticAdapter } from "./lib/semantic";
+
 import NewBottomNav from './components/NewBottomNav';
 import { supabase } from './lib/supabase';
 import { addNoteAndChunks, getNotesByIds } from './lib/supabaseService';
@@ -24,8 +24,7 @@ const MainLayout = () => {
   const navigate = useNavigate();
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [engine, setEngine] = useState<'auto' | 'remote'>((localStorage.getItem('semanticEngine') as any) || 'auto');
-  const [modelStatus, setModelStatus] = useState("확인 중…");
+  
   const [answerOpen, setAnswerOpen] = useState(false);
   const [answerSignal, setAnswerSignal] = useState(0);
   const [generatedAnswer, setGeneratedAnswer] = useState<{ data: AnswerData | null; isLoading: boolean; error: string | null }>({
@@ -144,24 +143,7 @@ const MainLayout = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  useEffect(() => {
-    let dead = false;
-    const updateStatus = (message: string) => { if (!dead) setModelStatus(message); };
-    const checkLocalEngine = async () => {
-      updateStatus("로컬 엔진 준비 중…");
-      try {
-        const a = await getSemanticAdapter("auto");
-        const ok = await a.ensureReady();
-        if (dead) return;
-        updateStatus(ok ? "로컬 임베딩 준비 완료(onnxruntime)" : "로컬 임베딩 없음(해시 사용)");
-      } catch (error) {
-        console.error("Failed to prepare local engine:", error);
-        updateStatus("로컬 엔진 준비 실패. 원격 API 사용.");
-      }
-    };
-    if (engine === "remote") { updateStatus("원격 API 사용"); } else { checkLocalEngine(); }
-    return () => { dead = true; };
-  }, [engine]);
+  
 
   if (loading) {
     return <div className="flex justify-center items-center h-screen">Loading...</div>; // Or a splash screen
@@ -179,7 +161,7 @@ const MainLayout = () => {
           {session ? (
             <>
               <Route path="/" element={<HomeSky onOpenAnswer={() => setAnswerOpen(true)} answerSignal={answerSignal} />} />
-              <Route path="/settings" element={<Settings engine={engine} setEngine={setEngine} modelStatus={modelStatus} />} />
+              <Route path="/settings" element={<Settings />} />
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/search" element={<SearchPage />} />
               <Route path="/recall" element={<LinksPage />} />
@@ -195,7 +177,7 @@ const MainLayout = () => {
       <AnswerCardsModal open={answerOpen} onClose={() => setAnswerOpen(false)}>
         {generatedAnswer.isLoading && <div className="p-4 text-center">답변 생성 중...</div>}
         {generatedAnswer.error && <div className="p-4 text-center text-red-500">오류: {generatedAnswer.error}</div>}
-        {generatedAnswer.data && <GeneratedAnswer data={generatedAnswer.data} />}
+        {generatedAnswer.data && <GeneratedAnswer data={generatedAnswer.data} />} 
       </AnswerCardsModal>
     </div>
   );

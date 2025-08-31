@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { computeConnections, Note as GraphNote } from "@/lib/graph/computeConnections";
-import { getEmbeddingsMap } from "@/lib/embeddings/getEmbeddingsMap";
+
 import { ConnectionsBadge } from "@/components/ConnectionsBadge";
 import { ConnectionsPanel } from "@/components/ConnectionsPanel";
 import { ConnectionsMiniGraph } from "@/components/ConnectionsMiniGraph";
@@ -58,20 +58,11 @@ export function LinksTimeline({ notes }: { notes: TimelineNote[] }) {
   const [isGraphModalOpen, setGraphModalOpen] = useState(false);
   const [weights, setWeights] = useState({ citation: 1.0, sim: 0.6, tag: 0.2 });
 
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      const map = await getEmbeddingsMap(notes);
-      if (alive) setVecById(map);
-    })();
-    return () => { alive = false; };
-  }, [notes]);
-
   const fullGraphData = useMemo(() => {
     const graphNodes = notes.map(n => ({ id: n.id, title: n.title || n.id }));
     const graphLinks: { source: string; target: string; score: number }[] = [];
     notes.forEach(note => {
-      const neighbors = computeConnections(note as GraphNote, notes as GraphNote[], vecById, weights, 10);
+      const neighbors = computeConnections(note as GraphNote, notes as GraphNote[], new Map(), weights, 10);
       neighbors.forEach(neighbor => {
         if (note.id < neighbor.toId) { // Prevent duplicate links
           graphLinks.push({ source: note.id, target: neighbor.toId, score: neighbor.score });
@@ -79,7 +70,7 @@ export function LinksTimeline({ notes }: { notes: TimelineNote[] }) {
       });
     });
     return { nodes: graphNodes, links: graphLinks };
-  }, [notes, vecById, weights]);
+  }, [notes, weights]);
 
   return (
     <div>
@@ -103,7 +94,7 @@ export function LinksTimeline({ notes }: { notes: TimelineNote[] }) {
           <h3 className="mb-2 text-sm text-neutral-500">{date}</h3>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {items.map((note) => {
-              const neighbors = computeConnections(note as GraphNote, notes as GraphNote[], vecById, weights, 4)
+              const neighbors = computeConnections(note as GraphNote, notes as GraphNote[], new Map(), weights, 4)
                 .map(n => ({ ...n, title: notes.find(x => x.id === n.toId)?.title }));
               const noteBacklinks = backlinks.get(note.id) || [];
               const isConnectionsOpen = openConnections === note.id;

@@ -5,6 +5,7 @@ import PageLayout from '../components/PageLayout';
 import { GeneratedAnswer } from '../components/GeneratedAnswer';
 import { getNotesByIds } from '../lib/supabaseService';
 import { AnswerData, Note } from '../types/common';
+import { HandThumbUpIcon as ThumbUpIcon, HandThumbDownIcon as ThumbDownIcon } from '@heroicons/react/24/solid';
 
 // Component to render the search results
 const SearchResultsList = ({ results, loading }: { results: SearchResult[], loading: boolean }) => {
@@ -16,6 +17,11 @@ const SearchResultsList = ({ results, loading }: { results: SearchResult[], load
     return <div className="p-4 text-gray-400 text-center">No results found.</div>;
   }
 
+  const handleFeedback = (result: SearchResult, feedback: 'like' | 'dislike') => {
+    console.log(`Feedback for note ${result.note_id}: ${feedback}`);
+    // Here you would typically store this feedback, e.g., in your database
+  };
+
   return (
     <ul className="space-y-4">
       {results.map(result => (
@@ -23,17 +29,29 @@ const SearchResultsList = ({ results, loading }: { results: SearchResult[], load
           key={result.note_id} 
           className="border border-white/10 bg-[#0b1830]/50 rounded-lg p-4 backdrop-blur-sm hover:bg-white/5 transition-colors duration-300"
         >
-          <h3 
-            className="text-lg font-semibold text-sky-300"
-            style={{ textShadow: '0 0 0.5rem rgba(125, 211, 252, 0.3)' }}
-          >
-            {result.title}
-          </h3>
-          <div 
-            className="text-sm text-gray-300 mt-2 snippet"
-            dangerouslySetInnerHTML={{ __html: result.snippet_html }}
-            style={{ textShadow: '0 0 0.3rem rgba(200, 220, 255, 0.2)' }}
-          />
+          <div className="flex justify-between items-start">
+            <div>
+              <h3 
+                className="text-lg font-semibold text-sky-300"
+                style={{ textShadow: '0 0 0.5rem rgba(125, 211, 252, 0.3)' }}
+              >
+                {result.title}
+              </h3>
+              <div 
+                className="text-sm text-gray-300 mt-2 snippet"
+                dangerouslySetInnerHTML={{ __html: result.snippet_html }}
+                style={{ textShadow: '0 0 0.3rem rgba(200, 220, 255, 0.2)' }}
+              />
+            </div>
+            <div className="flex space-x-2 ml-4">
+              <button onClick={() => handleFeedback(result, 'like')} className="text-gray-400 hover:text-green-400 transition-colors">
+                <ThumbUpIcon className="h-5 w-5" />
+              </button>
+              <button onClick={() => handleFeedback(result, 'dislike')} className="text-gray-400 hover:text-red-400 transition-colors">
+                <ThumbDownIcon className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
           <div className="text-xs text-gray-500 mt-2">Score: {result.score.toFixed(3)}</div>
         </li>
       ))}

@@ -3,17 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import ConfirmModal from '../components/ConfirmModal';
 import { toast } from '../lib/toast';
-import EmbeddingMode from '../components/settings/EmbeddingMode';
+
 import { ArrowLeft } from 'lucide-react';
 import PageLayout from '../components/PageLayout';
 
-interface SettingsProps {
-  engine: 'auto' | 'remote';
-  setEngine: React.Dispatch<React.SetStateAction<'auto' | 'remote'>>;
-  modelStatus: string;
-}
-
-const Settings: React.FC<SettingsProps> = ({ engine, setEngine, modelStatus }) => {
+const Settings: React.FC = () => {
   const navigate = useNavigate();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [confirmText, setConfirmText] = useState("");
@@ -44,7 +38,7 @@ const Settings: React.FC<SettingsProps> = ({ engine, setEngine, modelStatus }) =
   return (
     <PageLayout title="설정">
       <div className="space-y-8">
-        <EmbeddingMode />
+        
 
         <div className="space-y-4">
           <button onClick={() => navigate('/developer')} className="w-full text-left p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">

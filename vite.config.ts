@@ -23,24 +23,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff2,ttf,otf}"],
-        runtimeCaching: [
-          {
-            urlPattern: ({url}) => (url.protocol === 'http:' || url.protocol === 'https:') && url.pathname.endsWith('/models/ko-sroberta-multitask_quantized.onnx'),
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'model-cache',
-              expiration: { maxEntries: 5, maxAgeSeconds: 60 * 60 * 24 * 365 } // 1 year
-            }
-          },
-          {
-            urlPattern: ({url}) => (url.protocol === 'http:' || url.protocol === 'https:') && url.pathname.endsWith('.wasm'),
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'wasm-cache',
-              expiration: { maxEntries: 5, maxAgeSeconds: 60 * 60 * 24 * 365 } // 1 year
-            }
-          }
-        ],
+        
       },
       manifest: {
         name: "Continuum",
