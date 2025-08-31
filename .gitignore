@@ -9,3 +9,5 @@ src/types/**/*.d.ts
 api/**/*.js
 api/**/*.d.ts
 tsconfig.tsbuildinfo 
+
+.vercel

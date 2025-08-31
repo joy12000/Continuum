@@ -1,4 +1,3 @@
-
 -- Creates a function to find matching notes using vector similarity search
 CREATE OR REPLACE FUNCTION match_notes ( 
   query_embedding vector(384),
@@ -11,7 +10,7 @@ RETURNS TABLE (
   similarity float
 )
 LANGUAGE plpgsql
-AS $
+AS $$
 BEGIN
   RETURN QUERY
   SELECT
@@ -25,4 +24,4 @@ BEGIN
   ORDER BY nc.embedding <=> query_embedding
   LIMIT match_count;
 END;
-$;
+$$;
