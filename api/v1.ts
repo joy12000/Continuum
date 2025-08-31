@@ -24,6 +24,14 @@ function pickSupabase(req: VercelRequest) {
 
 async function handleSearch(req: VercelRequest, res: VercelResponse) {
   try {
+    // --- DEBUGGING LOGS START ---
+    console.log('Vercel Environment Variable Check:');
+    console.log(`- SUPABASE_URL is set: ${!!process.env.SUPABASE_URL}`)
+    console.log(`- SUPABASE_SERVICE_KEY is set: ${!!process.env.SUPABASE_SERVICE_KEY}`)
+    console.log(`- GEMINI_API_KEY is set: ${!!process.env.GEMINI_API_KEY}`)
+    console.log(`- GOOGLE_API_KEY is set: ${!!process.env.GOOGLE_API_KEY}`)
+    // --- DEBUGGING LOGS END ---
+
     const rawQ = Array.isArray(req.query.q) ? req.query.q[0] : req.query.q;
     const q = (rawQ ?? '').toString().trim();
     if (!q) return res.status(200).json([]);
