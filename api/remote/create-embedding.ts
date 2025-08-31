@@ -1,6 +1,6 @@
 // api/remote/create-embedding.ts
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getEmbeddings } from '../../server-lib/lib/embedding';
+import { getEmbeddings } from '../lib/embedding';
 
 export const config = { runtime: 'nodejs' };
 

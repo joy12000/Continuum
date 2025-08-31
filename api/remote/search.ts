@@ -1,7 +1,7 @@
 // api/remote/search.ts
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { supabase } from '../../server-lib/lib/supabaseClient';
-import { getEmbeddings } from '../../server-lib/lib/embedding';
+import { supabase } from '../lib/supabaseClient';
+import { getEmbeddings } from '../lib/embedding';
 
 export const config = { runtime: 'nodejs' };
 
