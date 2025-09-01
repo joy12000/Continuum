@@ -77,6 +77,7 @@ const MainLayout = () => {
       const uniqueNoteIds = [...new Set(similarChunks.map((c: any) => c.note_id))] as string[];
       if (uniqueNoteIds.length === 0) {
         setGeneratedAnswer({ data: null, isLoading: false, error: "유사한 노트를 찾지 못했습니다." });
+        setAnswerOpen(true); // Open the modal to show this message
         return;
       }
       const top3NoteIds = uniqueNoteIds.slice(0, 3);
