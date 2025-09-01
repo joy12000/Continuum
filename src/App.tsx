@@ -122,6 +122,7 @@ const MainLayout = () => {
   
       setGeneratedAnswer({ data: finalAnswerData, isLoading: false, error: null });
       setAnswerSignal(s => s + 1);
+      setAnswerOpen(true); // Open the modal to show the result
   
     } catch (error) {
       console.error("Failed to generate summary after save:", error);
