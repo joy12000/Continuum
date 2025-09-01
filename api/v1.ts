@@ -7,7 +7,7 @@ import { trimContext as trim } from './generate-utils/trim.js';
 
 export const config = { runtime: 'nodejs' };
 
-function pickSupabase(req: VercelRequest): SupabaseClient {
+function pickSupabase(req: VercelRequest): SupabaseClient | null {
   const hasAuth = !!req.headers.authorization;
   const anon = process.env.SUPABASE_ANON_KEY;
   if (hasAuth && anon) {
@@ -17,7 +17,7 @@ function pickSupabase(req: VercelRequest): SupabaseClient {
       auth: { persistSession: false },
     });
   }
-  return supabase;
+  return null;
 }
 
 async function handleSearch(req: VercelRequest, res: VercelResponse) {
@@ -37,6 +37,7 @@ async function handleSearch(req: VercelRequest, res: VercelResponse) {
     const uid = (qUid || hUid || '').toString().trim();
 
     const sb = pickSupabase(req);
+    if (!sb) return res.status(401).json({ error: 'Authentication required.' });
     const qEmb = await getEmbedding(q, TaskType.RETRIEVAL_QUERY);
     const limit_k = Number(Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit) || 12;
 
