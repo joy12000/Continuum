@@ -46,8 +46,10 @@ const MainLayout = () => {
 
       try {
         const newNote = await addNoteAndChunks({ title: detail.text.slice(0, 50), body: detail.text, user_id: user.id });
-        // Don't await, let it run in the background
-        generateSummaryAfterSave(detail.text, user.id);
+        // Add a 2-second delay to allow the database index to update
+        setTimeout(() => {
+          generateSummaryAfterSave(detail.text, user.id);
+        }, 2000);
       } catch (error) {
         console.error("Failed to save note from HomeSky:", error);
       }
