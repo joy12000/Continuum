@@ -130,6 +130,7 @@ const MainLayout = () => {
     } catch (error) {
       console.error("Failed to generate summary after save:", error);
       setGeneratedAnswer({ data: null, isLoading: false, error: (error as Error).message });
+      setAnswerOpen(true); // Open the modal to show the error
     }
   }
 
