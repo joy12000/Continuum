@@ -1,15 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import type { SupabaseClient } from '@supabase/supabase-js';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { TaskType } from '@google/generative-ai';
-import { supabase } from './lib/supabaseClient.js';
-const supabaseService: SupabaseClient = supabase;
+import { supabase } from './lib/supabaseClient';
 import { getEmbedding, getGenerativeModel } from './lib/generativeai.js';
 import { trimContext as trim } from './generate-utils/trim.js';
 
 export const config = { runtime: 'nodejs' };
 
-// 안전한 Supabase 클라이언트 선택: (1) 헤더+ANON, 없으면 (2) SERVICE
 function pickSupabase(req: VercelRequest): SupabaseClient {
   const hasAuth = !!req.headers.authorization;
   const anon = process.env.SUPABASE_ANON_KEY;
@@ -20,25 +17,21 @@ function pickSupabase(req: VercelRequest): SupabaseClient {
       auth: { persistSession: false },
     });
   }
-  // 폴백: 서비스 키 (주의: RPC는 RLS 무시됨. 필터 인자를 꼭 전달)
-  return supabaseService;
+  return supabase;
 }
 
 async function handleSearch(req: VercelRequest, res: VercelResponse) {
   try {
-    // --- DEBUGGING LOGS START ---
     console.log('Vercel Environment Variable Check:');
     console.log(`- SUPABASE_URL is set: ${!!process.env.SUPABASE_URL}`)
     console.log(`- SUPABASE_SERVICE_KEY is set: ${!!process.env.SUPABASE_SERVICE_KEY}`)
     console.log(`- GEMINI_API_KEY is set: ${!!process.env.GEMINI_API_KEY}`)
     console.log(`- GOOGLE_API_KEY is set: ${!!process.env.GOOGLE_API_KEY}`)
-    // --- DEBUGGING LOGS END ---
 
     const rawQ = Array.isArray(req.query.q) ? req.query.q[0] : req.query.q;
     const q = (rawQ ?? '').toString().trim();
     if (!q) return res.status(200).json([]);
 
-    // uid는 쿼리/헤더 어느 쪽이든 허용
     const qUid = Array.isArray(req.query.uid) ? req.query.uid[0] : req.query.uid;
     const hUid = (req.headers['x-user-id'] as string | undefined) || '';
     const uid = (qUid || hUid || '').toString().trim();
@@ -47,11 +40,9 @@ async function handleSearch(req: VercelRequest, res: VercelResponse) {
     const qEmb = await getEmbedding(q, TaskType.RETRIEVAL_QUERY);
     const limit_k = Number(Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit) || 12;
 
-    // 1차: match_notes 시도
     const args1: any = { query_embedding: qEmb, match_threshold: 0.7, match_count: limit_k, uid: uid || undefined };
     let { data, error } = await sb.rpc('match_notes', args1);
 
-    // 함수 없음/권한 등으로 실패하면 2차: search_note_chunks 시도
     if (error) {
       console.log('[search] rpc `match_notes` failed, falling back to `search_note_chunks`. Error:', error.message);
       const args2: any = { q_emb: qEmb, limit_k, uid: uid || undefined };
@@ -63,12 +54,11 @@ async function handleSearch(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json(data || []);
   } catch (e: any) {
     const msg = e?.message || 'v1 failed';
-    const tag = /^[\[(supabase|google|openai|config)\]]/.test(msg) ? '' : '[unknown] ';
+    const tag = /^[\\\[(supabase|google|openai|config)\\\]]/.test(msg) ? '' : '[unknown] ';
     return res.status(500).json({ error: `${tag}${msg}` });
   }
 }
 
-// Create Gemini Embedding Handler
 async function handleCreateGeminiEmbedding(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
@@ -86,12 +76,11 @@ async function handleCreateGeminiEmbedding(req: VercelRequest, res: VercelRespon
     return res.status(200).json({ embeddings });
   } catch (e: any) {
     const msg = e?.message || 'Failed to create Gemini embedding';
-    const tag = /^[\[(supabase|google|openai|config)\]]/.test(msg) ? '' : '[google] ';
+    const tag = /^[\\\[(supabase|google|openai|config)\\\]]/.test(msg) ? '' : '[google] ';
     return res.status(500).json({ error: `${tag}${msg}` });
   }
 }
 
-// Generate Handler
 async function handleGenerate(req: VercelRequest, res: VercelResponse) {
   try {
     const { input, context } = req.body;
@@ -109,12 +98,11 @@ async function handleGenerate(req: VercelRequest, res: VercelResponse) {
 
   } catch (e: any) {
     const msg = e?.message || 'Generate handler failed';
-    const tag = /^[\[(supabase|google|openai|config)\]]/.test(msg) ? '' : '[google] ';
+    const tag = /^[\\\[(supabase|google|openai|config)\\\]]/.test(msg) ? '' : '[google] ';
     return res.status(500).json({ error: `${tag}${msg}` });
   }
 }
 
-// Calendar Handler
 async function handleCalendar(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method Not Allowed' });
@@ -148,13 +136,12 @@ async function handleCalendar(req: VercelRequest, res: VercelResponse) {
       return res.status(401).json({ error: '[supabase] Invalid authentication token.' });
     }
     const msg = e?.message || 'Calendar handler failed';
-    const tag = /^[\[(supabase|google|openai|config)\]]/.test(msg) ? '' : '[supabase] ';
+    const tag = /^[\\\[(supabase|google|openai|config)\\\]]/.test(msg) ? '' : '[supabase] ';
     return res.status(500).json({ error: `${tag}${msg}` });
   }
 }
 
 
-// Main API Gateway Handler
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const action = Array.isArray(req.query.action) ? req.query.action[0] : req.query.action;
@@ -162,7 +149,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     switch (action) {
       case 'search':
         return await handleSearch(req, res);
-      case 'create-embedding': // Legacy endpoint name for compatibility
+      case 'create-embedding':
       case 'create-gemini-embedding':
         return await handleCreateGeminiEmbedding(req, res);
       case 'generate':
