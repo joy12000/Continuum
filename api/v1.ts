@@ -41,7 +41,7 @@ async function handleSearch(req: VercelRequest, res: VercelResponse) {
     const qEmb = await getEmbedding(q, TaskType.RETRIEVAL_QUERY);
     const limit_k = Number(Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit) || 12;
 
-    const args1: any = { query_embedding: qEmb, match_threshold: 0.7, match_count: limit_k, uid: uid || undefined };
+    const args1: any = { query_embedding: qEmb, match_threshold: 0.7, match_count: limit_k };
     let { data, error } = await sb.rpc('match_notes', args1);
 
     if (error) {
