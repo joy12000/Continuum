@@ -2,12 +2,19 @@ import React, { useState, useEffect } from 'react';
 import PageLayout from '../components/PageLayout';
 import InsightThreadCard from '../components/InsightThreadCard';
 
-// openapi.yaml에 정의된 InsightThread 스키마를 기반으로 타입 정의
+// 수정된 OpenAPI 명세에 따른 타입 정의
+interface Note {
+  id: string;
+  title: string;
+  body: string;
+  created_at: string;
+}
+
 interface InsightThread {
   threadId: string;
   title: string;
   summary: string;
-  noteIds: string[];
+  notes: Note[]; // noteIds에서 변경됨
   relevanceScore: number;
 }
 

@@ -1,18 +1,24 @@
 import React from 'react';
 
-// 부모 컴포넌트로부터 전달받을 데이터의 타입 정의
+// OpenAPI 명세서에 정의된 Note 타입
+interface Note {
+  id: string;
+  title: string;
+  body: string;
+  created_at: string;
+}
+
+// 수정된 InsightThread 타입
 interface InsightThread {
   threadId: string;
   title: string;
   summary: string;
-  noteIds: string[];
+  notes: Note[]; // noteIds: string[]에서 변경됨
   relevanceScore: number;
 }
 
 interface InsightThreadCardProps {
   thread: InsightThread;
-  // 노트 전체 목록을 받아 노트 제목을 찾기 위해 추가할 수 있습니다.
-  // allNotes: Note[]; 
 }
 
 // 노트 상세 페이지로 이동하는 함수 (실제 라우팅 로직에 맞게 수정 필요)
@@ -32,16 +38,15 @@ const InsightThreadCard: React.FC<InsightThreadCardProps> = ({ thread }) => {
       
       <div className="mt-4 pt-3 border-t border-slate-700">
         <h4 className="text-sm font-semibold text-gray-400 mb-2">포함된 노트</h4>
-        {/* 포함된 노트 목록 */}
+        {/* 포함된 노트 목록 (이제 제목을 표시) */}
         <ul className="space-y-1">
-          {thread.noteIds.map((noteId) => (
-            <li key={noteId}>
+          {thread.notes.map((note) => (
+            <li key={note.id}>
               <button 
-                onClick={() => navigateToNote(noteId)} 
+                onClick={() => navigateToNote(note.id)} 
                 className="text-left text-sm text-gray-300 hover:underline hover:text-white transition-colors w-full truncate"
               >
-                {/* 우선 노트 ID를 표시합니다. 향후 노트 제목으로 대체 필요. */}
-                📝 Note: {noteId}
+                📝 {note.title || '제목 없는 노트'}
               </button>
             </li>
           ))}
