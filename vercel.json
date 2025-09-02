@@ -1,12 +1,18 @@
 {
   "name": "continuum",
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/" }
+  "builds": [
+    { "src": "api/v1.ts", "use": "@vercel/node" },
+    { "src": "api/v1/threads/index.ts", "use": "@vercel/node" },
+    { "src": "api/v1/threads/generate.ts", "use": "@vercel/node" }
   ],
-  "functions": {
-    "api/**/*.ts": {
-      "memory": 1024,
-      "maxDuration": 30
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "/api/:path*"
+    },
+    {
+      "source": "/((?!api/|_next/|assets/|favicon.ico|sw.js|manifest.webmanifest).*)",
+      "destination": "/index.html"
     }
-  }
+  ]
 }
