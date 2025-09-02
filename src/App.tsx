@@ -4,7 +4,7 @@ import HomeSky from './pages/HomeSky'; // Corrected import path
 import Settings from './pages/Settings';
 import CalendarPage from './pages/CalendarPage';
 import SearchPage from './pages/SearchPage';
-import LinksPage from './pages/LinksPage';
+
 import Diagnostics from './components/Diagnostics';
 import { Toasts } from './components/Toasts';
 
@@ -176,7 +176,7 @@ const MainLayout = () => {
               <Route path="/settings" element={<Settings />} />
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/search" element={<SearchPage session={session} />} />
-              <Route path="/recall" element={<LinksPage />} />
+              
               <Route path="/diagnostics" element={<Diagnostics onBack={() => window.history.back()} />} />
               <Route path="/developer" element={<DeveloperPage />} />
             </>

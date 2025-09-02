@@ -1,0 +1,226 @@
+openapi: 3.0.0
+info:
+  title: "Continuum Links & Threads API"
+  description: |
+    'Continuum' 앱의 Links 페이지 기능('인사이트 스레드')을 위한 API 명세서입니다.
+    AI가 사용자의 노트들을 분석하여 의미적으로 연결된 주제별 그룹(스레드)을 생성하고, 
+    각 노트의 개별 연결 및 역링크 정보를 제공하는 것을 목표로 합니다.
+  version: "1.0.0"
+servers:
+  - url: "/api/v1"
+    description: "Vercel/Netlify Functions 또는 로컬 개발 프록시를 통한 API 서버"
+
+# ===============================================================
+# 1. API 경로 (Paths)
+# ===============================================================
+
+paths:
+  /threads:
+    get:
+      summary: "인사이트 스레드 목록 조회"
+      description: |
+        사용자의 전체 노트를 분석하여 AI가 발견한 주제별 '인사이트 스레드' 목록을 반환합니다.
+        기획서의 'Discovery Surface' 핵심 기능으로, AI가 생성한 요약과 함께 제공됩니다.
+        연결 가중치를 파라미터로 전달하여 동적으로 스레드 구성을 변경할 수 있습니다.
+      security:
+        - bearerAuth: []
+      tags:
+        - Links & Threads
+      parameters:
+        - in: query
+          name: citation_weight
+          schema:
+            type: number
+            format: float
+            default: 1.0
+          description: "인용 관계에 대한 가중치 (0.0 ~ 2.0)"
+        - in: query
+          name: sim_weight
+          schema:
+            type: number
+            format: float
+            default: 0.6
+          description: "의미 유사도(코사인)에 대한 가중치 (0.0 ~ 2.0)"
+        - in: query
+          name: tag_weight
+          schema:
+            type: number
+            format: float
+            default: 0.2
+          description: "공통 태그에 대한 가중치 (0.0 ~ 2.0)"
+      responses:
+        '200':
+          description: "인사이트 스레드 목록 조회 성공"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InsightThread'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /notes/{noteId}/connections:
+    get:
+      summary: "특정 노트의 연결 목록 조회"
+      description: "주어진 노트 ID를 기준으로 직접적으로 연결된 다른 노트들의 목록과 연결 이유, 점수를 반환합니다."
+      security:
+        - bearerAuth: []
+      tags:
+        - Links & Threads
+      parameters:
+        - in: path
+          name: noteId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: "연결을 조회할 노트의 UUID"
+      responses:
+        '200':
+          description: "연결된 노트 목록 조회 성공"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NoteConnection'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: "노트를 찾을 수 없음"
+
+  /notes/{noteId}/backlinks:
+    get:
+      summary: "특정 노트의 역링크(Backlinks) 목록 조회"
+      description: "주어진 노트를 인용하거나 링크하고 있는 다른 노트들의 목록(역링크)을 반환합니다."
+      security:
+        - bearerAuth: []
+      tags:
+        - Links & Threads
+      parameters:
+        - in: path
+          name: noteId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: "역링크를 조회할 노트의 UUID"
+      responses:
+        '200':
+          description: "역링크 노트 목록 조회 성공"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Note'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: "노트를 찾을 수 없음"
+
+# ===============================================================
+# 2. 컴포넌트 및 스키마 (Components & Schemas)
+# ===============================================================
+
+components:
+  schemas:
+    Note:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        body:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        citations:
+          type: array
+          items:
+            type: object
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    InsightThread:
+      type: object
+      description: "AI가 생성한 주제별 노트 그룹"
+      properties:
+        threadId:
+          type: string
+          description: "스레드의 고유 ID (예: 'topic-ai-art')"
+        title:
+          type: string
+          description: "AI가 생성한 스레드의 제목"
+          example: "AI 예술에 대한 나의 생각 변천사"
+        summary:
+          type: string
+          description: "스레드에 포함된 노트들의 내용을 요약한 서사적 설명"
+          example: "초기에는 AI 예술에 회의적이었지만, 최근 Midjourney를 경험하며 창의적 도구로서의 가능성을 탐색하기 시작했습니다."
+        noteIds:
+          type: array
+          description: "이 스레드에 포함된 노트 ID 목록"
+          items:
+            type: string
+            format: uuid
+        relevanceScore:
+          type: number
+          format: float
+          description: "스레드의 전반적인 관련성 또는 중요도 점수"
+
+    NoteConnection:
+      type: object
+      description: "두 노트 간의 연결 정보"
+      properties:
+        toId:
+          type: string
+          format: uuid
+          description: "연결된 대상 노트의 ID"
+        title:
+          type: string
+          description: "대상 노트의 제목"
+        score:
+          type: number
+          format: float
+          description: "계산된 총 연결 점수"
+        reasons:
+          type: array
+          description: "연결된 이유 목록 (예: 'cit', 'sim:0.82', 'tag')"
+          items:
+            type: string
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: "에러 메시지"
+
+  responses:
+    UnauthorizedError:
+      description: "인증 실패 (JWT 토큰 누락 또는 만료)"
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Authentication required."
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+tags:
+  - name: "Links & Threads"
+    description: "노트 간의 연결 및 AI 기반 인사이트 스레드 관련 API"

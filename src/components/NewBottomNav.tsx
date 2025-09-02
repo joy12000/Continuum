@@ -6,7 +6,6 @@ const TABS = [
   { to: '/', icon: 'home', label: 'Home' },
   { to: '/calendar', icon: 'calendar', label: 'Calendar' },
   { to: '/search', icon: 'search', label: 'Search' },
-  { to: '/recall', icon: 'link', label: 'Links' },
 ];
 
 export default function NewBottomNav() {

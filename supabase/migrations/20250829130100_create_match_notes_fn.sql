@@ -5,7 +5,7 @@ CREATE OR REPLACE FUNCTION match_notes (
   match_count int
 )
 RETURNS TABLE ( 
-  id text,
+  id uuid,
   title text,
   similarity float
 )
