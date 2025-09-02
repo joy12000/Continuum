@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import PageLayout from '@/components/PageLayout';
 import InsightThreadCard from '@/components/InsightThreadCard';
 
@@ -18,91 +19,150 @@ interface InsightThread {
   relevanceScore: number;
 }
 
-// --- 임시 목 데이터 --- 
-const mockThreads: InsightThread[] = [
-  {
-    threadId: 'thread-ai-art',
-    title: 'AI 예술에 대한 나의 생각 변천사',
-    summary: '초기에는 AI 예술에 회의적이었지만, 최근 Midjourney를 경험하며 창의적 도구로서의 가능성을 탐색하기 시작했습니다. 기술의 발전이 예술의 정의를 어떻게 바꾸고 있는지 고찰합니다.',
-    notes: [
-      { id: 'note-1', title: 'AI는 예술을 만들 수 있는가?', body: '...', created_at: '2024-08-15T10:00:00Z' },
-      { id: 'note-2', title: 'Midjourney 첫 경험과 충격', body: '...', created_at: '2024-08-20T14:30:00Z' },
-      { id: 'note-3', title: '창의적 영감을 주는 AI 활용법', body: '...', created_at: '2024-08-22T18:00:00Z' },
-    ],
-    relevanceScore: 0.91,
-  },
-  {
-    threadId: 'thread-productivity',
-    title: '생산성 도구 파편화 문제와 해결책 탐구',
-    summary: '여러 앱에 분산된 정보 때문에 오히려 생산성이 저하되는 문제를 겪고 있습니다. 모든 정보를 한 곳에 모으려는 시도와 그 과정에서 발견한 새로운 방법론에 대해 다룹니다.',
-    notes: [
-      { id: 'note-4', title: '노트 앱 유목민 생활', body: '...', created_at: '2024-07-30T09:00:00Z' },
-      { id: 'note-5', title: 'Obsidian과 Logseq 비교 분석', body: '...', created_at: '2024-08-05T11:00:00Z' },
-    ],
-    relevanceScore: 0.85,
-  },
-];
+interface CachedThreadsResponse {
+  threads_data: InsightThread[];
+  last_updated_at: string;
+}
+
+interface GenerateWeights {
+  citation_weight: number;
+  sim_weight: number;
+  tag_weight: number;
+}
+
+// --- 시간 포맷팅 헬퍼 ---
+const formatTimeAgo = (dateString: string | null): string => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const now = new Date();
+  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+  let interval = seconds / 31536000;
+  if (interval > 1) return Math.floor(interval) + "년 전";
+  interval = seconds / 2592000;
+  if (interval > 1) return Math.floor(interval) + "달 전";
+  interval = seconds / 86400;
+  if (interval > 1) return Math.floor(interval) + "일 전";
+  interval = seconds / 3600;
+  if (interval > 1) return Math.floor(interval) + "시간 전";
+  interval = seconds / 60;
+  if (interval > 1) return Math.floor(interval) + "분 전";
+  return Math.floor(seconds) + "초 전";
+};
+
+// --- API 호출 함수 ---
+const fetchCachedThreads = async (): Promise<CachedThreadsResponse> => {
+  const response = await fetch('/api/v1/threads');
+  if (!response.ok) {
+    // 204 No Content와 같은 케이스를 고려하여, 데이터가 없을 경우 빈 응답을 반환할 수 있도록 처리
+    if (response.status === 204 || response.headers.get('content-length') === '0') {
+      return { threads_data: [], last_updated_at: '' };
+    }
+    const errText = await response.text();
+    throw new Error(`HTTP error! status: ${response.status}, body: ${errText}`);
+  }
+  return response.json();
+};
+
+const generateNewThreads = async (weights: GenerateWeights): Promise<InsightThread[]> => {
+  const response = await fetch('/api/v1/threads/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(weights),
+  });
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`HTTP error! status: ${response.status}, body: ${errText}`);
+  }
+  return response.json();
+};
+
 
 const LinksPage = () => {
-  const [threads, setThreads] = useState<InsightThread[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  
+  // TODO: ConnectionsWeights 컴포넌트와 연동 필요
+  const [weights, setWeights] = useState<GenerateWeights>({
+    citation_weight: 1.0,
+    sim_weight: 0.6,
+    tag_weight: 0.2,
+  });
 
-  useEffect(() => {
-    const fetchInsightThreads = async () => {
-      setIsLoading(true);
-      // 백엔드 구현 전까지 임시 목 데이터를 사용합니다.
-      // 1초의 로딩 딜레이를 시뮬레이션합니다.
-      setTimeout(() => {
-        setThreads(mockThreads);
-        setIsLoading(false);
-      }, 1000);
+  const { data: cachedData, error: queryError, isLoading: isLoadingInitial } = useQuery<CachedThreadsResponse, Error>({
+    queryKey: ['cachedThreads'],
+    queryFn: fetchCachedThreads,
+  });
 
-      /*
-      // TODO: 백엔드 구현 후 아래 코드로 복원하세요.
-      try {
-        const response = await fetch('/api/v1/threads');
-        if (!response.ok) {
-          const errText = await response.text();
-          throw new Error(`HTTP error! status: ${response.status}, body: ${errText}`);
-        }
-        const data = await response.json();
-        setThreads(data);
-      } catch (e: any) {
-        setError(e.message);
-      } finally {
-        setIsLoading(false);
-      }
-      */
-    };
+  const { mutate: generate, isPending: isGenerating, error: mutationError } = useMutation<InsightThread[], Error, GenerateWeights>({
+    mutationFn: generateNewThreads,
+    onSuccess: (newThreads: InsightThread[]) => {
+      // POST 성공 시, GET 쿼리 캐시를 새로운 데이터로 업데이트
+      const newData: CachedThreadsResponse = {
+        threads_data: newThreads,
+        last_updated_at: new Date().toISOString(),
+      };
+      queryClient.setQueryData(['cachedThreads'], newData);
+    },
+  });
 
-    fetchInsightThreads();
-  }, []);
+  const handleGenerateClick = () => {
+    generate(weights);
+  };
 
   const renderContent = () => {
-    if (isLoading) {
-      return <div className="flex items-center justify-center h-full text-gray-400">인사이트를 분석하는 중...</div>;
+    if (isLoadingInitial) {
+      return <div className="flex items-center justify-center h-full text-gray-400">캐시된 데이터 확인 중...</div>;
     }
 
+    const error = queryError || mutationError;
     if (error) {
-      return <div className="flex items-center justify-center h-full text-red-500">Error: {error}</div>;
+      return <div className="flex items-center justify-center h-full text-red-500">Error: {error.message}</div>;
     }
 
-    if (threads.length === 0) {
-      return <div className="flex items-center justify-center h-full text-gray-400">생성된 인사이트 스레드가 없습니다.</div>;
+    const threads = cachedData?.threads_data;
+
+    if (!threads || threads.length === 0) {
+      return (
+        <div className="text-center p-8">
+          <h3 className="text-xl font-bold mb-4">아직 연결된 생각이 없어요</h3>
+          <p className="text-gray-400 mb-6">내 노트들을 분석해서 새로운 인사이트를 발견해보세요.</p>
+          <button
+            onClick={handleGenerateClick}
+            disabled={isGenerating}
+            className="px-6 py-2 font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:bg-gray-500"
+          >
+            {isGenerating ? '분석 중...' : '내 생각 연결하기'}
+          </button>
+        </div>
+      );
     }
 
     return (
-      <div className="p-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {threads.map((thread) => (
-          <InsightThreadCard key={thread.threadId} thread={thread} />
-        ))}
+      <div className="p-4">
+        <div className="flex justify-between items-center mb-4">
+          <span className="text-sm text-gray-400">
+            마지막 분석: {formatTimeAgo(cachedData.last_updated_at)}
+          </span>
+          <button
+            onClick={handleGenerateClick}
+            disabled={isGenerating}
+            className="px-4 py-2 text-sm font-bold text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-gray-500"
+          >
+            {isGenerating ? '분석 중...' : '새로 분석하기'}
+          </button>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {threads.map((thread: InsightThread) => (
+            <InsightThreadCard key={thread.threadId} thread={thread} />
+          ))}
+        </div>
       </div>
     );
   };
 
   return (
     <PageLayout title="인사이트 스레드">
+      {/* TODO: 가중치 조절을 위한 ConnectionsWeights 컴포넌트 추가 위치 */}
       {renderContent()}
     </PageLayout>
   );
