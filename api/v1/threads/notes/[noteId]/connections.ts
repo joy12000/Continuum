@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { requireUser } from "../../../../lib/auth.js";
-import type { Note, NoteChunk, NoteLink } from "../../../../lib/types.js";
-import { prepareNotes, buildCitationSet, buildEdges, pairScore } from "../../../../lib/compute.js";
+import { requireUser } from "@lib/auth";
+import type { Note, NoteChunk, NoteLink } from "@lib/types";
+import { prepareNotes, buildCitationSet, pairScore, type PreparedNote } from "@lib/compute";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
@@ -32,14 +32,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(500).json({ error: "Failed to fetch notes", detail: nerr.message });
     return;
   }
-  const ids = (notes ?? []).map((n: any) => n.id);
+  const ids = (notes as Note[] ?? []).map((n: Note) => n.id);
   if (!ids.includes(noteId)) {
     res.status(404).json({ error: "Note not found" });
     return;
   }
 
   const { data: chunks, error: cerr } = await supabase
-    .from("note_chunks")
+    .from("note_embeddings")
     .select("note_id,embedding")
     .in("note_id", ids);
 
@@ -60,18 +60,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const prepared = prepareNotes(notes as Note[], (chunks as NoteChunk[]) ?? []);
-  const idx = prepared.findIndex((p) => p.note.id === noteId);
+  const idx = prepared.findIndex((p: PreparedNote) => p.note.id === noteId);
   const target = prepared[idx];
   const citationSet = buildCitationSet((links as NoteLink[]) ?? []);
 
   const results = prepared
-    .filter((_, i) => i !== idx)
-    .map((p) => ({
+    .filter((_: PreparedNote, i: number) => i !== idx)
+    .map((p: PreparedNote) => ({
       note_id: p.note.id,
       title: p.note.title,
       score: pairScore(target, p, citationSet, { citation: citation_weight, sim: sim_weight, tag: tag_weight })
     }))
-    .sort((a, b) => b.score - a.score)
+    .sort((a: { score: number }, b: { score: number }) => b.score - a.score)
     .slice(0, 50);
 
   res.status(200).json({ note_id: noteId, connections: results });

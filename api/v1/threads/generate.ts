@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { requireUser } from "../../../lib/auth.js";
-import type { InsightThread, Note, NoteChunk, NoteLink } from "../../../lib/types.js";
-import { prepareNotes, buildCitationSet, buildEdges, cluster, clusterScore } from "../../../lib/compute.js";
-import { summarizeThread } from "../../../lib/ai.js";
-import { upsertInsightThreadsCache } from "../../../lib/database.js";
+import { requireUser } from "@lib/auth";
+import type { InsightThread, Note, NoteChunk, NoteLink } from "@lib/types";
+import { prepareNotes, buildCitationSet, buildEdges, cluster, clusterScore } from "@lib/compute";
+import { summarizeThread } from "@lib/ai";
+import { upsertInsightThreadsCache } from "@lib/database";
 
 const MAX_NOTES = parseInt(process.env.CONTINUUM_MAX_NOTES || "400", 10);
 
@@ -35,7 +35,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const noteIds = (notes ?? []).map((n: any) => n.id);
+  const noteIds = (notes as Note[] ?? []).map((n: Note) => n.id);
   if (!noteIds.length) {
     const { lastUpdatedAt, error } = await upsertInsightThreadsCache(supabase, userId, []);
     if (error) {
@@ -48,7 +48,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // 2) Fetch embeddings
   const { data: chunks, error: cerr } = await supabase
-    .from("note_chunks")
+    .from("note_embeddings")
     .select("note_id,embedding")
     .in("note_id", noteIds);
 

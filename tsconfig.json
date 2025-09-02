@@ -12,17 +12,20 @@
       "DOM",
       "WebWorker"
     ],
-    
-    "baseUrl": "src",
+    "baseUrl": ".",
     "paths": {
       "@/*": [
-        "*"
+        "src/*"
+      ],
+      "@lib/*": [
+        "lib/*"
       ]
     },
     "skipLibCheck": true
   },
   "include": [
-    "src"
+    "src",
+    "lib"
   ],
   "exclude": [
     "src/**/*.spec.ts"

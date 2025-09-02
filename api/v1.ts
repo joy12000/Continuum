@@ -45,9 +45,9 @@ async function handleSearch(req: VercelRequest, res: VercelResponse) {
     let { data, error } = await sb.rpc('match_notes', args1);
 
     if (error) {
-      console.log('[search] rpc `match_notes` failed, falling back to `search_note_chunks`. Error:', error.message);
+      console.log('[search] rpc `match_notes` failed, falling back to `search_note_embeddings`. Error:', error.message);
       const args2: any = { q_emb: qEmb, limit_k, uid: uid || undefined };
-      const fallback = await sb.rpc('search_note_chunks', args2);
+      const fallback = await sb.rpc('search_note_embeddings', args2);
       data = fallback.data; error = fallback.error;
     }
 

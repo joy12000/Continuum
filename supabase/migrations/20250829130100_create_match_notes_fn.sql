@@ -17,7 +17,7 @@ BEGIN
     n.id,
     n.title,
     1 - (nc.embedding <=> query_embedding) as similarity
-  FROM public.note_chunks AS nc
+  FROM public.note_embeddings AS nc
   JOIN public.notes AS n ON n.id = nc.note_id
   WHERE n.user_id = auth.uid()
   AND 1 - (nc.embedding <=> query_embedding) > match_threshold

@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { requireUser } from "../../../../lib/auth.js";
+import { requireUser } from "@lib/auth";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
@@ -28,10 +28,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const backlinks = (data ?? []).map((row: any) => ({
+  const backlinks = (data ?? []).map((row: { from_note_id: string; to_note_id: string; notes: { title: string | null }[] | null }) => ({
     from_note_id: row.from_note_id,
     to_note_id: row.to_note_id,
-    title: row.notes?.title ?? null
+    title: row.notes?.[0]?.title ?? null
   }));
 
   res.status(200).json({ note_id: noteId, backlinks });

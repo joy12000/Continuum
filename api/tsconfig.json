@@ -3,11 +3,21 @@
   "compilerOptions": {
     "composite": true,
     "module": "ESNext",
-    "baseUrl": ".",
-    "paths": {}
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "baseUrl": "..",
+    "paths": {
+      "@/*": [
+        "src/*"
+      ],
+      "@lib/*": [
+        "lib/*"
+      ]
+    }
   },
   "include": [
     "./**/*.ts",
+    "../lib/**/*.ts",
     "../src/types/**/*.ts"
   ],
   "exclude": [

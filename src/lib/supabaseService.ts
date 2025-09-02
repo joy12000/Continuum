@@ -74,7 +74,7 @@ export async function addNoteAndChunks(note: { title?: string; body: string; use
     lang: "ko",
   }));
 
-  const { error: chunkError } = await supabase.from("note_chunks").insert(rows);
+  const { error: chunkError } = await supabase.from("note_embeddings").insert(rows);
   if (chunkError) {
     // Rollback local DB change if chunk insertion fails
     await db.notes.delete(noteData.id);
@@ -86,7 +86,7 @@ export async function addNoteAndChunks(note: { title?: string; body: string; use
 
 export async function recalculateChunksAndEmbeddings(noteId: string, newBody: string) {
   // 1. Delete old chunks
-  const { error: deleteError } = await supabase.from("note_chunks").delete().eq("note_id", noteId);
+  const { error: deleteError } = await supabase.from("note_embeddings").delete().eq("note_id", noteId);
   if (deleteError) throw deleteError;
 
   // 2. Create new chunks and embeddings
@@ -104,7 +104,7 @@ export async function recalculateChunksAndEmbeddings(noteId: string, newBody: st
     lang: "ko",
   }));
 
-  const { error: chunkError } = await supabase.from("note_chunks").insert(rows);
+  const { error: chunkError } = await supabase.from("note_embeddings").insert(rows);
   if (chunkError) throw chunkError;
 }
 
@@ -160,7 +160,7 @@ export async function deleteAllUserData(userId: string) {
 
   if (noteIds.length > 0) {
     const { error: chunkError } = await supabase
-      .from("note_chunks")
+      .from("note_embeddings")
       .delete()
       .in("note_id", noteIds);
     if (chunkError) console.error("Error deleting chunks:", chunkError); // Log error but continue
