@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import PageLayout from '../components/PageLayout';
+import InsightThreadCard from '../components/InsightThreadCard';
 
 // openapi.yaml에 정의된 InsightThread 스키마를 기반으로 타입 정의
 interface InsightThread {
@@ -48,18 +49,11 @@ const LinksPage = () => {
       return <div className="flex items-center justify-center h-full text-gray-400">생성된 인사이트 스레드가 없습니다.</div>;
     }
 
-    // 스레드 데이터를 화면에 렌더링 (기본 목록 형태)
+    // 스레드 데이터를 InsightThreadCard 컴포넌트를 사용해 렌더링
     return (
-      <div className="p-4 space-y-4">
+      <div className="p-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {threads.map((thread) => (
-          <div key={thread.threadId} className="p-4 border rounded-lg shadow-md bg-slate-800/50 border-slate-700">
-            <h3 className="text-lg font-bold">{thread.title}</h3>
-            <p className="mt-2 text-gray-300">{thread.summary}</p>
-            <div className="mt-3 text-xs text-gray-400">
-              <p>관련 노트 수: {thread.noteIds.length}</p>
-              <p>관련성 점수: {thread.relevanceScore.toFixed(2)}</p>
-            </div>
-          </div>
+          <InsightThreadCard key={thread.threadId} thread={thread} />
         ))}
       </div>
     );
