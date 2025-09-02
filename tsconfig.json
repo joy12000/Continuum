@@ -5,6 +5,8 @@
     "moduleResolution": "Bundler",
     "strict": true,
     "jsx": "react-jsx",
+    "declaration": true,
+    "declarationMap": true,
     "lib": [
       "ES2021",
       "DOM",

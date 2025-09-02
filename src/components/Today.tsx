@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-import { ConnectionsPanel } from "./ConnectionsPanel";
+
 import { supabase } from "../lib/supabase";
 import { searchChunks, getNotesByIds } from "../lib/supabaseService";
 

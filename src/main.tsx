@@ -7,7 +7,7 @@ import './styles/sky.css';
 import './styles/toast.css';
 import './styles/modal.css';
 import './styles/calendar.css';
-import './styles/links-timeline.css';
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <App />
