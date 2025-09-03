@@ -103,10 +103,11 @@ async function handleSearch(req: VercelRequest, res: VercelResponse) {
     const limit_k = Number(Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit) || 12;
 
     const args: any = {
+      limit_k: limit_k,
       q_emb: qEmb,
-      limit_k: limit_k
+      uid: uid
     };
-    const { data, error } = await sb.rpc('search_note_embeddings', args);
+    const { data, error } = await sb.rpc('search_chunk', args);
 
     if (error) return res.status(500).json({ error: `[supabase] ${error.message}` });
     return res.status(200).json(data || []);
