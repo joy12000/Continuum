@@ -47,7 +47,7 @@ async function runThreadGeneration(jobId: string, userId: string, token: string)
     // 3) Compute and summarize
     const prepared = prepareNotes(notes as Note[], (chunks as NoteChunk[]) ?? []);
     const citationSet = buildCitationSet((links as NoteLink[]) ?? []);
-    const edges = buildEdges(prepared, citationSet, {});
+    const edges = buildEdges(prepared, citationSet, { citation: 0.5, sim: 1.0, tag: 0.25 });
     const { clusters } = cluster(prepared, edges);
 
     const out: InsightThread[] = [];

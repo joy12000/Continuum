@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { TaskType } from '@google/generative-ai';
-import { getEmbedding, getGenerativeModel } from '../lib/generativeai.js';
+import { getEmbedding, getGenerativeModel } from './lib/generativeai.js';
 import { trimContext as trim } from './generate-utils/trim.js';
 
 export const config = { runtime: 'nodejs' };
