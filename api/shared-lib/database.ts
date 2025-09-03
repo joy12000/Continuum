@@ -12,7 +12,7 @@ interface CacheEntry {
 export async function getInsightThreadsCache(supabase: SupabaseClient, userId: UUID): Promise<{ threads: InsightThread[], lastUpdatedAt: string | null }> {
   const { data, error } = await supabase
     .from(TABLE)
-    .select('threads, last_updated_at')
+    .select('threads_data, last_updated_at')
     .eq('user_id', userId)
     .maybeSingle();
 
