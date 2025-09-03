@@ -107,7 +107,7 @@ async function handleSearch(req: VercelRequest, res: VercelResponse) {
       q_emb: qEmb,
       uid: uid
     };
-    const { data, error } = await sb.rpc('search_chunk', args);
+    const { data, error } = await sb.rpc('search_chunks', args);
 
     if (error) return res.status(500).json({ error: `[supabase] ${error.message}` });
     return res.status(200).json(data || []);
