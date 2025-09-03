@@ -1,17 +1,5 @@
 import React from 'react';
-interface Note {
-    id: string;
-    title: string;
-    body: string;
-    created_at: string;
-}
-interface InsightThread {
-    threadId: string;
-    title: string;
-    summary: string;
-    notes: Note[];
-    relevanceScore: number;
-}
+import type { InsightThread } from '@lib/types';
 interface InsightThreadCardProps {
     thread: InsightThread;
 }

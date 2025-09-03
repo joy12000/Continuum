@@ -18,9 +18,12 @@
   "include": [
     "./**/*.ts",
     "../lib/**/*.ts",
+    "../src/lib/**/*.ts",
+    "../src/store/**/*.ts",
     "../src/types/**/*.ts"
   ],
   "exclude": [
-    "./**/*.spec.ts"
+    "./**/*.spec.ts",
+    "../src/**/*.spec.ts"
   ]
 }

@@ -1,140 +1,128 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+
+import React, { useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import PageLayout from '@/components/PageLayout';
 import InsightThreadCard from '@/components/InsightThreadCard';
+import GenerationProgress from '@/components/GenerationProgress';
+import { useJobStatus } from '@/hooks/useJobStatus';
+import { supabase } from '@/lib/supabase';
 
-// --- 타입 정의 (OpenAPI 명세 기반) ---
-interface Note {
-  id: string;
-  title: string;
-  body: string;
-  created_at: string;
-}
+import type { InsightThread } from '@lib/types';
 
-interface InsightThread {
-  threadId: string;
-  title: string;
-  summary: string;
-  notes: Note[];
-  relevanceScore: number;
-}
-
+// --- Type Definitions ---
 interface CachedThreadsResponse {
-  threads_data: InsightThread[];
-  last_updated_at: string;
+  threads: InsightThread[];
+  lastUpdatedAt: string | null;
 }
 
-interface GenerateWeights {
-  citation_weight: number;
-  sim_weight: number;
-  tag_weight: number;
-}
-
-// --- 시간 포맷팅 헬퍼 ---
+// --- Time Formatting Helper ---
 const formatTimeAgo = (dateString: string | null): string => {
-  if (!dateString) return '';
+  if (!dateString) return 'N/A';
   const date = new Date(dateString);
   const now = new Date();
   const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-  let interval = seconds / 31536000;
-  if (interval > 1) return Math.floor(interval) + "년 전";
-  interval = seconds / 2592000;
-  if (interval > 1) return Math.floor(interval) + "달 전";
-  interval = seconds / 86400;
-  if (interval > 1) return Math.floor(interval) + "일 전";
-  interval = seconds / 3600;
-  if (interval > 1) return Math.floor(interval) + "시간 전";
-  interval = seconds / 60;
-  if (interval > 1) return Math.floor(interval) + "분 전";
-  return Math.floor(seconds) + "초 전";
+  if (seconds < 60) return `${seconds}초 전`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}분 전`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}시간 전`;
+  const days = Math.floor(hours / 24);
+  return `${days}일 전`;
 };
 
-import { supabase } from '@/lib/supabase';
-
-// --- API 호출 함수 ---
+// --- API Call Functions ---
 const fetchCachedThreads = async (): Promise<CachedThreadsResponse> => {
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
-
   const response = await fetch('/api/v1/threads', {
-    headers: {
-      ...(token && { Authorization: `Bearer ${token}` }),
-    },
+    headers: { ...(token && { Authorization: `Bearer ${token}` }) },
   });
   if (!response.ok) {
-    // 204 No Content와 같은 케이스를 고려하여, 데이터가 없을 경우 빈 응답을 반환할 수 있도록 처리
     if (response.status === 204 || response.headers.get('content-length') === '0') {
-      return { threads_data: [], last_updated_at: '' };
+      return { threads: [], lastUpdatedAt: null };
     }
-    const errText = await response.text();
-    throw new Error(`HTTP error! status: ${response.status}, body: ${errText}`);
+    throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();
 };
 
-const generateNewThreads = async (weights: GenerateWeights): Promise<InsightThread[]> => {
-  const { data: { session } } = await supabase.auth.getSession();
-  const token = session?.access_token;
-
-  const response = await fetch('/api/v1/threads/generate', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
-    },
-    body: JSON.stringify(weights),
-  });
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`HTTP error! status: ${response.status}, body: ${errText}`);
-  }
-  return response.json();
+const startGenerationJob = async (): Promise<{ jobId: string }> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    const response = await fetch('/api/v1/threads/generate/start', {
+        method: 'POST',
+        headers: { ...(token && { Authorization: `Bearer ${token}` }) },
+    });
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: "An unknown error occurred." }));
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+    return response.json();
 };
-
 
 const LinksPage = () => {
   const queryClient = useQueryClient();
-  
-  // TODO: ConnectionsWeights 컴포넌트와 연동 필요
-  const [weights, setWeights] = useState<GenerateWeights>({
-    citation_weight: 1.0,
-    sim_weight: 0.6,
-    tag_weight: 0.2,
-  });
+  const [jobId, setJobId] = useState<string | null>(localStorage.getItem('continuum_job_id'));
 
   const { data: cachedData, error: queryError, isLoading: isLoadingInitial } = useQuery<CachedThreadsResponse, Error>({
     queryKey: ['cachedThreads'],
     queryFn: fetchCachedThreads,
   });
 
-  const { mutate: generate, isPending: isGenerating, error: mutationError } = useMutation<InsightThread[], Error, GenerateWeights>({
-    mutationFn: generateNewThreads,
-    onSuccess: (newThreads: InsightThread[]) => {
-      // POST 성공 시, GET 쿼리 캐시를 새로운 데이터로 업데이트
-      const newData: CachedThreadsResponse = {
-        threads_data: newThreads,
-        last_updated_at: new Date().toISOString(),
-      };
-      queryClient.setQueryData(['cachedThreads'], newData);
-    },
-  });
-
-  const handleGenerateClick = () => {
-    generate(weights);
+  const handleJobSuccess = () => {
+    console.log("Job completed successfully!");
+    alert("인사이트 스레드 분석이 완료되었습니다!");
+    localStorage.removeItem('continuum_job_id');
+    setJobId(null);
+    queryClient.invalidateQueries({ queryKey: ['cachedThreads'] });
   };
 
+  const handleJobError = (error: string) => {
+    console.error("Job failed:", error);
+    alert(`오류가 발생했습니다: ${error}`);
+    localStorage.removeItem('continuum_job_id');
+    setJobId(null);
+  };
+
+  const jobStatus = useJobStatus({
+    jobId,
+    onSuccess: handleJobSuccess,
+    onError: handleJobError,
+  });
+
+  const handleGenerateClick = async () => {
+    try {
+      const data = await startGenerationJob();
+      localStorage.setItem('continuum_job_id', data.jobId);
+      setJobId(data.jobId);
+    } catch (error: any) {
+      alert(`분석 시작에 실패했습니다: ${error.message}`);
+    }
+  };
+  
+  useEffect(() => {
+    // Check for running jobs on page load
+    const runningJobId = localStorage.getItem('continuum_job_id');
+    if (runningJobId) {
+      setJobId(runningJobId);
+    }
+  }, []);
+
   const renderContent = () => {
+    if (jobStatus === 'pending' || jobStatus === 'processing') {
+        return <GenerationProgress />;
+    }
+
     if (isLoadingInitial) {
       return <div className="flex items-center justify-center h-full text-gray-400">캐시된 데이터 확인 중...</div>;
     }
 
-    const error = queryError || mutationError;
-    if (error) {
-      return <div className="flex items-center justify-center h-full text-red-500">Error: {error.message}</div>;
+    if (queryError) {
+      return <div className="flex items-center justify-center h-full text-red-500">Error: {queryError.message}</div>;
     }
 
-    const threads = cachedData?.threads_data;
+    const threads = cachedData?.threads;
 
     if (!threads || threads.length === 0) {
       return (
@@ -143,10 +131,9 @@ const LinksPage = () => {
           <p className="text-gray-400 mb-6">내 노트들을 분석해서 새로운 인사이트를 발견해보세요.</p>
           <button
             onClick={handleGenerateClick}
-            disabled={isGenerating}
             className="px-6 py-2 font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:bg-gray-500"
           >
-            {isGenerating ? '분석 중...' : '내 생각 연결하기'}
+            내 생각 연결하기
           </button>
         </div>
       );
@@ -156,14 +143,13 @@ const LinksPage = () => {
       <div className="p-4">
         <div className="flex justify-between items-center mb-4">
           <span className="text-sm text-gray-400">
-            마지막 분석: {formatTimeAgo(cachedData.last_updated_at)}
+            마지막 분석: {formatTimeAgo(cachedData.lastUpdatedAt)}
           </span>
           <button
             onClick={handleGenerateClick}
-            disabled={isGenerating}
             className="px-4 py-2 text-sm font-bold text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-gray-500"
           >
-            {isGenerating ? '분석 중...' : '새로 분석하기'}
+            새로 분석하기
           </button>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -177,7 +163,6 @@ const LinksPage = () => {
 
   return (
     <PageLayout title="인사이트 스레드">
-      {/* TODO: 가중치 조절을 위한 ConnectionsWeights 컴포넌트 추가 위치 */}
       {renderContent()}
     </PageLayout>
   );

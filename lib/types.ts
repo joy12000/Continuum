@@ -3,7 +3,7 @@ export type UUID = string;
 export interface Note {
   id: UUID;
   title: string | null;
-  content: string | null;
+  content: string;
   tags: string[];
   created_at: string;
   updated_at: string;
@@ -19,11 +19,12 @@ export interface NoteLink {
   to_note_id: UUID;
 }
 
+// Unified InsightThread type for the entire application
 export interface InsightThread {
-  id: string;
+  threadId: string;
   title: string;
   summary: string;
-  note_ids: UUID[];
+  notes: Note[];
+  relevanceScore: number;
   size: number;
-  score: number; // average internal connection score
 }

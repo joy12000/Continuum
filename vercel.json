@@ -1,5 +1,10 @@
 {
-  "name": "continuum",
+  "crons": [
+    {
+      "path": "/api/v1/cron/process-jobs",
+      "schedule": "* * * * *"
+    }
+  ],
   "builds": [
     {
       "src": "package.json",
@@ -8,7 +13,9 @@
     },
     { "src": "api/v1.ts", "use": "@vercel/node" },
     { "src": "api/v1/threads/index.ts", "use": "@vercel/node" },
-    { "src": "api/v1/threads/generate/index.ts", "use": "@vercel/node" },
+    { "src": "api/v1/threads/generate/start/index.ts", "use": "@vercel/node" },
+    { "src": "api/v1/threads/generate/status/index.ts", "use": "@vercel/node" },
+    { "src": "api/v1/cron/process-jobs.ts", "use": "@vercel/node" },
     { "src": "api/v1/threads/notes/[noteId]/connections.ts", "use": "@vercel/node" },
     { "src": "api/v1/threads/notes/[noteId]/backlinks.ts", "use": "@vercel/node" }
   ],
