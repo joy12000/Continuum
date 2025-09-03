@@ -97,6 +97,10 @@ async function handleSearch(req: VercelRequest, res: VercelResponse) {
     const hUid = (req.headers['x-user-id'] as string | undefined) || '';
     const uid = (qUid || hUid || '').toString().trim();
 
+    if (!uid) {
+      return res.status(400).json({ error: 'User ID is required for search.' });
+    }
+
     const sb = pickSupabase(req);
     if (!sb) return res.status(401).json({ error: 'Authentication required.' });
     const qEmb = await getEmbedding(q, TaskType.RETRIEVAL_QUERY);
