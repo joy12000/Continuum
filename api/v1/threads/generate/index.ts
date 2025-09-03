@@ -1,1 +1,0 @@
-// This file is deprecated and replaced by the start/status endpoints.
