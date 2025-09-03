@@ -50,7 +50,7 @@ const fetchCachedThreads = async (): Promise<CachedThreadsResponse> => {
 const startGenerationJob = async (): Promise<{ jobId: string }> => {
     const { data: { session } } = await supabase.auth.getSession();
     const token = session?.access_token;
-    const response = await fetch('/api/v1/threads/generate', {
+    const response = await fetch('/api/v1?action=generate-thread', {
         method: 'POST',
         headers: { ...(token && { Authorization: `Bearer ${token}` }) },
     });
