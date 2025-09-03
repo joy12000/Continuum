@@ -9,7 +9,7 @@ import { AnswerData, Note } from '../types/common';
 import { HandThumbUpIcon as ThumbUpIcon, HandThumbDownIcon as ThumbDownIcon } from '@heroicons/react/24/solid';
 
 // Component to render the search results
-const SearchResultsList = ({ results, loading }: { results: SearchResult[], loading: boolean }) => {
+const SearchResultsList = ({ results, loading, noteTitlesMap }: { results: SearchResult[], loading: boolean, noteTitlesMap: Record<string, string> }) => {
   if (loading) {
     return <div className="p-4 text-gray-400 text-center">Searching...</div>;
   }
@@ -36,11 +36,11 @@ const SearchResultsList = ({ results, loading }: { results: SearchResult[], load
                 className="text-lg font-semibold text-sky-300"
                 style={{ textShadow: '0 0 0.5rem rgba(125, 211, 252, 0.3)' }}
               >
-                {result.title}
+                {noteTitlesMap[result.note_id] || 'Untitled Note'}
               </h3>
               <div 
                 className="text-sm text-gray-300 mt-2 snippet"
-                dangerouslySetInnerHTML={{ __html: result.snippet_html }}
+                dangerouslySetInnerHTML={{ __html: result.content }}
                 style={{ textShadow: '0 0 0.3rem rgba(200, 220, 255, 0.2)' }}
               />
             </div>
@@ -53,7 +53,7 @@ const SearchResultsList = ({ results, loading }: { results: SearchResult[], load
               </button>
             </div>
           </div>
-          <div className="text-xs text-gray-500 mt-2">Score: {result.score.toFixed(3)}</div>
+          <div className="text-xs text-gray-500 mt-2">Score: {result.distance.toFixed(3)}</div>
         </li>
       ))}
     </ul>
@@ -71,10 +71,14 @@ const SearchPage = ({ session }: { session: Session | null }) => {
     error: null,
   });
 
+  // New state for note titles map
+  const [noteTitlesMap, setNoteTitlesMap] = useState<Record<string, string>>({});
+
   useEffect(() => {
     const generateAnswer = async () => {
       if (!results || results.length === 0 || query.trim().length < 2) {
         setGeneratedAnswer({ data: null, isLoading: false, error: null });
+        setNoteTitlesMap({}); // Clear map when no results
         return;
       }
 
@@ -87,6 +91,13 @@ const SearchPage = ({ session }: { session: Session | null }) => {
         if (!contextNotes || contextNotes.length === 0) {
           throw new Error("Could not fetch context notes.");
         }
+
+        // Populate noteTitlesMap
+        const newNoteTitlesMap: Record<string, string> = {};
+        contextNotes.forEach((n: Note) => {
+          newNoteTitlesMap[n.id] = n.title || 'Untitled Note';
+        });
+        setNoteTitlesMap(newNoteTitlesMap);
 
         const generateRes = await fetch('/api/v1?action=generate', {
           method: 'POST',

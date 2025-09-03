@@ -5,9 +5,9 @@ import { supabase } from '../lib/supabase';
 
 export type SearchResult = {
   note_id: string;
-  title: string;
-  snippet_html: string;
-  score: number;
+  chunk_index: number;
+  content: string;
+  distance: number;
 };
 
 export function useSearch(query: string, token: string | undefined) {
