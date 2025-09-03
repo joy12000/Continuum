@@ -159,7 +159,7 @@ const SearchPage = ({ session }: { session: Session | null }) => {
         {generatedAnswer.data && <GeneratedAnswer data={generatedAnswer.data} />} 
       </div>
       <div className="mt-6">
-        <SearchResultsList results={results} loading={loading} />
+        <SearchResultsList results={results} loading={loading} noteTitlesMap={noteTitlesMap} />
       </div>
     </PageLayout>
   );
