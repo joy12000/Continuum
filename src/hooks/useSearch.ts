@@ -30,7 +30,14 @@ export function useSearch(query: string, token: string | undefined) {
           headers['Authorization'] = `Bearer ${token}`;
         }
 
-        const res = await fetch(`/api/v1?action=search&q=${encodeURIComponent(trimmedQuery)}`, {
+        // Get user ID from Supabase
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          throw new Error('User not found. Please log in.');
+        }
+        const userId = user.id;
+
+        const res = await fetch(`/api/v1?action=search&q=${encodeURIComponent(trimmedQuery)}&uid=${userId}`, {
           headers,
         });
 
