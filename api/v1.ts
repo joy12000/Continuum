@@ -40,15 +40,12 @@ async function handleSearch(req: VercelRequest, res: VercelResponse) {
     const qEmb = await getEmbedding(q, TaskType.RETRIEVAL_QUERY);
     const limit_k = Number(Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit) || 12;
 
-    const args1: any = { query_embedding: qEmb, match_threshold: 0.7, match_count: limit_k };
-    let { data, error } = await sb.rpc('match_notes', args1);
-
-    if (error) {
-      console.log('[search] rpc `match_notes` failed, falling back to `search_note_embeddings`. Error:', error.message);
-      const args2: any = { q_emb: qEmb, limit_k, uid: uid || undefined };
-      const fallback = await sb.rpc('search_note_embeddings', args2);
-      data = fallback.data; error = fallback.error;
-    }
+    const args: any = {
+      q_emb: qEmb,
+      limit_k: limit_k,
+      uid: uid || undefined
+    };
+    const { data, error } = await sb.rpc('search_note_embeddings', args);
 
     if (error) return res.status(500).json({ error: `[supabase] ${error.message}` });
     return res.status(200).json(data || []);
