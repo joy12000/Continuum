@@ -96,8 +96,9 @@ async function handleSearch(req: VercelRequest, res: VercelResponse) {
     const qUid = Array.isArray(req.query.uid) ? req.query.uid[0] : req.query.uid;
     const hUid = (req.headers['x-user-id'] as string | undefined) || '';
     const uid = (qUid || hUid || '').toString().trim();
+    const finalUid = uid === '' ? null : uid; // Convert empty string to null
 
-    if (!uid) {
+    if (!finalUid) { // Check for null
       return res.status(400).json({ error: 'User ID is required for search.' });
     }
 
@@ -109,7 +110,7 @@ async function handleSearch(req: VercelRequest, res: VercelResponse) {
     const args: any = {
       limit_k: limit_k,
       q_emb: qEmb,
-      uid: uid
+      uid: finalUid // Pass finalUid
     };
     const { data, error } = await sb.rpc('search_chunks', args);
 
