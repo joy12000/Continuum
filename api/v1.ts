@@ -104,8 +104,7 @@ async function handleSearch(req: VercelRequest, res: VercelResponse) {
 
     const args: any = {
       q_emb: qEmb,
-      limit_k: limit_k,
-      uid: uid || undefined
+      limit_k: limit_k
     };
     const { data, error } = await sb.rpc('search_note_embeddings', args);
 
