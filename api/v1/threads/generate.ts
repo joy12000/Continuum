@@ -1,3 +1,4 @@
+// Forcing a change to trigger deployment
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { requireUser } from "../../../lib/auth.js";
 import type { InsightThread, Note, NoteChunk, NoteLink } from "../../../lib/types.js";
