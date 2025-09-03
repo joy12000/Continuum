@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { requireUser } from "@lib/auth";
-import type { Note, NoteChunk, NoteLink } from "@lib/types";
-import { prepareNotes, buildCitationSet, pairScore, type PreparedNote } from "@lib/compute";
+import { requireUser } from "../../../../../lib/auth";
+import type { Note, NoteChunk, NoteLink } from "../../../../../lib/types";
+import { prepareNotes, buildCitationSet, pairScore, type PreparedNote } from "../../../../../lib/compute";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {

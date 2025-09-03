@@ -30,8 +30,5 @@
   ],
   "exclude": [
     "src/**/*.spec.ts"
-  ],
-  "references": [
-    { "path": "./api" }
   ]
 }
