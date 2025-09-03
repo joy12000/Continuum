@@ -1,17 +1,13 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { requireUser } from "../../../lib/auth";
-import { getInsightThreadsCache } from "../../../lib/database";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
-    res.status(405).json({ error: "Method not allowed" });
-    return;
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
   const auth = await requireUser(req, res);
   if (!auth) return;
-  const { supabase, userId } = auth;
 
-  const { threads, lastUpdatedAt } = await getInsightThreadsCache(supabase, userId);
-  res.status(200).json({ threads, lastUpdatedAt });
+  res.status(200).json({ message: "Threads API is working" });
 }
