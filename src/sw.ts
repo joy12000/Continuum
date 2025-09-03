@@ -7,7 +7,7 @@ import Dexie, { Table } from "dexie";
 
 // The DB class needs to be redefined or imported in the worker scope.
 // Based on src/store/db.ts
-export interface Note { id: string; content: string; createdAt: number; updatedAt: number; tags: string[]; }
+export interface Note { id: string; body: string; createdAt: number; updatedAt: number; tags: string[]; }
 export class AppDB extends Dexie {
   notes!: Table<Note, string>;
   constructor(){ super("continuum");

@@ -1,5 +1,5 @@
 import Dexie, { Table } from "dexie";
-export interface Note { id: string; title?: string; content: string; createdAt: number; updatedAt: number; tags: string[]; }
+export interface Note { id: string; title?: string; body: string; createdAt: number; updatedAt: number; tags: string[]; }
 export interface Attachment { id: string; noteId: string; name: string; type: string; blob?: Blob; url?: string; createdAt: number; }
 export interface Embedding { id?: number; noteId: string; vec: number[]; updatedAt?: number; }
 export interface DedupLog { id?: number; ts: number; sim: number; accepted: boolean; }
@@ -34,12 +34,12 @@ export class AppDB extends Dexie {
 
       const removeNotes = await this.notes.bulkGet(removeIds);
       
-      let mergedContent = keepNote.content;
+      let mergedBody = keepNote.body;
       const mergedTags = new Set(keepNote.tags);
 
       for (const removeNote of removeNotes) {
         if (removeNote) {
-          mergedContent += `
+          mergedBody += `
 
 ---
 
@@ -50,7 +50,7 @@ ${removeNote.body}`;
 
       // Update the note to keep
       await this.notes.update(keepId, {
-        content: mergedContent,
+        body: mergedBody,
         tags: Array.from(mergedTags),
         updatedAt: Date.now(),
       });

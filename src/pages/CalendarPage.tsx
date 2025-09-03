@@ -41,7 +41,7 @@ const CalendarPage = () => {
       } else {
         const mappedNotes: Note[] = data.map((n: any) => ({
           id: n.id,
-          content: n.body,
+          body: n.body,
           title: n.title,
           tags: n.tags || [],
           citations: n.citations || [],

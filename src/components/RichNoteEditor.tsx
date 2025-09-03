@@ -23,7 +23,7 @@ export function RichNoteEditor({ note: initialNote, onSaved, onSave, autoFocus, 
 
   const editor = useEditor({
     extensions: [StarterKit],
-    content: initialNote?.content || "",
+    content: initialNote?.body || "",
     autofocus: autoFocus,
     editorProps: { attributes: { class: "prose prose-invert max-w-none min-h-[96px] focus:outline-none" } },
     onUpdate: ({ editor }) => {
