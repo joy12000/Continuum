@@ -3,7 +3,13 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { TaskType } from '@google/generative-ai';
 
 // Base imports
-import { getEmbedding, getGenerativeModel } from './lib/generativeai.js';
+import { getEmbedding, getGenerativeModel } from './shared-lib/generativeai.js';
+import { requireUser } from './shared-lib/auth.js';
+import { getSupabaseClient } from './shared-lib/supabaseClient.js';
+import type { InsightThread, Note, NoteChunk, NoteLink, PreparedNote } from './shared-lib/types.js';
+import { getInsightThreadsCache, upsertInsightThreadsCache } from './shared-lib/database.js';
+import { summarizeThread } from './shared-lib/ai.js';
+import { prepareNotes, buildCitationSet, buildEdges, cluster, clusterScore, pairScore } from './shared-lib/compute.js';
 
 import { requireUser } from '../lib/auth.js';
 import { getSupabaseClient } from '../lib/supabaseClient.js';
