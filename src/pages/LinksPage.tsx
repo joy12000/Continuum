@@ -50,9 +50,18 @@ const formatTimeAgo = (dateString: string | null): string => {
   return Math.floor(seconds) + "초 전";
 };
 
+import { supabase } from '@/lib/supabase';
+
 // --- API 호출 함수 ---
 const fetchCachedThreads = async (): Promise<CachedThreadsResponse> => {
-  const response = await fetch('/api/v1/threads');
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+
+  const response = await fetch('/api/v1/threads', {
+    headers: {
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+  });
   if (!response.ok) {
     // 204 No Content와 같은 케이스를 고려하여, 데이터가 없을 경우 빈 응답을 반환할 수 있도록 처리
     if (response.status === 204 || response.headers.get('content-length') === '0') {
@@ -65,9 +74,15 @@ const fetchCachedThreads = async (): Promise<CachedThreadsResponse> => {
 };
 
 const generateNewThreads = async (weights: GenerateWeights): Promise<InsightThread[]> => {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+
   const response = await fetch('/api/v1/threads/generate', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
     body: JSON.stringify(weights),
   });
   if (!response.ok) {
