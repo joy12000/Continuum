@@ -296,7 +296,7 @@ async function handleGetConnections(req: VercelRequest, res: VercelResponse) {
   if (!ids.includes(noteId)) {
     return res.status(404).json({ error: "Note not found" });
   }
-  const { data: chunks, error: cerr } = await supabase.from("note_embeddings").select("note_id,embedding").in("note_id", ids);
+  const { data: chunks, error: cerr } = await supabase.from("note_chunks").select("note_id,embedding").in("note_id", ids);
   if (cerr) {
     return res.status(500).json({ error: "Failed to fetch chunk embeddings", detail: cerr.message });
   }
