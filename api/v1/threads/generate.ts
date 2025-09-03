@@ -4,110 +4,116 @@ import type { InsightThread, Note, NoteChunk, NoteLink } from "../../../lib/type
 import { prepareNotes, buildCitationSet, buildEdges, cluster, clusterScore } from "../../../lib/compute.js";
 import { summarizeThread } from "../../../lib/ai.js";
 import { upsertInsightThreadsCache } from "../../../lib/database.js";
+import { getSupabaseClient } from "../../../lib/supabaseClient.js";
 
 const MAX_NOTES = parseInt(process.env.CONTINUUM_MAX_NOTES || "400", 10);
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "POST") {
-    res.status(405).json({ error: "Method not allowed" });
-    return;
-  }
+async function runThreadGeneration(userId: string, token: string) {
+  const supabase = getSupabaseClient(token);
 
-  const auth = await requireUser(req, res);
-  if (!auth) return;
-  const { supabase, userId } = auth;
+  try {
+    // 1) Fetch notes
+    const { data: notes, error: nerr } = await supabase
+      .from("notes")
+      .select("id,title,content,tags,created_at,updated_at")
+      .order("created_at", { ascending: true })
+      .limit(MAX_NOTES);
+    if (nerr) throw new Error(`Failed to fetch notes: ${nerr.message}`);
 
-  // weights from JSON body or query fallback
-  const body = (req.body && typeof req.body === "object") ? req.body as any : {};
-  const citation_weight = Number(body.citation_weight ?? req.query.citation_weight ?? 1.0) || 1.0;
-  const sim_weight = Number(body.sim_weight ?? req.query.sim_weight ?? 0.6) || 0.6;
-  const tag_weight = Number(body.tag_weight ?? req.query.tag_weight ?? 0.2) || 0.2;
-
-  // 1) Fetch notes (owned by user via RLS)
-  const { data: notes, error: nerr } = await supabase
-    .from("notes")
-    .select("id,title,content,tags,created_at,updated_at")
-    .order("created_at", { ascending: true })
-    .limit(MAX_NOTES);
-
-  if (nerr) {
-    res.status(500).json({ error: "Failed to fetch notes", detail: nerr.message });
-    return;
-  }
-
-  const noteIds = (notes ?? []).map((n: any) => n.id);
-  if (!noteIds.length) {
-    const { lastUpdatedAt, error } = await upsertInsightThreadsCache(supabase, userId, []);
-    if (error) {
-      res.status(500).json({ error: "Failed to update cache", detail: error });
+    const noteIds = (notes ?? []).map((n: any) => n.id);
+    if (!noteIds.length) {
+      await upsertInsightThreadsCache(supabase, userId, []);
       return;
     }
-    res.status(200).json({ threads: [], lastUpdatedAt });
-    return;
-  }
 
-  // 2) Fetch embeddings
-  const { data: chunks, error: cerr } = await supabase
-    .from("note_chunks")
-    .select("note_id,embedding")
-    .in("note_id", noteIds);
+    // 2) Fetch embeddings and links
+    const { data: chunks, error: cerr } = await supabase.from("note_chunks").select("note_id,embedding").in("note_id", noteIds);
+    if (cerr) throw new Error(`Failed to fetch chunk embeddings: ${cerr.message}`);
 
-  if (cerr) {
-    res.status(500).json({ error: "Failed to fetch chunk embeddings", detail: cerr.message });
-    return;
-  }
+    const { data: links, error: lerr } = await supabase.from("note_links").select("from_note_id,to_note_id").in("from_note_id", noteIds).in("to_note_id", noteIds);
+    if (lerr) throw new Error(`Failed to fetch links: ${lerr.message}`);
 
-  // 3) Fetch citation links
-  const { data: links, error: lerr } = await supabase
-    .from("note_links")
-    .select("from_note_id,to_note_id")
-    .in("from_note_id", noteIds)
-    .in("to_note_id", noteIds);
+    // 3) Compute and summarize
+    const prepared = prepareNotes(notes as Note[], (chunks as NoteChunk[]) ?? []);
+    const citationSet = buildCitationSet((links as NoteLink[]) ?? []);
+    const edges = buildEdges(prepared, citationSet, {});
+    const { clusters } = cluster(prepared, edges);
 
-  if (lerr) {
-    res.status(500).json({ error: "Failed to fetch links", detail: lerr.message });
-    return;
-  }
+    const out: InsightThread[] = [];
+    for (const idxs of clusters) {
+      const groupNotes = idxs.map((i) => prepared[i].note);
+      if (!groupNotes.length) continue;
 
-  const prepared = prepareNotes(notes as Note[], (chunks as NoteChunk[]) ?? []);
-  const citationSet = buildCitationSet((links as NoteLink[]) ?? []);
-  const edges = buildEdges(prepared, citationSet, { citation: citation_weight, sim: sim_weight, tag: tag_weight });
-  const { clusters } = cluster(prepared, edges);
-
-  // 4) Summaries per cluster
-  const out: InsightThread[] = [];
-  for (const idxs of clusters) {
-    const groupNotes = idxs.map((i) => prepared[i].note);
-    if (!groupNotes.length) continue;
-
-    let title = "Insight Thread", summary = "";
-    try {
-      const s = await summarizeThread(groupNotes);
-      title = s.title || title;
-      summary = s.summary || summary;
-    } catch (e: any) {
-      summary = `Summary unavailable: ${e?.message ?? "LLM error"}`;
+      let title = "Insight Thread", summary = "";
+      try {
+        const s = await summarizeThread(groupNotes);
+        title = s.title || title;
+        summary = s.summary || summary;
+      } catch (e: any) {
+        summary = `Summary unavailable: ${e?.message ?? "LLM error"}`;
+      }
+      const score = clusterScore(idxs, edges);
+      out.push({
+        threadId: idxs.map((i) => prepared[i].note.id).join("_"),
+        title, summary, notes: groupNotes, size: idxs.length, relevanceScore: score
+      });
     }
-    const score = clusterScore(idxs, edges);
-    out.push({
-      threadId: idxs.map((i) => prepared[i].note.id).join("_"),
-      title,
-      summary,
-      notes: groupNotes,
-      size: idxs.length,
-      relevanceScore: score
-    });
+
+    out.sort((a, b) => (b.relevanceScore * 0.7 + b.size * 0.3) - (a.relevanceScore * 0.7 + a.size * 0.3));
+
+    // 4) Upsert cache
+    await upsertInsightThreadsCache(supabase, userId, out);
+
+  } catch (error: any) {
+    console.error('runThreadGeneration failed:', error);
+    // Here you might want to update the job status to 'failed' in the database
   }
+}
 
-  // Sort threads by combined size/score importance
-  out.sort((a, b) => (b.relevanceScore * 0.7 + b.size * 0.3) - (a.relevanceScore * 0.7 + a.size * 0.3));
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const auth = await requireUser(req, res);
+  if (!auth) return;
+  const { supabase, userId, token } = auth;
 
-  // 5) Upsert cache
-  const { lastUpdatedAt, error: uerr } = await upsertInsightThreadsCache(supabase, userId, out);
-  if (uerr) {
-    res.status(500).json({ error: "Failed to update cache", detail: uerr });
-    return;
+  if (req.method === "POST") {
+    // Create a new job entry in the database
+    const { data: job, error: jobError } = await supabase
+      .from('thread_generation_jobs')
+      .insert({ user_id: userId, status: 'pending' })
+      .select()
+      .single();
+
+    if (jobError || !job) {
+      return res.status(500).json({ message: 'Failed to create generation job', detail: jobError?.message });
+    }
+
+    // Fire-and-forget the long-running task
+    runThreadGeneration(userId, token).catch(console.error);
+
+    // Immediately respond with the job ID
+    return res.status(202).json({ jobId: job.id });
+
+  } else if (req.method === "GET") {
+    const { jobId } = req.query;
+    if (!jobId || typeof jobId !== 'string') {
+      return res.status(400).json({ error: 'jobId query parameter is required' });
+    }
+
+    const { data, error } = await supabase
+      .from('thread_generation_jobs')
+      .select('status')
+      .eq('id', jobId)
+      .eq('user_id', userId) // RLS should handle this, but being explicit is safer
+      .single();
+
+    if (error || !data) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
+    return res.status(200).json({ status: data.status });
+
+  } else {
+    res.setHeader("Allow", ["GET", "POST"]);
+    res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   }
-
-  res.status(200).json({ threads: out, lastUpdatedAt });
 }

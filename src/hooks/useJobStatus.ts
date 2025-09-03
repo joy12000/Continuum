@@ -27,7 +27,7 @@ export const useJobStatus = ({ jobId, onSuccess, onError, interval = 3000 }: Use
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
 
-        const response = await fetch(`/api/v1/threads/generate/status?jobId=${jobId}`, {
+        const response = await fetch(`/api/v1/threads/generate?jobId=${jobId}`, {
           headers: {
             ...(token && { Authorization: `Bearer ${token}` }),
           },
