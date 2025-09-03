@@ -1,6 +1,11 @@
 {
   "name": "continuum",
   "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": { "distDir": "dist" }
+    },
     { "src": "api/v1.ts", "use": "@vercel/node" },
     { "src": "api/v1/threads/index.ts", "use": "@vercel/node" },
     { "src": "api/v1/threads/generate.ts", "use": "@vercel/node" },
