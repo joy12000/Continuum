@@ -96,7 +96,7 @@ const Today: React.FC = () => {
         {results.map((r, i) => (
           <button key={`${r.note_id}-${i}`} onClick={() => handleSelectRow(r)} className="block w-full text-left p-2 hover:bg-gray-100 rounded">
             <div className="text-xs opacity-60">score: {typeof r.distance === "number" ? r.distance.toFixed(3) : "-"}</div>
-            <div className="line-clamp-2">{r.content}</div>
+            <div className="line-clamp-2">{r.body}</div>
           </button>
         ))}
       </div>

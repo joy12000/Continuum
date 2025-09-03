@@ -18,7 +18,7 @@ export async function summarizeThread(notes: Note[]): Promise<{ title: string; s
     const stamp = new Date(n.created_at).toISOString().slice(0, 10);
     const title = n.title ?? `Note ${i + 1}`;
     const tags = (n.tags ?? []).slice(0, 6).join(", ");
-    const content = (n.content ?? "").slice(0, 600);
+    const body = (n.body ?? "").slice(0, 600);
     return `- [${stamp}] ${title}${tags ? ` (tags: ${tags})` : ""}: ${content}`;
   }).join("\n");
 

@@ -97,7 +97,7 @@ const NoteDetailPage = () => {
       <div className="p-4 md:p-6">
         <h1 className="text-3xl font-bold mb-4 text-sky-400">{note.title || 'Untitled Note'}</h1>
         <div className="prose prose-invert max-w-none bg-slate-800/50 p-4 rounded-lg">
-          <p>{note.content}</p>
+          <p>{note.body}</p>
         </div>
 
         <div className="mt-8 grid gap-8 md:grid-cols-2">

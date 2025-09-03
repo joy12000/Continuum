@@ -18,7 +18,7 @@ export declare function getNotesByIds(noteIds: string[]): Promise<any>;
 export declare function searchChunks(query: string, userId: string): Promise<{
     note_id: string;
     chunk_index: number;
-    content: string;
+    body: string;
     distance: number;
 }[]>;
 export declare function deleteAllUserData(userId: string): Promise<void>;

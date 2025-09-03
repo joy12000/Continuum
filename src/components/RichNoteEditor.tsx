@@ -33,7 +33,7 @@ export function RichNoteEditor({ note: initialNote, onSaved, onSave, autoFocus, 
   });
 
   useEffect(() => {
-    editor?.commands.setContent(initialNote?.content || "");
+    editor?.commands.setContent(initialNote?.body || "");
     setTags(initialNote?.tags?.join(", ") || "");
     editor?.commands.focus("end");
   }, [initialNote, editor]);

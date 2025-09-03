@@ -94,7 +94,7 @@ const SearchPage = ({ session }: { session: Session | null }) => {
           body: JSON.stringify({
             type: 'rag',
             input: { query },
-            context: contextNotes.map((n: Note) => ({ id: n.id, body: n.content }))
+            context: contextNotes.map((n: Note) => ({ id: n.id, body: n.body }))
           })
         });
 

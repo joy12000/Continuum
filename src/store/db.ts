@@ -39,7 +39,11 @@ export class AppDB extends Dexie {
 
       for (const removeNote of removeNotes) {
         if (removeNote) {
-          mergedContent += `\n\n---\n\n${removeNote.content}`;
+          mergedContent += `
+
+---
+
+${removeNote.body}`;
           removeNote.tags.forEach(tag => mergedTags.add(tag));
         }
       }

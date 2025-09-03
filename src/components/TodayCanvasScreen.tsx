@@ -41,7 +41,7 @@ function NoteCard({ note, onSelect, isActive }: { note: Note, onSelect: (id: str
       <div className="text-xs text-text-secondary mb-2">{new Date(note.updatedAt).toLocaleString()}</div>
       <div 
         className="prose prose-invert prose-sm max-h-24 overflow-hidden text-ellipsis"
-        dangerouslySetInnerHTML={{ __html: note.content }}
+        dangerouslySetInnerHTML={{ __html: note.body }}
       />
       <div className="mt-2 flex flex-wrap gap-1">
         {note.tags.map(tag => (

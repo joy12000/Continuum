@@ -147,7 +147,7 @@ async function checkForPastNotes() {
     self.registration.showNotification(
       `${yearsAgo}년 전 오늘, 이런 생각을 했어요`,
       { 
-        body: targetNote.content.replace(/<[^>]+>/g, '').substring(0, 100), 
+        body: targetNote.body.replace(/<[^>]+>/g, '').substring(0, 100), 
         data: { noteId: targetNote.id },
         icon: '/icons/icon-192.png'
       }

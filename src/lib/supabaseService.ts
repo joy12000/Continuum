@@ -52,7 +52,7 @@ export async function addNoteAndChunks(note: { title?: string; body: string; use
   await db.notes.put({
     id: noteData.id,
     title: noteData.title,
-    content: noteData.body,
+    body: noteData.body,
     createdAt: new Date(noteData.created_at).getTime(),
     updatedAt: new Date(noteData.updated_at).getTime(),
     tags: [],

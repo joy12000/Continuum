@@ -1,7 +1,7 @@
 import Dexie, { Table } from "dexie";
 export interface Note {
     id: string;
-    content: string;
+    body: string;
     createdAt: number;
     updatedAt: number;
     tags: string[];

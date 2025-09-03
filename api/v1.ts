@@ -39,7 +39,7 @@ async function runThreadGeneration(jobId: string, userId: string, token: string)
 
   try {
     await updateJobStatus('processing');
-    const { data: notes, error: nerr } = await supabase.from("notes").select("id,title,content,tags,created_at,updated_at").order("created_at", { ascending: true }).limit(MAX_NOTES);
+    const { data: notes, error: nerr } = await supabase.from("notes").select("id,title,body,tags,created_at,updated_at").order("created_at", { ascending: true }).limit(MAX_NOTES);
     if (nerr) throw new Error(`Failed to fetch notes: ${nerr.message}`);
     const noteIds = (notes ?? []).map((n: any) => n.id);
     if (!noteIds.length) {

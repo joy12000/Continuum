@@ -1,7 +1,7 @@
 export interface NoteLite {
     id: string;
     title?: string;
-    content?: string;
+    body?: string;
     tags?: string[];
     citations?: {
         noteId: string;

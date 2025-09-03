@@ -3,7 +3,7 @@ export type UUID = string;
 export interface Note {
   id: UUID;
   title: string | null;
-  content: string;
+  body: string;
   tags: string[];
   created_at: string;
   updated_at: string;

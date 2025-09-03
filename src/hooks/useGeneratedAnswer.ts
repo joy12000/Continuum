@@ -73,7 +73,7 @@ export function useGeneratedAnswer() {
         body: JSON.stringify({
           type: 'rag',
           input: { query: noteText },
-          context: contextNotes.map((n: Note) => ({ id: n.id, body: n.content }))
+          context: contextNotes.map((n: Note) => ({ id: n.id, body: n.body }))
         })
       });
   

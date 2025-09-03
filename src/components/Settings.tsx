@@ -145,7 +145,7 @@ export function Settings({ engine, setEngine, onNavigateHome, onNavigateToDiagno
           await deleteAllUserData(user.id);
 
           toast.info(`${importedNotes.length}개의 노트를 가져오는 중... (시간이 매우 오래 걸릴 수 있습니다)`);
-          const notesToBulkAdd = importedNotes.map(n => ({ title: n.title, body: n.content || n.body }));
+          const notesToBulkAdd = importedNotes.map(n => ({ title: n.title, body: n.body }));
           await bulkAddNotes(notesToBulkAdd, user.id);
 
           await db.notes.clear();
