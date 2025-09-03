@@ -11,13 +11,6 @@ import { getInsightThreadsCache, upsertInsightThreadsCache } from './shared-lib/
 import { summarizeThread } from './shared-lib/ai.js';
 import { prepareNotes, buildCitationSet, buildEdges, cluster, clusterScore, pairScore } from './shared-lib/compute.js';
 
-import { requireUser } from '../lib/auth.js';
-import { getSupabaseClient } from '../lib/supabaseClient.js';
-import type { InsightThread, Note, NoteChunk, NoteLink, PreparedNote } from '../lib/types.js';
-import { getInsightThreadsCache, upsertInsightThreadsCache } from './shared-lib/database.js';
-import { summarizeThread } from '../lib/ai.js';
-import { prepareNotes, buildCitationSet, buildEdges, cluster, clusterScore, pairScore } from '../lib/compute.js';
-
 export const config = { runtime: 'nodejs' };
 
 // --- HELPER FUNCTIONS ---
@@ -120,7 +113,7 @@ async function handleSearch(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json(data || []);
   } catch (e: any) {
     const msg = e?.message || 'v1 failed';
-    const tag = /^[\\\\[(supabase|google|openai|config)\\\]]/.test(msg) ? '' : '[unknown] ';
+    const tag = /^\^\[(supabase|google|openai|config)\]/.test(msg) ? '' : '[unknown] ';
     return res.status(500).json({ error: `${tag}${msg}` });
   }
 }
@@ -142,7 +135,7 @@ async function handleCreateGeminiEmbedding(req: VercelRequest, res: VercelRespon
     return res.status(200).json({ embeddings });
   } catch (e: any) {
     const msg = e?.message || 'Failed to create Gemini embedding';
-    const tag = /^[\\\\[(supabase|google|openai|config)\\\]]/.test(msg) ? '' : '[google] ';
+    const tag = /^\^\[(supabase|google|openai|config)\]/.test(msg) ? '' : '[google] ';
     return res.status(500).json({ error: `${tag}${msg}` });
   }
 }
@@ -164,7 +157,7 @@ async function handleGenerate(req: VercelRequest, res: VercelResponse) {
 
   } catch (e: any) {
     const msg = e?.message || 'Generate handler failed';
-    const tag = /^[\\\\[(supabase|google|openai|config)\\\]]/.test(msg) ? '' : '[google] ';
+    const tag = /^\^\[(supabase|google|openai|config)\]/.test(msg) ? '' : '[google] ';
     return res.status(500).json({ error: `${tag}${msg}` });
   }
 }
@@ -202,7 +195,7 @@ async function handleCalendar(req: VercelRequest, res: VercelResponse) {
       return res.status(401).json({ error: '[supabase] Invalid authentication token.' });
     }
     const msg = e?.message || 'Calendar handler failed';
-    const tag = /^[\\\\[(supabase|google|openai|config)\\\]]/.test(msg) ? '' : '[supabase] ';
+    const tag = /^\^\[(supabase|google|openai|config)\]/.test(msg) ? '' : '[supabase] ';
     return res.status(500).json({ error: `${tag}${msg}` });
   }
 }
@@ -343,12 +336,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleGetBacklinks(req, res);
       case 'get-connections':
         return await handleGetConnections(req, res);
+      case 'get-note':
+        return await handleGetNote(req, res);
       default:
         return res.status(400).json({ error: 'Invalid action' });
     }
   } catch (e: any) {
-    return res.status(500).json({ error: e?.message || 'API handler failed' });
-  }
-}status(500).json({ error: e?.message || 'API handler failed' });
+    const msg = e?.message || 'API handler failed';
+    return res.status(500).json({ error: msg });
   }
 }
