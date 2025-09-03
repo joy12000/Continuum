@@ -1,7 +1,7 @@
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { requireUser } from "@lib/auth";
-import { supabase } from "@/lib/supabase";
+import { requireUser } from "../../../../lib/auth.js";
+import { supabase } from "../../../../src/lib/supabase.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {

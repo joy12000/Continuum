@@ -1,10 +1,10 @@
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { supabase } from "@/lib/supabase";
-import { prepareNotes, buildCitationSet, buildEdges, cluster, clusterScore } from "@lib/compute";
-import { summarizeThread } from "@lib/ai";
-import { upsertInsightThreadsCache } from "@lib/database";
-import type { Note, NoteChunk, NoteLink, InsightThread } from "@lib/types";
+import { supabase } from "../../../src/lib/supabase.js";
+import { prepareNotes, buildCitationSet, buildEdges, cluster, clusterScore } from "../../../lib/compute.js";
+import { summarizeThread } from "../../../lib/ai.js";
+import { upsertInsightThreadsCache } from "../../../lib/database.js";
+import type { Note, NoteChunk, NoteLink, InsightThread } from "../../../lib/types.js";
 
 const MAX_NOTES = parseInt(process.env.CONTINUUM_MAX_NOTES || "400", 10);
 const CRON_SECRET = process.env.CRON_SECRET;
