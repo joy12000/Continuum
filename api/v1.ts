@@ -247,7 +247,7 @@ async function handleGetNote(req: VercelRequest, res: VercelResponse) {
 
   const { data, error } = await supabase
     .from("notes")
-    .select("id, title, content, tags, created_at, updated_at")
+    .select("id, title, body, tags, created_at, updated_at")
     .eq("id", noteId)
     .single();
 
@@ -288,7 +288,7 @@ async function handleGetConnections(req: VercelRequest, res: VercelResponse) {
   const citation_weight = Number(req.query.citation_weight ?? 1.0) || 1.0;
   const sim_weight = Number(req.query.sim_weight ?? 0.6) || 0.6;
   const tag_weight = Number(req.query.tag_weight ?? 0.2) || 0.2;
-  const { data: notes, error: nerr } = await supabase.from("notes").select("id,title,content,tags,created_at,updated_at");
+  const { data: notes, error: nerr } = await supabase.from("notes").select("id,title,body,tags,created_at,updated_at");
   if (nerr) {
     return res.status(500).json({ error: "Failed to fetch notes", detail: nerr.message });
   }
