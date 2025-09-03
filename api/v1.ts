@@ -4,11 +4,11 @@ import { TaskType } from '@google/generative-ai';
 
 // Base imports
 import { getEmbedding, getGenerativeModel } from './lib/generativeai.js';
-import { trimContext as trim } from './generate-utils/trim.js';
+
 import { requireUser } from '../lib/auth.js';
 import { getSupabaseClient } from '../lib/supabaseClient.js';
 import type { InsightThread, Note, NoteChunk, NoteLink, PreparedNote } from '../lib/types.js';
-import { getInsightThreadsCache, upsertInsightThreadsCache } from '../lib/database.js';
+import { getInsightThreadsCache, upsertInsightThreadsCache } from './shared-lib/database.js';
 import { summarizeThread } from '../lib/ai.js';
 import { prepareNotes, buildCitationSet, buildEdges, cluster, clusterScore, pairScore } from '../lib/compute.js';
 
@@ -342,5 +342,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   } catch (e: any) {
     return res.status(500).json({ error: e?.message || 'API handler failed' });
+  }
+}status(500).json({ error: e?.message || 'API handler failed' });
   }
 }
