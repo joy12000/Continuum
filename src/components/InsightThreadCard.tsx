@@ -1,16 +1,11 @@
 
 import React from 'react';
+import { Link } from 'react-router-dom';
 import type { InsightThread, Note } from '@lib/types';
 
 interface InsightThreadCardProps {
   thread: InsightThread;
 }
-
-// Dummy navigation function - replace with actual routing logic
-const navigateToNote = (noteId: string) => {
-  console.log(`Navigating to note: ${noteId}`);
-  // Example: window.location.href = `/notes/${noteId}`;
-};
 
 const InsightThreadCard: React.FC<InsightThreadCardProps> = ({ thread }) => {
   return (
@@ -23,12 +18,12 @@ const InsightThreadCard: React.FC<InsightThreadCardProps> = ({ thread }) => {
         <ul className="space-y-1">
           {thread.notes.map((note: Note) => (
             <li key={note.id}>
-              <button 
-                onClick={() => navigateToNote(note.id)} 
-                className="text-left text-sm text-gray-300 hover:underline hover:text-white transition-colors w-full truncate"
+              <Link 
+                to={`/notes/${note.id}`}
+                className="text-left text-sm text-gray-300 hover:underline hover:text-white transition-colors w-full truncate block"
               >
                 📝 {note.title || '제목 없는 노트'}
-              </button>
+              </Link>
             </li>
           ))}
         </ul>

@@ -236,6 +236,32 @@ async function handleGenerateThread(req: VercelRequest, res: VercelResponse) {
   }
 }
 
+async function handleGetNote(req: VercelRequest, res: VercelResponse) {
+  const auth = await requireUser(req, res);
+  if (!auth) return;
+  const { supabase } = auth;
+  const noteId = req.query.noteId as string;
+
+  if (!noteId) {
+    return res.status(400).json({ error: "Missing noteId" });
+  }
+
+  const { data, error } = await supabase
+    .from("notes")
+    .select("id, title, content, tags, created_at, updated_at")
+    .eq("id", noteId)
+    .single();
+
+  if (error) {
+    return res.status(500).json({ error: "Failed to fetch note", detail: error.message });
+  }
+  if (!data) {
+    return res.status(404).json({ error: "Note not found" });
+  }
+
+  res.status(200).json(data);
+}
+
 async function handleGetBacklinks(req: VercelRequest, res: VercelResponse) {
   const auth = await requireUser(req, res);
   if (!auth) return;

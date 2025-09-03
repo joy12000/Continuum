@@ -28,3 +28,9 @@ export interface InsightThread {
   relevanceScore: number;
   size: number;
 }
+
+export interface PreparedNote {
+  note: Note;
+  embedding: number[]; // averaged
+  tags: string[];
+}

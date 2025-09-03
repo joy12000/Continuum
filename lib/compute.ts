@@ -1,4 +1,4 @@
-import type { Note, NoteChunk, NoteLink, UUID } from "./types.js";
+import type { Note, NoteChunk, NoteLink, PreparedNote, UUID } from "./types.js";
 import { clamp01, mean, stddev, unique } from "./utils.js";
 
 export type Weights = { citation: number; sim: number; tag: number };
@@ -26,11 +26,7 @@ export function cosine(a: number[], b: number[]): number {
   return dot / (Math.sqrt(na) * Math.sqrt(nb));
 }
 
-export type PreparedNote = {
-  note: Note;
-  embedding: number[]; // averaged
-  tags: string[];
-};
+
 
 export function prepareNotes(notes: Note[], chunks: NoteChunk[]): PreparedNote[] {
   const byNote: Record<UUID, number[][]> = {};

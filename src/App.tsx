@@ -9,6 +9,7 @@ const SearchPage = lazy(() => import('./pages/SearchPage'));
 const LinksPage = lazy(() => import('./pages/LinksPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const DeveloperPage = lazy(() => import('./pages/DeveloperPage'));
+import NoteDetailPage from './pages/NoteDetailPage';
 
 import Diagnostics from './components/Diagnostics';
 import { Toasts } from './components/Toasts';
@@ -71,8 +72,7 @@ const MainLayout = () => {
                 <Route path="/calendar" element={<CalendarPage />} />
                 <Route path="/search" element={<SearchPage session={session} />} />
                 <Route path="/threads" element={<LinksPage />} />
-                
-                <Route path="/diagnostics" element={<Diagnostics onBack={() => window.history.back()} />} />
+                <Route path="/notes/:noteId" element={<NoteDetailPage />} />
                 <Route path="/developer" element={<DeveloperPage />} />
               </>
             ) : (
