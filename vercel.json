@@ -8,7 +8,7 @@
     },
     { "src": "api/v1.ts", "use": "@vercel/node" },
     { "src": "api/v1/threads/index.ts", "use": "@vercel/node" },
-    { "src": "api/v1/threads/generate.ts", "use": "@vercel/node" },
+    { "src": "api/v1/threads/generate/index.ts", "use": "@vercel/node" },
     { "src": "api/v1/threads/notes/[noteId]/connections.ts", "use": "@vercel/node" },
     { "src": "api/v1/threads/notes/[noteId]/backlinks.ts", "use": "@vercel/node" }
   ],
