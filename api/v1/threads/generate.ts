@@ -8,10 +8,20 @@ import { getSupabaseClient } from "../../../lib/supabaseClient.js";
 
 const MAX_NOTES = parseInt(process.env.CONTINUUM_MAX_NOTES || "400", 10);
 
-async function runThreadGeneration(userId: string, token: string) {
+async function runThreadGeneration(jobId: string, userId: string, token: string) {
   const supabase = getSupabaseClient(token);
 
+  const updateJobStatus = async (status: string) => {
+    const { error } = await supabase
+      .from('thread_generation_jobs')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', jobId);
+    if (error) console.error(`Failed to update job ${jobId} status to ${status}:`, error);
+  };
+
   try {
+    await updateJobStatus('processing');
+
     // 1) Fetch notes
     const { data: notes, error: nerr } = await supabase
       .from("notes")
@@ -23,6 +33,7 @@ async function runThreadGeneration(userId: string, token: string) {
     const noteIds = (notes ?? []).map((n: any) => n.id);
     if (!noteIds.length) {
       await upsertInsightThreadsCache(supabase, userId, []);
+      await updateJobStatus('completed');
       return;
     }
 
@@ -61,12 +72,13 @@ async function runThreadGeneration(userId: string, token: string) {
 
     out.sort((a, b) => (b.relevanceScore * 0.7 + b.size * 0.3) - (a.relevanceScore * 0.7 + a.size * 0.3));
 
-    // 4) Upsert cache
+    // 4) Upsert cache and finalize job
     await upsertInsightThreadsCache(supabase, userId, out);
+    await updateJobStatus('completed');
 
   } catch (error: any) {
-    console.error('runThreadGeneration failed:', error);
-    // Here you might want to update the job status to 'failed' in the database
+    console.error(`runThreadGeneration failed for job ${jobId}:`, error);
+    await updateJobStatus('failed');
   }
 }
 
@@ -76,7 +88,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { supabase, userId, token } = auth;
 
   if (req.method === "POST") {
-    // Create a new job entry in the database
     const { data: job, error: jobError } = await supabase
       .from('thread_generation_jobs')
       .insert({ user_id: userId, status: 'pending' })
@@ -87,10 +98,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(500).json({ message: 'Failed to create generation job', detail: jobError?.message });
     }
 
-    // Fire-and-forget the long-running task
-    runThreadGeneration(userId, token).catch(console.error);
+    runThreadGeneration(job.id, userId, token).catch(console.error);
 
-    // Immediately respond with the job ID
     return res.status(202).json({ jobId: job.id });
 
   } else if (req.method === "GET") {
@@ -103,7 +112,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .from('thread_generation_jobs')
       .select('status')
       .eq('id', jobId)
-      .eq('user_id', userId) // RLS should handle this, but being explicit is safer
+      .eq('user_id', userId)
       .single();
 
     if (error || !data) {
