@@ -4,16 +4,8 @@
     "composite": true,
     "module": "ESNext",
     "declaration": true,
-    "emitDeclarationOnly": true,
-    "baseUrl": "..",
-    "paths": {
-      "@/*": [
-        "src/*"
-      ],
-      "@lib/*": [
-        "lib/*"
-      ]
-    }
+    "outDir": "../dist",
+    "rootDir": ".."
   },
   "include": [
     "./**/*.ts",
