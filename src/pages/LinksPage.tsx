@@ -35,7 +35,7 @@ const formatTimeAgo = (dateString: string | null): string => {
 const fetchCachedThreads = async (): Promise<CachedThreadsResponse> => {
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
-  const response = await fetch('/api/v1/threads', {
+  const response = await fetch('/api/v1?action=get-threads', {
     headers: { ...(token && { Authorization: `Bearer ${token}` }) },
   });
   if (!response.ok) {
