@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { requireUser } from "../../../lib/auth";
-import type { InsightThread, Note, NoteChunk, NoteLink } from "../../../lib/types";
-import { prepareNotes, buildCitationSet, buildEdges, cluster, clusterScore } from "../../../lib/compute";
-import { summarizeThread } from "../../../lib/ai";
-import { upsertInsightThreadsCache } from "../../../lib/database";
+import { requireUser } from "../../../lib/auth.js";
+import type { InsightThread, Note, NoteChunk, NoteLink } from "../../../lib/types.js";
+import { prepareNotes, buildCitationSet, buildEdges, cluster, clusterScore } from "../../../lib/compute.js";
+import { summarizeThread } from "../../../lib/ai.js";
+import { upsertInsightThreadsCache } from "../../../lib/database.js";
 
 const MAX_NOTES = parseInt(process.env.CONTINUUM_MAX_NOTES || "400", 10);
 
