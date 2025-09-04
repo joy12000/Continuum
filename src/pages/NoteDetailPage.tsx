@@ -4,6 +4,8 @@ import { deleteNote } from '../lib/supabaseService';
 import type { Note, NoteAttachment } from '../types/common';
 import { RichNoteEditor } from '../components/RichNoteEditor';
 import ConfirmModal from '../components/ConfirmModal';
+import Modal from '../components/Modal'; // Import generic modal
+import ConnectionsListView from '../components/ConnectionsListView'; // Import connections view
 import { supabase } from '../lib/supabase';
 import { toast } from '../lib/toast';
 
@@ -36,6 +38,7 @@ export function NoteDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isConnectionsModalOpen, setIsConnectionsModalOpen] = useState(false); // State for connections modal
 
   const fetchNoteAndAttachments = useCallback(async () => {
     if (!noteId) return;
@@ -135,6 +138,7 @@ export function NoteDetailPage() {
           <div className="flex justify-between items-center mb-4">
             <h1 className="text-4xl font-bold text-sky-300">{note.title}</h1>
             <div className="flex gap-2">
+              <button onClick={() => setIsConnectionsModalOpen(true)} className="btn btn-outline">연결 보기</button>
               <button onClick={() => setIsEditing(true)} className="btn btn-outline btn-info">수정</button>
               <button onClick={() => setShowDeleteModal(true)} className="btn btn-outline btn-error">삭제</button>
             </div>
@@ -167,6 +171,16 @@ export function NoteDetailPage() {
         >
           정말로 이 노트를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
         </ConfirmModal>
+      )}
+
+      {isConnectionsModalOpen && noteId && (
+        <Modal
+          title="연결된 노트"
+          onClose={() => setIsConnectionsModalOpen(false)}
+          actions={<button className="btn" onClick={() => setIsConnectionsModalOpen(false)}>닫기</button>}
+        >
+          <ConnectionsListView noteId={noteId} />
+        </Modal>
       )}
     </div>
   );
