@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import PageLayout from '@/components/PageLayout';
 import InsightThreadCard from '@/components/InsightThreadCard';
 import GenerationProgress from '@/components/GenerationProgress';
+import SourceNoteModal from '@/components/SourceNoteModal'; // Import the modal component
 import { useJobStatus } from '@/hooks/useJobStatus';
 import { supabase } from '@/lib/supabase';
 
@@ -171,6 +172,12 @@ const LinksPage = () => {
   return (
     <PageLayout title="인사이트 스레드">
       {renderContent()}
+      <SourceNoteModal 
+        isOpen={isModalOpen} 
+        onClose={() => setModalOpen(false)} 
+        title={selectedNote?.title || '제목 없음'}
+        body={selectedNote?.body || ''}
+      />
     </PageLayout>
   );
 };

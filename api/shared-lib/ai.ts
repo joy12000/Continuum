@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { Note } from "./types.js";
 
-const MODEL = process.env.CONTINUUM_GEMINI_MODEL || "gemini-1.5-pro";
+const MODEL = process.env.CONTINUUM_GEMINI_MODEL || "gemini-2.0-flash";
 
 function requireEnv(key: string) {
   const v = process.env[key];
@@ -9,7 +9,7 @@ function requireEnv(key: string) {
   return v;
 }
 
-const genAI = new GoogleGenerativeAI(requireEnv("GOOGLE_API_KEY"));
+const genAI = new GoogleGenerativeAI(requireEnv("GEMINI_API_KEY"));
 
 export async function summarizeThread(notes: Note[]): Promise<{ title: string; summary: string }> {
   // Sort by created_at to elicit a "narrative over time"

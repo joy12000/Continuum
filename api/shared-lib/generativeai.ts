@@ -6,7 +6,7 @@ function requireEnv(key: string) {
   return v;
 }
 
-const genAI = new GoogleGenerativeAI(requireEnv("GOOGLE_API_KEY"));
+const genAI = new GoogleGenerativeAI(requireEnv("GEMINI_API_KEY"));
 const embeddingModel = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
 const generativeModel = genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL || "gemini-1.5-flash-latest" });
 

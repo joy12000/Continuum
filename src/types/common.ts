@@ -16,6 +16,17 @@ export interface Note {
   updatedAt: number;
 }
 
+export interface NoteAttachment {
+  id: string;
+  note_id: string;
+  user_id: string;
+  storage_path: string;
+  file_name: string;
+  mime_type: string;
+  file_size: number;
+  created_at: string;
+}
+
 export interface SearchResult {
   id: string;
   score: number;
