@@ -349,6 +349,21 @@ export function clusterByAutoThreshold(
   return { clusters: bestClusters, threshold: bestThr, Q: bestQ };
 }
 
+// === [ADD] 고립 노트 감지: 최고 연결이 isoCut 미만이면 고립으로 본다 ==========
+export function detectIsolatedNodes(n: number, edges: Edge[], isoCut = 0.08): Set<number> {
+  const maxW = new Array(n).fill(0);
+  for (const e of edges) {
+    if (e.score > maxW[e.i]) maxW[e.i] = e.score;
+    if (e.score > maxW[e.j]) maxW[e.j] = e.score;
+  }
+  const iso = new Set<number>();
+  for (let i = 0; i < n; i++) {
+    const w = maxW[i];
+    if (!Number.isFinite(w) || w < isoCut) iso.add(i);
+  }
+  return iso;
+}
+
 // === [ADD] 간선 성기화: 상호 k-최근접 이웃(mutual kNN) =====================
 function _topKByNode(n: number, edges: Edge[], k: number) {
   const byNode: Map<number, Array<{ nb: number; w: number }>> = new Map();
@@ -404,10 +419,10 @@ export function sparsifyEdgesKNN(
 }
 
 // === [ADD] 최대 스패닝 트리 기반 강제 분할(한 덩어리일 때 마지막 안전장치) ====
-/** 최대 스패닝 트리를 만들고, 가장 약한 간선들 (k-1개)을 잘라서 정확히 k개 컴포넌트로 분할 */
 export function forceSplitByMST(n: number, edges: Edge[], k: number): number[][] {
   if (k <= 1 || n === 0) return [Array.from({ length: n }, (_, i) => i)];
-  // 최대 스패닝 트리: 점수가 큰 간선부터 크루스칼
+
+  // 크루스칼 최대 스패닝 "포레스트"(연결 그래프가 아닐 수도 있음)
   const dsu = new (class {
     p = Array.from({ length: n }, (_, i) => i);
     r = new Array(n).fill(0);
@@ -420,22 +435,24 @@ export function forceSplitByMST(n: number, edges: Edge[], k: number): number[][]
       return true;
     }
   })();
+
   const sorted = [...edges].sort((a, b) => b.score - a.score);
   const tree: Edge[] = [];
   for (const e of sorted) {
     if (tree.length === n - 1) break;
     if (dsu.u(e.i, e.j)) tree.push(e);
   }
-  // 트리가 없으면(간선이 거의 0) 그냥 균등 분할
+
+  // 트리 간선이 0이면(완전 분리/희박) → 모든 노드를 싱글톤으로 반환
   if (tree.length === 0) {
-    const out: number[][] = Array.from({ length: k }, () => []);
-    for (let i = 0; i < n; i++) out[i % k].push(i);
-    return out.filter(c => c.length > 0);
+    return Array.from({ length: n }, (_, i) => [i]);
   }
-  // 약한 간선부터 (k-1)개 제거 → 컴포넌트 추출
+
+  // 약한 간선부터 (k-1)개 제거
   const cut = [...tree].sort((a, b) => a.score - b.score).slice(0, Math.max(0, k - 1));
   const cutSet = new Set(cut.map(e => `${Math.min(e.i, e.j)}-${Math.max(e.i, e.j)}`));
-  // 트리 인접리스트 구성
+
+  // 트리 인접리스트
   const adj: Map<number, number[]> = new Map();
   for (let i = 0; i < n; i++) adj.set(i, []);
   for (const e of tree) {
@@ -444,6 +461,7 @@ export function forceSplitByMST(n: number, edges: Edge[], k: number): number[][]
     adj.get(e.i)!.push(e.j);
     adj.get(e.j)!.push(e.i);
   }
+
   // 컴포넌트 DFS
   const seen = new Array(n).fill(false);
   const comps: number[][] = [];
@@ -467,7 +485,12 @@ export function forceSplitByMST(n: number, edges: Edge[], k: number): number[][]
 export function clusterHybrid(
   prepared: PreparedNote[],
   edgesAll: Edge[],
-  pref?: { kMin?: number; kMax?: number; minEdge?: number; minClusterSize?: number; knnK?: number; mutual?: boolean }
+  pref?: {
+    kMin?: number; kMax?: number;
+    minEdge?: number; minClusterSize?: number;
+    knnK?: number; mutual?: boolean;
+    isoCut?: number; // ← 고립 판정 컷(기본 minEdge와 동일/조금 낮게)
+  }
 ) {
   const n = prepared.length;
   const kMin = pref?.kMin ?? 3;
@@ -476,24 +499,54 @@ export function clusterHybrid(
   const minClusterSize = pref?.minClusterSize ?? 2;
   const knnK = pref?.knnK ?? 8;
   const mutual = pref?.mutual ?? true;
+  const isoCut = pref?.isoCut ?? Math.max(0.02, Math.min(0.08, minEdge));
 
-  // 0) 간선 성기화(과도한 연결 제거)
-  const edges = sparsifyEdgesKNN(n, edgesAll, knnK, { mutual, minScore: Math.max(0.01, minEdge * 0.8) });
+  // 0) 고립 노트 판정
+  const iso = detectIsolatedNodes(n, edgesAll, isoCut);
 
-  // 1) LPA 1차
+  // 1) 고립 노트에 연결된 간선 제거 후 KNN 성기화
+  const edgesDense = edgesAll.filter(e => !iso.has(e.i) && !iso.has(e.j));
+  const edges = sparsifyEdgesKNN(n, edgesDense, knnK, { mutual, minScore: Math.max(0.01, minEdge * 0.8) });
+
+  // 2) LPA 1차 (고립 노트는 이웃이 없으므로 자동으로 싱글톤)
   const lpa = clusterLPA(prepared, edges, { minEdge, minClusterSize });
   let clusters = lpa.clusters;
 
-  // 2) 범위 벗어나면 자동 임계값 보정(여기서도 성기화된 간선 사용)
+  // 3) 범위 보정
   if (clusters.length < kMin || clusters.length > kMax) {
     const auto = clusterByAutoThreshold(prepared, edges, { kMin, kMax });
     clusters = auto.clusters;
   }
 
-  // 3) 그래도 한 덩어리면(특히 < kMin) → MST 강제 분할로 최소 개수 보장
-  if (clusters.length < kMin && n >= kMin * 2) {
-    clusters = forceSplitByMST(n, edges.length ? edges : edgesAll, kMin);
+  // 4) 고립 노트를 확실히 싱글톤으로 합류(혹시 누락돼도 강제 보장)
+  const inAny = new Array(n).fill(false);
+  clusters.forEach(c => c.forEach(i => inAny[i] = true));
+  for (let i = 0; i < n; i++) {
+    if (iso.has(i) && !inAny[i]) clusters.push([i]);
   }
 
-  return { clusters, method: "hybrid+knn", meta: { knnK, mutual } };
+  // 5) 여전히 한 덩어리면 → 고립 아닌 노드들만 강제 분할(MST)
+  const nonIsoNodes = new Set<number>();
+  for (let i = 0; i < n; i++) if (!iso.has(i)) nonIsoNodes.add(i);
+
+  if (clusters.length < kMin && nonIsoNodes.size >= Math.max(2, kMin - iso.size)) {
+    // non-iso 서브그래프 인덱스 재매핑
+    const idx = new Map<number, number>(), rev: number[] = [];
+    Array.from(nonIsoNodes).forEach((v, p) => { idx.set(v, p); rev[p] = v; });
+    const subEdges = edges.filter(e => idx.has(e.i) && idx.has(e.j))
+                          .map(e => ({ i: idx.get(e.i)!, j: idx.get(e.j)!, score: e.score }));
+    const kNeed = Math.max(1, kMin - iso.size);
+    const comps = forceSplitByMST(nonIsoNodes.size, subEdges, kNeed);
+    // 기존 클러스터를 비우고: 고립 싱글톤 + 강제 분할 결과로 재구성
+    clusters = [];
+    // 고립 싱글톤
+    for (const v of iso) clusters.push([v]);
+    // 분할된 non-iso
+    for (const comp of comps) clusters.push(comp.map(p => rev[p]));
+  }
+
+  // 6) 비어있는 클러스터 제거 & 인덱스 정리
+  clusters = clusters.filter(c => c.length > 0);
+
+  return { clusters, method: "hybrid+knn+isolation" as const, meta: { knnK, mutual, isoCut } };
 }

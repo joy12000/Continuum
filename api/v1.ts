@@ -94,8 +94,9 @@ async function runThreadGeneration(jobId: string, userId: string, token: string)
           kMin: 3, kMax: 12,
           minEdge: 0.05,
           minClusterSize: 2,
-          knnK: Number(process.env.CONTINUUM_CLUSTER_K ?? 8),   // 선택
-          mutual: (process.env.CONTINUUM_CLUSTER_MUTUAL ?? "1") === "1"
+          knnK: Number(process.env.CONTINUUM_CLUSTER_K ?? 8),
+          mutual: (process.env.CONTINUUM_CLUSTER_MUTUAL ?? "1") === "1",
+          isoCut: Number(process.env.CONTINUUM_CLUSTER_ISOCUT) || undefined,
         }).clusters;
       }
     } catch (e) {
