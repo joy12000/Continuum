@@ -26,8 +26,6 @@ export function cosine(a: number[], b: number[]): number {
   return dot / (Math.sqrt(na) * Math.sqrt(nb));
 }
 
-
-
 export function prepareNotes(notes: Note[], chunks: NoteChunk[]): PreparedNote[] {
   const byNote: Record<UUID, number[][]> = {};
   for (const ch of chunks) {
@@ -133,13 +131,11 @@ export function cluster(prepared: PreparedNote[], edges: Edge[], threshold?: num
     if (!groups.has(root)) groups.set(root, []);
     groups.get(root)!.push(i);
   }
-  // Filter tiny groups of size 1 that have no strong edges; still keep singletons as micro-threads
   const clusters = [...groups.values()];
   return { clusters, threshold: thr };
 }
 
 export function clusterScore(indices: number[], edges: Edge[]): number {
-  // average of internal edges
   const set = new Set(indices.map((x) => x));
   const rel = edges.filter((e) => set.has(e.i) && set.has(e.j));
   if (!rel.length) return 0;
@@ -147,9 +143,9 @@ export function clusterScore(indices: number[], edges: Edge[]): number {
   return avg;
 }
 
-// === [ADD] LPA(라벨 전파) + 자동 임계값 + 하이브리드 클러스터러 =====================
+// === LPA(라벨 전파) + 자동 임계값 + 하이브리드 ================================
 
-// 내부용 인접리스트 생성
+// 내부용 인접리스트
 function _buildAdj(n: number, edges: Edge[], minW = 0): Map<number, Array<{ j: number; w: number }>> {
   const adj = new Map<number, Array<{ j: number; w: number }>>();
   for (let i = 0; i < n; i++) adj.set(i, []);
@@ -163,9 +159,9 @@ function _buildAdj(n: number, edges: Edge[], minW = 0): Map<number, Array<{ j: n
 
 /**
  * 파라미터-프리 가중치 라벨 전파(Label Propagation).
- * - 임계값(커트라인) 없이, 이웃 라벨 가중치합이 최대인 라벨로 갈아탐
+ * - 임계값 없이, 이웃 라벨 가중치합이 최대인 라벨로 갈아탐
  * - 너무 작은 군집은 강한 이웃 군집으로 흡수
- * - 순서 셔플을 쓰지 않아 **결과가 결정적(Deterministic)** 이도록 구성
+ * - 셔플 없이 결정적 순회
  */
 export function clusterLPA(
   prepared: PreparedNote[],
@@ -174,7 +170,7 @@ export function clusterLPA(
 ) {
   const n = prepared.length;
   const maxIter = opts?.maxIter ?? 20;
-  const minEdge = opts?.minEdge ?? 0.05;      // 너무 약한 간선 컷
+  const minEdge = opts?.minEdge ?? 0.05;
   const minClusterSize = opts?.minClusterSize ?? 2;
 
   const adjWeak = _buildAdj(n, edges, minEdge);
@@ -184,19 +180,16 @@ export function clusterLPA(
   let iter = 0;
   while (changed && iter < maxIter) {
     changed = false;
-    // 결정적 순회(셔플 없음)
     for (let i = 0; i < n; i++) {
       const neigh = adjWeak.get(i)!;
       if (!neigh.length) continue;
 
-      // 이웃 라벨별 가중치 합
       const byLab = new Map<number, number>();
       for (const { j, w } of neigh) {
         const lj = label[j];
         byLab.set(lj, (byLab.get(lj) ?? 0) + w);
       }
 
-      // 최댓값 라벨 선택(동점일 때 라벨 id가 작은 쪽 채택 → 결정성)
       let bestLab = label[i], best = -Infinity;
       for (const [lab, sum] of byLab) {
         if (sum > best || (sum === best && lab < bestLab)) {
@@ -217,7 +210,7 @@ export function clusterLPA(
     clusters[map.get(lab)!].push(i);
   }
 
-  // 너무 작은 군집은 강한 이웃 군집으로 흡수
+  // 작은 군집 흡수
   if (minClusterSize > 1) {
     const adjFull = _buildAdj(n, edges, 0);
     const node2cid = new Map<number, number>();
@@ -234,7 +227,6 @@ export function clusterLPA(
           if (ocid === cid) continue;
           byCid.set(ocid, (byCid.get(ocid) ?? 0) + w);
         }
-        // 가장 강하게 붙어있는 군집으로 이동
         let bestCid = cid, best = -Infinity;
         for (const [k, s] of byCid) if (s > best) { best = s; bestCid = k; }
         if (bestCid !== cid) {
@@ -249,8 +241,7 @@ export function clusterLPA(
   return { clusters: clusters.filter(c => c.length > 0) };
 }
 
-// ---- 자동 임계값(이분 탐색 + 모듈러리티로 품질 선택) ---------------------
-
+// 임계값으로 DSU
 function _clusterByThreshold(n: number, edges: Edge[], thr: number) {
   const dsu = new DSU(n);
   for (const e of edges) if (e.score >= thr) dsu.u(e.i, e.j);
@@ -263,7 +254,7 @@ function _clusterByThreshold(n: number, edges: Edge[], thr: number) {
   return [...groups.values()];
 }
 
-// 가중 그래프 모듈러리티(높을수록 내부가 조밀하고 외부와 느슨)
+// 가중 모듈러리티
 function _modularityWeighted(n: number, edges: Edge[], clusters: number[][]) {
   const deg = new Array(n).fill(0);
   let twoM = 0;
@@ -285,7 +276,6 @@ function _modularityWeighted(n: number, edges: Edge[], clusters: number[][]) {
     }
     for (const e of edges) {
       if (nodeSet.has(e.i) && nodeSet.has(e.j)) {
-        // 간선이 클러스터 내부에 완전히 포함될 경우
         if (e.i === e.j) {
           M_in_c += e.score; // self-loop
         } else {
@@ -293,16 +283,13 @@ function _modularityWeighted(n: number, edges: Edge[], clusters: number[][]) {
         }
       }
     }
-    // M_in_c는 내부 간선 가중치의 합입니다. 루프가 없으므로 2를 곱할 필요가 없습니다.
-    // D_c는 클러스터 내 노드들의 총 차수(degree) 합입니다.
     Q += (M_in_c / twoM) - Math.pow(D_c / twoM, 2);
   }
   return Q;
 }
 
 /**
- * 목표 군집 수 범위를 만족하도록 임계값을 자동 탐색하고,
- * 그 범위 안에서 모듈러리티(Q)가 최대인 해를 선택.
+ * 목표 군집 수 범위를 만족하도록 임계값 자동 탐색 + 모듈러리티 최대 지점 선택
  */
 export function clusterByAutoThreshold(
   prepared: PreparedNote[],
@@ -326,8 +313,8 @@ export function clusterByAutoThreshold(
   for (let t = 0; t < iters; t++) {
     const mid = (lo + hi) / 2;
     const cs = _clusterByThreshold(n, edges, mid);
-    if (cs.length < kMin) hi = mid;           // 너무 적게 나눠짐 → 임계 ↑
-    else if (cs.length > kMax) lo = mid;      // 너무 많이 쪼개짐 → 임계 ↓
+    if (cs.length < kMin) hi = mid;           // 덜 분할 → 임계 ↑
+    else if (cs.length > kMax) lo = mid;      // 과분할 → 임계 ↓
     else {
       const Q = _modularityWeighted(n, edges, cs);
       if (Q > bestQ) { bestQ = Q; bestThr = mid; bestClusters = cs; }
@@ -349,7 +336,7 @@ export function clusterByAutoThreshold(
   return { clusters: bestClusters, threshold: bestThr, Q: bestQ };
 }
 
-// === [ADD] 고립 노트 감지: 최고 연결이 isoCut 미만이면 고립으로 본다 ==========
+// 고립 노트 감지: 최고 연결이 isoCut 미만이면 고립
 export function detectIsolatedNodes(n: number, edges: Edge[], isoCut = 0.08): Set<number> {
   const maxW = new Array(n).fill(0);
   for (const e of edges) {
@@ -364,7 +351,7 @@ export function detectIsolatedNodes(n: number, edges: Edge[], isoCut = 0.08): Se
   return iso;
 }
 
-// === [ADD] 간선 성기화: 상호 k-최근접 이웃(mutual kNN) =====================
+// 간선 성기화: 상호 k-최근접 이웃(mutual kNN)
 function _topKByNode(n: number, edges: Edge[], k: number) {
   const byNode: Map<number, Array<{ nb: number; w: number }>> = new Map();
   for (let i = 0; i < n; i++) byNode.set(i, []);
@@ -412,17 +399,15 @@ export function sparsifyEdgesKNN(
         }
       }
     }
-    // 교집합만 남김
     return edges.filter(e => mutualKeep.has(`${e.i}-${e.j}`));
   }
   return edges.filter(e => keep.has(`${e.i}-${e.j}`));
 }
 
-// === [ADD] 최대 스패닝 트리 기반 강제 분할(한 덩어리일 때 마지막 안전장치) ====
+// 최대 스패닝 트리 기반 강제 분할(한 덩어리일 때 마지막 안전장치)
 export function forceSplitByMST(n: number, edges: Edge[], k: number): number[][] {
   if (k <= 1 || n === 0) return [Array.from({ length: n }, (_, i) => i)];
 
-  // 크루스칼 최대 스패닝 "포레스트"(연결 그래프가 아닐 수도 있음)
   const dsu = new (class {
     p = Array.from({ length: n }, (_, i) => i);
     r = new Array(n).fill(0);
@@ -481,7 +466,7 @@ export function forceSplitByMST(n: number, edges: Edge[], k: number): number[][]
   return comps;
 }
 
-// === [ADD] 하이브리드 오케스트레이터 보정: 성기화 + 실패 시 강제분할 ========
+// 하이브리드 오케스트레이터: 성기화 + LPA + 자동보정 + (필요시) 강제분할
 export function clusterHybrid(
   prepared: PreparedNote[],
   edgesAll: Edge[],
@@ -489,7 +474,7 @@ export function clusterHybrid(
     kMin?: number; kMax?: number;
     minEdge?: number; minClusterSize?: number;
     knnK?: number; mutual?: boolean;
-    isoCut?: number; // ← 고립 판정 컷(기본 minEdge와 동일/조금 낮게)
+    isoCut?: number;
   }
 ) {
   const n = prepared.length;
@@ -504,11 +489,11 @@ export function clusterHybrid(
   // 0) 고립 노트 판정
   const iso = detectIsolatedNodes(n, edgesAll, isoCut);
 
-  // 1) 고립 노트에 연결된 간선 제거 후 KNN 성기화
+  // 1) 고립 노트 간선 제거 후 kNN 성기화
   const edgesDense = edgesAll.filter(e => !iso.has(e.i) && !iso.has(e.j));
   const edges = sparsifyEdgesKNN(n, edgesDense, knnK, { mutual, minScore: Math.max(0.01, minEdge * 0.8) });
 
-  // 2) LPA 1차 (고립 노트는 이웃이 없으므로 자동으로 싱글톤)
+  // 2) LPA 1차
   const lpa = clusterLPA(prepared, edges, { minEdge, minClusterSize });
   let clusters = lpa.clusters;
 
@@ -518,34 +503,38 @@ export function clusterHybrid(
     clusters = auto.clusters;
   }
 
-  // 4) 고립 노트를 확실히 싱글톤으로 합류(혹시 누락돼도 강제 보장)
+  // 4) 고립 노트 싱글톤 보장
   const inAny = new Array(n).fill(false);
   clusters.forEach(c => c.forEach(i => inAny[i] = true));
   for (let i = 0; i < n; i++) {
     if (iso.has(i) && !inAny[i]) clusters.push([i]);
   }
 
-  // 5) 여전히 한 덩어리면 → 고립 아닌 노드들만 강제 분할(MST)
+  // 5) 여전히 한 덩어리면 → 고립 아닌 노드만 강제 분할(MST)
   const nonIsoNodes = new Set<number>();
   for (let i = 0; i < n; i++) if (!iso.has(i)) nonIsoNodes.add(i);
 
-  if (clusters.length < kMin && nonIsoNodes.size >= Math.max(2, kMin - iso.size)) {
+  // 조건 완화: non-iso가 2개 이상이면 강제 분할
+  if (clusters.length < kMin && nonIsoNodes.size >= 2) {
     // non-iso 서브그래프 인덱스 재매핑
     const idx = new Map<number, number>(), rev: number[] = [];
     Array.from(nonIsoNodes).forEach((v, p) => { idx.set(v, p); rev[p] = v; });
     const subEdges = edges.filter(e => idx.has(e.i) && idx.has(e.j))
                           .map(e => ({ i: idx.get(e.i)!, j: idx.get(e.j)!, score: e.score }));
-    const kNeed = Math.max(1, kMin - iso.size);
-    const comps = forceSplitByMST(nonIsoNodes.size, subEdges, kNeed);
-    // 기존 클러스터를 비우고: 고립 싱글톤 + 강제 분할 결과로 재구성
+
+    // 타깃 개수: 가능 범위로 자동 조절 (최소 2)
+    const desired = kMin - iso.size;
+    const kTarget = Math.max(2, Math.min(desired > 0 ? desired : kMin, nonIsoNodes.size));
+
+    const comps = forceSplitByMST(nonIsoNodes.size, subEdges, kTarget);
+
+    // 결과 재구성: 고립 싱글톤 + 분할된 non-iso
     clusters = [];
-    // 고립 싱글톤
     for (const v of iso) clusters.push([v]);
-    // 분할된 non-iso
     for (const comp of comps) clusters.push(comp.map(p => rev[p]));
   }
 
-  // 6) 비어있는 클러스터 제거 & 인덱스 정리
+  // 6) 비어있는 군집 제거
   clusters = clusters.filter(c => c.length > 0);
 
   return { clusters, method: "hybrid+knn+isolation" as const, meta: { knnK, mutual, isoCut } };
