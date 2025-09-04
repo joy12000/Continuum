@@ -112,7 +112,7 @@ export default function TodayCanvasScreen({
             <div className="space-y-4">
               {generatedAnswer.isLoading && <div className="text-center text-gray-400 animate-pulse">AI 답변 생성 중...</div>}
               {generatedAnswer.error && <div className="text-center text-red-400">{generatedAnswer.error}</div>}
-              {generatedAnswer.data && <GeneratedAnswer data={generatedAnswer.data} />}
+              {generatedAnswer.data && <GeneratedAnswer data={generatedAnswer.data} noteTitlesMap={{}} />}
               {notes.map(note => <NoteCard key={note.id} note={note} onSelect={onNoteSelect} isActive={note.id === activeNote?.id} />)}
             </div>
           ) : (

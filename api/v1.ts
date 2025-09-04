@@ -153,7 +153,7 @@ async function handleGenerate(req: VercelRequest, res: VercelResponse) {
     }
 
     const model = getGenerativeModel();
-    const prompt = `Based on the following context, write a brief summary of the main text provided below.\n\nContext:\n${JSON.stringify(context)}\n\nMain Text to Summarize:\n${input.query}\n\nSummary:`
+    const prompt = `Based on the following context, write a concise and relevant summary of the main text provided below. Only use information from the provided context. Answer in Korean.\n\nContext:\n${JSON.stringify(context)}\n\nMain Text to Summarize:\n${input.query}\n\nSummary:`
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();

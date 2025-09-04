@@ -118,6 +118,7 @@ export function AskPanel({ engine, setQuery, notes }: { engine: "auto" | "remote
         {showGenAnswer && resGen ? (
           <GeneratedAnswer
             data={resGen}
+            noteTitlesMap={{}} // Add this
           />
         ) : showGenAnswer && isGenerating ? (
           <div className="text-center text-slate-500 animate-pulse">AI가 답변을 생성 중입니다...</div>

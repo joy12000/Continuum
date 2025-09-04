@@ -85,7 +85,7 @@ const MainLayout = () => {
       <AnswerCardsModal open={answerOpen} onClose={() => setAnswerOpen(false)}>
         {generatedAnswer.isLoading && <div className="p-4 text-center">답변 생성 중...</div>}
         {generatedAnswer.error && <div className="p-4 text-center text-red-500">오류: {generatedAnswer.error}</div>}
-        {generatedAnswer.data && <GeneratedAnswer data={generatedAnswer.data} />} 
+        {generatedAnswer.data && <GeneratedAnswer data={generatedAnswer.data} noteTitlesMap={{}} />} 
       </AnswerCardsModal>
     </div>
   );
