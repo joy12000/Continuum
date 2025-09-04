@@ -7,7 +7,7 @@ export type SearchResult = {
   note_id: string;
   chunk_index: number;
   content: string;
-  distance: number;
+  similarity: number;
 };
 
 export function useSearch(query: string, token: string | undefined) {

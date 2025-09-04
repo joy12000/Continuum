@@ -59,7 +59,7 @@ const SearchResultsList = ({ results, loading, noteTitlesMap, query }: { results
                 </button>
               </div>
             </div>
-            <div className="text-xs text-gray-500 mt-2">Score: {result.distance.toFixed(3)}</div>
+            <div className="text-xs text-gray-500 mt-2">Similarity: {result.similarity.toFixed(3)}</div>
           </Link>
         </li>
       ))}
