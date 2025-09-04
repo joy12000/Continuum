@@ -114,10 +114,19 @@ async function runThreadGeneration(jobId: string, userId: string, token: string)
       } catch (e: any) {
         summary = `Summary unavailable: ${e?.message ?? "LLM error"}`;
       }
-      const score = clusterScore(idxs, edges);
-      out.push({ threadId: idxs.map((i) => prepared[i].note.id).join("_"), title, summary, notes: groupNotes, size: idxs.length, relevanceScore: score });
+      const rawScore = clusterScore(idxs, edges);
+      const safeScore = Number.isFinite(rawScore) ? rawScore : 0;
+      out.push({ 
+        id: idxs.map((i) => prepared[i].note.id).join("_"), 
+        title, 
+        summary, 
+        note_ids: idxs.map((i) => prepared[i].note.id),
+        notes: groupNotes, 
+        size: idxs.length, 
+        score: safeScore, // ← 항상 숫자
+      });
     }
-    out.sort((a, b) => (b.relevanceScore * 0.7 + b.size * 0.3) - (a.relevanceScore * 0.7 + a.size * 0.3));
+    out.sort((a, b) => (b.score * 0.7 + b.size * 0.3) - (a.score * 0.7 + a.size * 0.3));
     await upsertInsightThreadsCache(supabase, userId, out);
     await updateJobStatus('completed');
   } catch (error: any) {
@@ -256,8 +265,19 @@ async function handleGetThreads(req: VercelRequest, res: VercelResponse) {
   const auth = await requireUser(req, res);
   if (!auth) return;
   const { supabase, userId } = auth;
+
+  function sanitizeThread(t: any) {
+    const score = Number.isFinite(t?.score) ? Number(t.score) : 0;
+    const size  = Number.isFinite(t?.size)  ? Number(t.size)  : Array.isArray(t?.note_ids) ? t.note_ids.length : 0;
+    return { ...t, score, size };
+  }
+
   const { threads, lastUpdatedAt } = await getInsightThreadsCache(supabase, userId);
-  res.status(200).json({ threads, lastUpdatedAt });
+
+  const safeThreads = (threads ?? []).map(sanitizeThread);
+  const lastUpdatedAtMs = lastUpdatedAt ? Date.parse(lastUpdatedAt) : null;
+
+  res.status(200).json({ threads: safeThreads, lastUpdatedAt, lastUpdatedAtMs });
 }
 
 async function handleGenerateThread(req: VercelRequest, res: VercelResponse) {
