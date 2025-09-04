@@ -19,12 +19,12 @@ const InsightThreadCard: React.FC<InsightThreadCardProps> = ({ thread, onNoteCli
         <ul className="space-y-1">
           {thread.notes.map((note: Note) => (
             <li key={note.id}>
-              <Link 
-                to={`/notes/${note.id}`}
+              <button 
+                onClick={() => onNoteClick(note)}
                 className="text-left text-sm text-gray-300 hover:underline hover:text-white transition-colors w-full truncate block"
               >
                 📝 {note.title || '제목 없는 노트'}
-              </Link>
+              </button>
             </li>
           ))}
         </ul>
