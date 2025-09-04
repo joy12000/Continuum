@@ -7,7 +7,7 @@ function requireEnv(key: string) {
 }
 
 const genAI = new GoogleGenerativeAI(requireEnv("GOOGLE_API_KEY"));
-const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
+const embeddingModel = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
 const generativeModel = genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL || "gemini-1.5-flash-latest" });
 
 export function getGenerativeModel() {
@@ -18,6 +18,7 @@ export async function getEmbedding(text: string, task: TaskType = TaskType.RETRI
     const result = await embeddingModel.embedContent({
         content: { parts: [{ text }] },
         taskType: task,
+        outputDimensionality: 768,
     });
     return result.embedding.values;
 }
