@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import CalendarMonth from '../components/CalendarMonth';
 import { supabase } from '../lib/supabase';
 import { Note } from '../types/common';
@@ -102,8 +103,11 @@ const CalendarPage = () => {
           {notesForSelectedDay.length > 0 ? (
             <ul className="space-y-3">
               {notesForSelectedDay.map(note => (
-                <li key={note.id} className="p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors cursor-pointer">
-                  {note.title || 'Untitled Note'}
+                <li key={note.id}>
+                  <Link to={`/notes/${note.id}`} className="block p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+                    <h3 className="font-semibold text-sky-400 truncate">{note.title || 'Untitled Note'}</h3>
+                    <p className="text-sm text-gray-400 line-clamp-2 mt-1">{note.body}</p>
+                  </Link>
                 </li>
               ))}
             </ul>

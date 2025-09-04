@@ -173,6 +173,27 @@ export async function deleteAllUserData(userId: string) {
   }
 }
 
+export async function updateNote(noteId: string, newContent: { title?: string; body: string }) {
+  const { data, error } = await supabase
+    .from("notes")
+    .update({ title: newContent.title, body: newContent.body, updated_at: new Date().toISOString() })
+    .eq("id", noteId)
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  // After updating the note, recalculate its chunks and embeddings
+  await recalculateChunksAndEmbeddings(noteId, newContent.body);
+
+  return data;
+}
+
+export async function deleteNote(noteId: string) {
+  const { error } = await supabase.from("notes").delete().eq("id", noteId);
+  if (error) throw error;
+}
+
 export async function bulkAddNotes(notes: { title?: string; body: string }[], user_id: string) {
   // This is a simple iterative implementation. A more robust solution would handle transactions and batching.
   for (const note of notes) {

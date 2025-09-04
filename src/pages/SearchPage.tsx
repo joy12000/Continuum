@@ -1,5 +1,6 @@
 import { Session } from '@supabase/supabase-js';
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { SearchBar } from '../components/SearchBar';
 import { useSearch, SearchResult } from '../hooks/useSearch';
 import PageLayout from '../components/PageLayout';
@@ -26,34 +27,33 @@ const SearchResultsList = ({ results, loading, noteTitlesMap }: { results: Searc
   return (
     <ul className="space-y-4">
       {results.map(result => (
-        <li 
-          key={result.note_id} 
-          className="border border-white/10 bg-[#0b1830]/50 rounded-lg p-4 backdrop-blur-sm hover:bg-white/5 transition-colors duration-300"
-        >
-          <div className="flex justify-between items-start">
-            <div>
-              <h3 
-                className="text-lg font-semibold text-sky-300"
-                style={{ textShadow: '0 0 0.5rem rgba(125, 211, 252, 0.3)' }}
-              >
-                {noteTitlesMap[result.note_id] || 'Untitled Note'}
-              </h3>
-              <div 
-                className="text-sm text-gray-300 mt-2 snippet"
-                dangerouslySetInnerHTML={{ __html: result.content }}
-                style={{ textShadow: '0 0 0.3rem rgba(200, 220, 255, 0.2)' }}
-              />
+        <li key={result.note_id}>
+          <Link to={`/notes/${result.note_id}`} className="block border border-white/10 bg-[#0b1830]/50 rounded-lg p-4 backdrop-blur-sm hover:bg-white/5 transition-colors duration-300">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 
+                  className="text-lg font-semibold text-sky-300"
+                  style={{ textShadow: '0 0 0.5rem rgba(125, 211, 252, 0.3)' }}
+                >
+                  {noteTitlesMap[result.note_id] || 'Untitled Note'}
+                </h3>
+                <div 
+                  className="text-sm text-gray-300 mt-2 snippet"
+                  dangerouslySetInnerHTML={{ __html: result.content }}
+                  style={{ textShadow: '0 0 0.3rem rgba(200, 220, 255, 0.2)' }}
+                />
+              </div>
+              <div className="flex space-x-2 ml-4">
+                <button onClick={(e) => { e.preventDefault(); handleFeedback(result, 'like'); }} className="text-gray-400 hover:text-green-400 transition-colors">
+                  <ThumbUpIcon className="h-5 w-5" />
+                </button>
+                <button onClick={(e) => { e.preventDefault(); handleFeedback(result, 'dislike'); }} className="text-gray-400 hover:text-red-400 transition-colors">
+                  <ThumbDownIcon className="h-5 w-5" />
+                </button>
+              </div>
             </div>
-            <div className="flex space-x-2 ml-4">
-              <button onClick={() => handleFeedback(result, 'like')} className="text-gray-400 hover:text-green-400 transition-colors">
-                <ThumbUpIcon className="h-5 w-5" />
-              </button>
-              <button onClick={() => handleFeedback(result, 'dislike')} className="text-gray-400 hover:text-red-400 transition-colors">
-                <ThumbDownIcon className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-          <div className="text-xs text-gray-500 mt-2">Score: {result.distance.toFixed(3)}</div>
+            <div className="text-xs text-gray-500 mt-2">Score: {result.distance.toFixed(3)}</div>
+          </Link>
         </li>
       ))}
     </ul>

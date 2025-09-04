@@ -1,156 +1,138 @@
-import React from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import PageLayout from '@/components/PageLayout';
-import { supabase } from '@/lib/supabase';
-import type { Note } from '../../lib/types'; // Corrected path
+import React, { useEffect, useState, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { getNoteById, deleteNote, updateNote } from '../lib/supabaseService';
+import type { Note } from '../types/common';
+import { RichNoteEditor } from '../components/RichNoteEditor';
+import ConfirmModal from '../components/ConfirmModal';
+import { supabase } from '../lib/supabase';
 
-// --- Type Definitions ---
-interface Backlink {
-  from_note_id: string;
-  to_note_id: string;
-  title: string | null;
-}
-
-interface Connection {
-  note_id: string;
-  title: string | null;
-  score: number;
-}
-
-interface BacklinksResponse {
-    note_id: string;
-    backlinks: Backlink[];
-}
-
-interface ConnectionsResponse {
-    note_id: string;
-    connections: Connection[];
-}
-
-// --- API Fetching Functions ---
-const fetchNoteDetails = async (noteId: string): Promise<Note> => {
-  const { data: { session } } = await supabase.auth.getSession();
-  const token = session?.access_token;
-  const response = await fetch(`/api/v1?action=get-note&noteId=${noteId}`, {
-    headers: { ...(token && { Authorization: `Bearer ${token}` }) },
-  });
-  if (!response.ok) throw new Error('Failed to fetch note details');
-  return response.json();
-};
-
-const fetchBacklinks = async (noteId: string): Promise<BacklinksResponse> => {
-  const { data: { session } } = await supabase.auth.getSession();
-  const token = session?.access_token;
-  const response = await fetch(`/api/v1?action=get-backlinks&noteId=${noteId}`, {
-    headers: { ...(token && { Authorization: `Bearer ${token}` }) },
-  });
-  if (!response.ok) throw new Error('Failed to fetch backlinks');
-  return response.json();
-};
-
-const fetchConnections = async (noteId: string): Promise<ConnectionsResponse> => {
-  const { data: { session } } = await supabase.auth.getSession();
-  const token = session?.access_token;
-  const response = await fetch(`/api/v1?action=get-connections&noteId=${noteId}`, {
-    headers: { ...(token && { Authorization: `Bearer ${token}` }) },
-  });
-  if (!response.ok) throw new Error('Failed to fetch connections');
-  return response.json();
-};
-
-// --- Main Component ---
-const NoteDetailPage = () => {
+export function NoteDetailPage() {
   const { noteId } = useParams<{ noteId: string }>();
+  const navigate = useNavigate();
+  const [note, setNote] = useState<Note | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  
+  const [editedTitle, setEditedTitle] = useState('');
+  const [editedBody, setEditedBody] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  if (!noteId) {
-    return <div>Note ID not found.</div>;
-  }
-
-  const { data: note, isLoading: isLoadingNote, error: errorNote } = useQuery<Note, Error>({
-    queryKey: ['note', noteId],
-    queryFn: () => fetchNoteDetails(noteId),
-  });
-
-  const { data: backlinksData, isLoading: isLoadingBacklinks } = useQuery<BacklinksResponse, Error>({
-    queryKey: ['backlinks', noteId],
-    queryFn: () => fetchBacklinks(noteId),
-  });
-
-  const { data: connectionsData, isLoading: isLoadingConnections } = useQuery<ConnectionsResponse, Error>({
-    queryKey: ['connections', noteId],
-    queryFn: () => fetchConnections(noteId),
-  });
-
-  const renderContent = () => {
-    if (isLoadingNote) {
-      return <div className="text-center p-8">Loading note...</div>;
+  const fetchNote = useCallback(async () => {
+    if (!noteId) return;
+    setIsLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not logged in");
+      const noteData = await getNoteById(noteId, user.id);
+      setNote(noteData);
+      setEditedTitle(noteData.title || '');
+      setEditedBody(noteData.body || '');
+    } catch (error: any) {
+      console.error('Failed to fetch note:', error);
+      alert(`노트를 불러오는 데 실패했습니다: ${error.message}`);
+      setNote(null);
+    } finally {
+      setIsLoading(false);
     }
-    if (errorNote) {
-      return <div className="text-center p-8 text-red-500">Error loading note: {errorNote.message}</div>;
+  }, [noteId]);
+
+  useEffect(() => {
+    fetchNote();
+  }, [fetchNote]);
+
+  const handleSave = async () => {
+    if (!noteId) return;
+    setIsLoading(true);
+    try {
+      const updatedNote = await updateNote(noteId, { title: editedTitle, body: editedBody });
+      setNote(updatedNote);
+      setIsEditing(false);
+      alert('노트가 성공적으로 저장되었습니다.');
+      // Dispatch a custom event to notify other components
+      window.dispatchEvent(new CustomEvent('notes:updated'));
+    } catch (error: any) {
+      console.error('Failed to save note:', error);
+      alert(`노트 저장에 실패했습니다: ${error.message}`);
+    } finally {
+      setIsLoading(false);
     }
-    if (!note) {
-      return <div className="text-center p-8">Note not found.</div>;
-    }
-
-    return (
-      <div className="p-4 md:p-6">
-        <h1 className="text-3xl font-bold mb-4 text-sky-400">{note.title || 'Untitled Note'}</h1>
-        <div className="prose prose-invert max-w-none bg-slate-800/50 p-4 rounded-lg">
-          <p>{note.body}</p>
-        </div>
-
-        <div className="mt-8 grid gap-8 md:grid-cols-2">
-          {/* Backlinks Section */}
-          <div>
-            <h2 className="text-xl font-bold mb-3">Backlinks</h2>
-            {isLoadingBacklinks ? (
-              <p>Loading backlinks...</p>
-            ) : backlinksData?.backlinks && backlinksData.backlinks.length > 0 ? (
-              <ul className="space-y-2">
-                {backlinksData.backlinks.map((link: Backlink) => (
-                  <li key={link.from_note_id} className="p-3 bg-slate-800/50 rounded-lg">
-                    <Link to={`/notes/${link.from_note_id}`} className="hover:text-sky-400">
-                      {link.title || 'Untitled Note'}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p>No backlinks found.</p>
-            )}
-          </div>
-
-          {/* Connections Section */}
-          <div>
-            <h2 className="text-xl font-bold mb-3">Connections</h2>
-            {isLoadingConnections ? (
-              <p>Loading connections...</p>
-            ) : connectionsData?.connections && connectionsData.connections.length > 0 ? (
-              <ul className="space-y-2">
-                {connectionsData.connections.map((conn: Connection) => (
-                  <li key={conn.note_id} className="p-3 bg-slate-800/50 rounded-lg flex justify-between items-center">
-                    <Link to={`/notes/${conn.note_id}`} className="hover:text-sky-400">
-                      {conn.title || 'Untitled Note'}
-                    </Link>
-                    <span className="text-sm text-gray-400">Score: {conn.score.toFixed(2)}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p>No connections found.</p>
-            )}
-          </div>
-        </div>
-      </div>
-    );
   };
 
+  const handleDelete = async () => {
+    if (!noteId) return;
+    setIsLoading(true);
+    try {
+      await deleteNote(noteId);
+      alert('노트가 삭제되었습니다.');
+      setShowDeleteModal(false);
+      // Dispatch a custom event to notify other components
+      window.dispatchEvent(new CustomEvent('notes:updated'));
+      navigate('/'); // Navigate to home page after deletion
+    } catch (error: any) {
+      console.error('Failed to delete note:', error);
+      alert(`노트 삭제에 실패했습니다: ${error.message}`);
+      setIsLoading(false);
+    }
+  };
+
+  if (isLoading) {
+    return <div className="flex justify-center items-center h-full"><p className="text-white">로딩 중...</p></div>;
+  }
+
+  if (!note) {
+    return <div className="flex justify-center items-center h-full"><p className="text-red-500">노트를 찾을 수 없습니다.</p></div>;
+  }
+
   return (
-    <PageLayout title="Note Details">
-      {renderContent()}
-    </PageLayout>
+    <div className="p-4 md:p-6 text-white max-w-4xl mx-auto">
+      {isEditing ? (
+        <div>
+          <input
+            type="text"
+            value={editedTitle}
+            onChange={(e) => setEditedTitle(e.target.value)}
+            className="w-full bg-gray-800 text-white text-3xl font-bold p-2 rounded mb-4"
+            placeholder="노트 제목"
+          />
+          <RichNoteEditor
+            note={note}
+            onSave={(content) => setEditedBody(content)}
+          />
+          <div className="flex justify-end gap-2 mt-4">
+            <button onClick={() => setIsEditing(false)} className="btn btn-ghost">취소</button>
+            <button onClick={handleSave} className="btn btn-primary" disabled={isLoading}>
+              {isLoading ? '저장 중...' : '저장'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div>
+          <div className="flex justify-between items-center mb-4">
+            <h1 className="text-4xl font-bold text-sky-300">{note.title}</h1>
+            <div className="flex gap-2">
+              <button onClick={() => setIsEditing(true)} className="btn btn-outline btn-info">수정</button>
+              <button onClick={() => setShowDeleteModal(true)} className="btn btn-outline btn-error">삭제</button>
+            </div>
+          </div>
+          <div 
+            className="prose prose-invert max-w-none p-4 bg-gray-800 rounded-lg" 
+            style={{ whiteSpace: 'pre-wrap' }}
+            dangerouslySetInnerHTML={{ __html: note.body }}
+          />
+        </div>
+      )}
+
+      {showDeleteModal && (
+        <ConfirmModal
+          onClose={() => setShowDeleteModal(false)}
+          onConfirm={handleDelete}
+          title="노트 삭제"
+        >
+          정말로 이 노트를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+        </ConfirmModal>
+      )}
+    </div>
   );
-};
+}
 
 export default NoteDetailPage;
