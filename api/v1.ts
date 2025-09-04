@@ -9,7 +9,7 @@ import { getSupabaseClient } from './shared-lib/supabaseClient.js';
 import type { InsightThread, Note, NoteChunk, NoteLink, PreparedNote } from './shared-lib/types.js';
 import { getInsightThreadsCache, upsertInsightThreadsCache } from './shared-lib/database.js';
 import { summarizeThread } from './shared-lib/ai.js';
-import { prepareNotes, buildCitationSet, buildEdges, cluster, clusterScore, pairScore } from './shared-lib/compute.js';
+import { prepareNotes, buildCitationSet, buildEdges, clusterHybrid, cluster, clusterScore, pairScore } from './shared-lib/compute.js';
 
 export const config = { runtime: 'nodejs' };
 
@@ -55,7 +55,12 @@ async function runThreadGeneration(jobId: string, userId: string, token: string)
     const citationSet = buildCitationSet((links as NoteLink[]) ?? []);
     const weights = { citation: 0.0, sim: 1.0, tag: 0.0 }; // Set citation and tag weights to 0 as they are not fully implemented
     const edges = buildEdges(prepared, citationSet, weights);
-    const { clusters } = cluster(prepared, edges);
+    const { clusters } = clusterHybrid(prepared, edges, {
+      kMin: 3,          // 보기 좋은 스레드 개수 범위(원하면 조정)
+      kMax: 12,
+      minEdge: 0.05,    // 너무 약한 간선 컷
+      minClusterSize: 2 // 작은 군집 흡수
+    });
     const out: InsightThread[] = [];
     for (const idxs of clusters) {
       const groupNotes = idxs.map((i) => prepared[i].note);

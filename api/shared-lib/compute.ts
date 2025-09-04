@@ -113,32 +113,12 @@ class DSU {
 }
 
 export function autoThreshold(edges: Edge[]): number {
-  // If there are no connections, return a neutral default threshold.
   if (edges.length === 0) return 0.5;
-
   const scores = edges.map((e) => e.score).filter((x) => isFinite(x));
-  if (scores.length === 0) return 0.5;
-
-  // --- Dynamic Threshold Calculation ---
-  // The goal is to find a "reasonable" cutoff based on the distribution of scores
-  // for this specific set of notes, rather than using a single fixed value.
-
-  // Constants for the calculation
-  const MIN_THRESHOLD = 0.35; // The absolute minimum cutoff to prevent clustering noise.
-  const MAX_THRESHOLD = 0.75; // The absolute maximum cutoff to ensure even strong connections can form clusters.
-  const STDDEV_FACTOR = 0.15; // How much the standard deviation should influence the threshold. A small nudge.
-
   const m = mean(scores);
   const s = stddev(scores);
-
-  // The threshold is the mean score, nudged by the standard deviation.
-  // This makes it adaptive:
-  // - If scores are tightly packed, the threshold is close to the mean.
-  // - If scores are spread out, it adjusts to be more selective.
-  const calculatedThreshold = m + STDDEV_FACTOR * s;
-
-  // Clamp the result between the min and max bounds to ensure it's always within a reasonable range.
-  return Math.max(MIN_THRESHOLD, Math.min(MAX_THRESHOLD, calculatedThreshold));
+  // baseline 0.35, nudge by distribution
+  return Math.max(0.35, Math.min(0.75, m + 0.15 * s));
 }
 
 export function cluster(prepared: PreparedNote[], edges: Edge[], threshold?: number) {
@@ -165,4 +145,207 @@ export function clusterScore(indices: number[], edges: Edge[]): number {
   if (!rel.length) return 0;
   const avg = mean(rel.map((e) => e.score));
   return avg;
+}
+
+// === [ADD] LPA(라벨 전파) + 자동 임계값 + 하이브리드 클러스터러 =====================
+
+// 내부용 인접리스트 생성
+function _buildAdj(n: number, edges: Edge[], minW = 0): Map<number, Array<{ j: number; w: number }>> {
+  const adj = new Map<number, Array<{ j: number; w: number }>>();
+  for (let i = 0; i < n; i++) adj.set(i, []);
+  for (const e of edges) {
+    if (e.score < minW) continue;
+    adj.get(e.i)!.push({ j: e.j, w: e.score });
+    adj.get(e.j)!.push({ j: e.i, w: e.score });
+  }
+  return adj;
+}
+
+/**
+ * 파라미터-프리 가중치 라벨 전파(Label Propagation).
+ * - 임계값(커트라인) 없이, 이웃 라벨 가중치합이 최대인 라벨로 갈아탐
+ * - 너무 작은 군집은 강한 이웃 군집으로 흡수
+ * - 순서 셔플을 쓰지 않아 **결과가 결정적(Deterministic)** 이도록 구성
+ */
+export function clusterLPA(
+  prepared: PreparedNote[],
+  edges: Edge[],
+  opts?: { maxIter?: number; minEdge?: number; minClusterSize?: number }
+) {
+  const n = prepared.length;
+  const maxIter = opts?.maxIter ?? 20;
+  const minEdge = opts?.minEdge ?? 0.05;      // 너무 약한 간선 컷
+  const minClusterSize = opts?.minClusterSize ?? 2;
+
+  const adjWeak = _buildAdj(n, edges, minEdge);
+  const label = Array.from({ length: n }, (_, i) => i);
+
+  let changed = true;
+  let iter = 0;
+  while (changed && iter < maxIter) {
+    changed = false;
+    // 결정적 순회(셔플 없음)
+    for (let i = 0; i < n; i++) {
+      const neigh = adjWeak.get(i)!;
+      if (!neigh.length) continue;
+
+      // 이웃 라벨별 가중치 합
+      const byLab = new Map<number, number>();
+      for (const { j, w } of neigh) {
+        const lj = label[j];
+        byLab.set(lj, (byLab.get(lj) ?? 0) + w);
+      }
+
+      // 최댓값 라벨 선택(동점일 때 라벨 id가 작은 쪽 채택 → 결정성)
+      let bestLab = label[i], best = -Infinity;
+      for (const [lab, sum] of byLab) {
+        if (sum > best || (sum === best && lab < bestLab)) {
+          best = sum; bestLab = lab;
+        }
+      }
+      if (bestLab !== label[i]) { label[i] = bestLab; changed = true; }
+    }
+    iter++;
+  }
+
+  // 라벨→클러스터
+  const map = new Map<number, number>();
+  const clusters: number[][] = [];
+  for (let i = 0; i < n; i++) {
+    const lab = label[i];
+    if (!map.has(lab)) { map.set(lab, clusters.length); clusters.push([]); }
+    clusters[map.get(lab)!].push(i);
+  }
+
+  // 너무 작은 군집은 강한 이웃 군집으로 흡수
+  if (minClusterSize > 1) {
+    const adjFull = _buildAdj(n, edges, 0);
+    const node2cid = new Map<number, number>();
+    clusters.forEach((c, cid) => c.forEach(v => node2cid.set(v, cid)));
+
+    for (let cid = 0; cid < clusters.length; cid++) {
+      const c = clusters[cid];
+      if (c.length >= minClusterSize) continue;
+
+      for (const v of [...c]) {
+        const byCid = new Map<number, number>();
+        for (const { j, w } of adjFull.get(v)!) {
+          const ocid = node2cid.get(j)!;
+          if (ocid === cid) continue;
+          byCid.set(ocid, (byCid.get(ocid) ?? 0) + w);
+        }
+        // 가장 강하게 붙어있는 군집으로 이동
+        let bestCid = cid, best = -Infinity;
+        for (const [k, s] of byCid) if (s > best) { best = s; bestCid = k; }
+        if (bestCid !== cid) {
+          clusters[cid] = clusters[cid].filter(x => x !== v);
+          clusters[bestCid].push(v);
+          node2cid.set(v, bestCid);
+        }
+      }
+    }
+  }
+
+  return { clusters: clusters.filter(c => c.length > 0) };
+}
+
+// ---- 자동 임계값(이분 탐색 + 모듈러리티로 품질 선택) ---------------------
+
+function _clusterByThreshold(n: number, edges: Edge[], thr: number) {
+  const dsu = new DSU(n);
+  for (const e of edges) if (e.score >= thr) dsu.u(e.i, e.j);
+  const groups = new Map<number, number[]>();
+  for (let i = 0; i < n; i++) {
+    const r = dsu.f(i);
+    if (!groups.has(r)) groups.set(r, []);
+    groups.get(r)!.push(i);
+  }
+  return [...groups.values()];
+}
+
+// 가중 그래프 모듈러리티(높을수록 내부가 조밀하고 외부와 느슨)
+function _modularityWeighted(n: number, edges: Edge[], clusters: number[][]) {
+  const deg = new Array(n).fill(0);
+  let twoM = 0;
+  for (const e of edges) { deg[e.i] += e.score; deg[e.j] += e.score; twoM += 2 * e.score; }
+  if (twoM === 0) return 0;
+  const cidOf = new Array(n).fill(-1);
+  clusters.forEach((c, cid) => c.forEach(i => cidOf[i] = cid));
+  let sum = 0;
+  for (const e of edges) if (cidOf[e.i] === cidOf[e.j]) sum += e.score - (deg[e.i] * deg[e.j]) / twoM;
+  return sum / twoM;
+}
+
+/**
+ * 목표 군집 수 범위를 만족하도록 임계값을 자동 탐색하고,
+ * 그 범위 안에서 모듈러리티(Q)가 최대인 해를 선택.
+ */
+export function clusterByAutoThreshold(
+  prepared: PreparedNote[],
+  edges: Edge[],
+  opts?: { kMin?: number; kMax?: number; iters?: number; grid?: number }
+) {
+  const n = prepared.length;
+  const kMin = opts?.kMin ?? 3;
+  const kMax = opts?.kMax ?? 12;
+  const iters = opts?.iters ?? 12;
+  const grid  = opts?.grid ?? 6;
+
+  const scores = edges.map(e => e.score).filter(Number.isFinite).sort((a,b) => a - b);
+  if (scores.length === 0) return { clusters: [Array.from({ length: n }, (_, i) => i)], threshold: 1, Q: 0 };
+
+  const q = (p: number) => scores[Math.min(scores.length - 1, Math.max(0, Math.floor(p * (scores.length - 1))))];
+  let lo = q(0.4), hi = q(0.98);
+
+  let bestThr = lo, bestClusters = _clusterByThreshold(n, edges, lo), bestQ = -Infinity;
+
+  for (let t = 0; t < iters; t++) {
+    const mid = (lo + hi) / 2;
+    const cs = _clusterByThreshold(n, edges, mid);
+    if (cs.length < kMin) hi = mid;           // 너무 적게 나눠짐 → 임계 ↑
+    else if (cs.length > kMax) lo = mid;      // 너무 많이 쪼개짐 → 임계 ↓
+    else {
+      const Q = _modularityWeighted(n, edges, cs);
+      if (Q > bestQ) { bestQ = Q; bestThr = mid; bestClusters = cs; }
+      lo = mid * 0.98; hi = mid * 1.02;       // 근방 탐색
+    }
+  }
+
+  const center = (lo + hi) / 2;
+  const step = (hi - lo) / Math.max(1, grid);
+  for (let g = -grid; g <= grid; g++) {
+    const thr = Math.min(1, Math.max(0, center + g * step));
+    const cs = _clusterByThreshold(n, edges, thr);
+    if (cs.length >= kMin && cs.length <= kMax) {
+      const Q = _modularityWeighted(n, edges, cs);
+      if (Q > bestQ) { bestQ = Q; bestThr = thr; bestClusters = cs; }
+    }
+  }
+
+  return { clusters: bestClusters, threshold: bestThr, Q: bestQ };
+}
+
+/**
+ * 하이브리드 오케스트레이터:
+ *  - 1차 LPA로 빠르게 클러스터링
+ *  - 결과 군집 수가 [kMin, kMax] 밖이면 자동 임계값 방식으로 보정
+ */
+export function clusterHybrid(
+  prepared: PreparedNote[],
+  edges: Edge[],
+  pref?: { kMin?: number; kMax?: number; minEdge?: number; minClusterSize?: number }
+) {
+  const kMin = pref?.kMin ?? 3;
+  const kMax = pref?.kMax ?? 12;
+  const minEdge = pref?.minEdge ?? 0.05;
+  const minClusterSize = pref?.minClusterSize ?? 2;
+
+  const lpa = clusterLPA(prepared, edges, { minEdge, minClusterSize });
+  const k = lpa.clusters.length;
+
+  if (k < kMin || k > kMax) {
+    const auto = clusterByAutoThreshold(prepared, edges, { kMin, kMax });
+    return { clusters: auto.clusters, method: "auto-threshold" as const, threshold: auto.threshold };
+  }
+  return { clusters: lpa.clusters, method: "lpa" as const };
 }
