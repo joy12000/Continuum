@@ -46,7 +46,6 @@ export function useSearch(query: string, token: string | undefined) {
           throw new Error(`Search failed with status ${res.status}${errorBody.error ? `: ${errorBody.error}` : ''}`);
         }
         const data = await res.json();
-        console.log("Search results:", data);
         setResults(data);
       } catch (error) {
         console.error('Search failed:', error);
@@ -58,7 +57,6 @@ export function useSearch(query: string, token: string | undefined) {
 
     // Debounce the search
     const handler = setTimeout(() => {
-      console.log("Performing search for:", trimmedQuery);
       performSearch();
     }, 300); // 300ms delay
 
