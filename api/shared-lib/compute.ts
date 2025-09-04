@@ -113,12 +113,32 @@ class DSU {
 }
 
 export function autoThreshold(edges: Edge[]): number {
+  // If there are no connections, return a neutral default threshold.
   if (edges.length === 0) return 0.5;
+
   const scores = edges.map((e) => e.score).filter((x) => isFinite(x));
+  if (scores.length === 0) return 0.5;
+
+  // --- Dynamic Threshold Calculation ---
+  // The goal is to find a "reasonable" cutoff based on the distribution of scores
+  // for this specific set of notes, rather than using a single fixed value.
+
+  // Constants for the calculation
+  const MIN_THRESHOLD = 0.35; // The absolute minimum cutoff to prevent clustering noise.
+  const MAX_THRESHOLD = 0.75; // The absolute maximum cutoff to ensure even strong connections can form clusters.
+  const STDDEV_FACTOR = 0.15; // How much the standard deviation should influence the threshold. A small nudge.
+
   const m = mean(scores);
   const s = stddev(scores);
-  // baseline 0.35, nudge by distribution
-  return Math.max(0.35, Math.min(0.75, m + 0.15 * s));
+
+  // The threshold is the mean score, nudged by the standard deviation.
+  // This makes it adaptive:
+  // - If scores are tightly packed, the threshold is close to the mean.
+  // - If scores are spread out, it adjusts to be more selective.
+  const calculatedThreshold = m + STDDEV_FACTOR * s;
+
+  // Clamp the result between the min and max bounds to ensure it's always within a reasonable range.
+  return Math.max(MIN_THRESHOLD, Math.min(MAX_THRESHOLD, calculatedThreshold));
 }
 
 export function cluster(prepared: PreparedNote[], edges: Edge[], threshold?: number) {

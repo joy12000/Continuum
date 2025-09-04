@@ -53,7 +53,8 @@ async function runThreadGeneration(jobId: string, userId: string, token: string)
     if (lerr) throw new Error(`Failed to fetch links: ${lerr.message}`);
     const prepared = prepareNotes(notes as Note[], (chunks as NoteChunk[]) ?? []);
     const citationSet = buildCitationSet((links as NoteLink[]) ?? []);
-    const edges = buildEdges(prepared, citationSet, { citation: 0.5, sim: 1.0, tag: 0.25 });
+    const weights = { citation: 0.0, sim: 1.0, tag: 0.0 }; // Set citation and tag weights to 0 as they are not fully implemented
+    const edges = buildEdges(prepared, citationSet, weights);
     const { clusters } = cluster(prepared, edges);
     const out: InsightThread[] = [];
     for (const idxs of clusters) {
