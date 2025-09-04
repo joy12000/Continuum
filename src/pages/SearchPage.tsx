@@ -9,8 +9,15 @@ import { getNotesByIds } from '../lib/supabaseService';
 import { AnswerData, Note } from '../types/common';
 import { HandThumbUpIcon as ThumbUpIcon, HandThumbDownIcon as ThumbDownIcon } from '@heroicons/react/24/solid';
 
+// Helper function to highlight search terms
+const highlight = (text: string, query: string) => {
+  if (!query) return text;
+  const regex = new RegExp(`(${query})`, 'gi');
+  return text.replace(regex, '<mark class="bg-sky-500 text-white">$1</mark>');
+};
+
 // Component to render the search results
-const SearchResultsList = ({ results, loading, noteTitlesMap }: { results: SearchResult[], loading: boolean, noteTitlesMap: Record<string, string> }) => {
+const SearchResultsList = ({ results, loading, noteTitlesMap, query }: { results: SearchResult[], loading: boolean, noteTitlesMap: Record<string, string>, query: string }) => {
   if (loading) {
     return <div className="p-4 text-gray-400 text-center">Searching...</div>;
   }
@@ -27,7 +34,7 @@ const SearchResultsList = ({ results, loading, noteTitlesMap }: { results: Searc
   return (
     <ul className="space-y-4">
       {results.map(result => (
-        <li key={result.note_id}>
+        <li key={`${result.note_id}_${result.chunk_index}`}>
           <Link to={`/notes/${result.note_id}`} className="block border border-white/10 bg-[#0b1830]/50 rounded-lg p-4 backdrop-blur-sm hover:bg-white/5 transition-colors duration-300">
             <div className="flex justify-between items-start">
               <div>
@@ -39,7 +46,7 @@ const SearchResultsList = ({ results, loading, noteTitlesMap }: { results: Searc
                 </h3>
                 <div 
                   className="text-sm text-gray-300 mt-2 snippet"
-                  dangerouslySetInnerHTML={{ __html: result.content }}
+                  dangerouslySetInnerHTML={{ __html: highlight(result.content, query) }}
                   style={{ textShadow: '0 0 0.3rem rgba(200, 220, 255, 0.2)' }}
                 />
               </div>
@@ -169,7 +176,7 @@ const SearchPage = ({ session }: { session: Session | null }) => {
         {generatedAnswer.data && <GeneratedAnswer data={generatedAnswer.data} noteTitlesMap={noteTitlesMap} />} 
       </div>
       <div className="mt-6">
-        <SearchResultsList results={results} loading={loading} noteTitlesMap={noteTitlesMap} />
+        <SearchResultsList results={results} loading={loading} noteTitlesMap={noteTitlesMap} query={query} />
       </div>
     </PageLayout>
   );
