@@ -404,6 +404,46 @@ export function sparsifyEdgesKNN(
   return edges.filter(e => keep.has(`${e.i}-${e.j}`));
 }
 
+// === 싱글톤 흡수(고립 제외): 과분할 완화 ===========================
+function _absorbSingletons(
+  clusters: number[][],
+  edges: Edge[],
+  iso: Set<number>
+): number[][] {
+  const out: number[][] = [];
+  const singles: number[] = [];
+  for (const c of clusters) {
+    if (c.length === 1 && !iso.has(c[0])) singles.push(c[0]);
+    else out.push(c);
+  }
+  if (singles.length === 0 || out.length === 0) return [...out, ...singles.map(v => [v])];
+
+  // 노드→이웃(가중치) 맵
+  const adj = new Map<number, Array<{ j: number; w: number }>>();
+  for (const e of edges) {
+    if (!adj.has(e.i)) adj.set(e.i, []);
+    if (!adj.has(e.j)) adj.set(e.j, []);
+    adj.get(e.i)!.push({ j: e.j, w: e.score });
+    adj.get(e.j)!.push({ j: e.i, w: e.score });
+  }
+
+  for (const v of singles) {
+    let bestIdx = -1, bestSum = 0;
+    for (let ci = 0; ci < out.length; ci++) {
+      const members = out[ci];
+      let s = 0;
+      const neigh = adj.get(v) ?? [];
+      if (neigh.length === 0) continue;
+      for (const { j, w } of neigh) if (members.includes(j)) s += w;
+      if (s > bestSum) { bestSum = s; bestIdx = ci; }
+    }
+    // 충분히 연결돼 있으면 흡수, 아니면 싱글톤 유지
+    if (bestIdx >= 0 && bestSum > 0.05) out[bestIdx].push(v);
+    else out.push([v]);
+  }
+  return out;
+}
+
 // 최대 스패닝 트리 기반 강제 분할(한 덩어리일 때 마지막 안전장치)
 export function forceSplitByMST(n: number, edges: Edge[], k: number): number[][] {
   if (k <= 1 || n === 0) return [Array.from({ length: n }, (_, i) => i)];
@@ -466,7 +506,7 @@ export function forceSplitByMST(n: number, edges: Edge[], k: number): number[][]
   return comps;
 }
 
-// 하이브리드 오케스트레이터: 성기화 + LPA + 자동보정 + (필요시) 강제분할
+// 하이브리드 오케스트레이터: 성기화 + LPA + 자동보정 + (필요시) 강제분할 + 싱글톤 흡수
 export function clusterHybrid(
   prepared: PreparedNote[],
   edgesAll: Edge[],
@@ -491,7 +531,13 @@ export function clusterHybrid(
 
   // 1) 고립 노트 간선 제거 후 kNN 성기화
   const edgesDense = edgesAll.filter(e => !iso.has(e.i) && !iso.has(e.j));
-  const edges = sparsifyEdgesKNN(n, edgesDense, knnK, { mutual, minScore: Math.max(0.01, minEdge * 0.8) });
+  // 🔧 스파시파이 완화: minScore 낮춰서 간선 더 살림
+  const edges = sparsifyEdgesKNN(
+    n,
+    edgesDense,
+    knnK,
+    { mutual, minScore: Math.max(0.005, minEdge * 0.5) }
+  );
 
   // 2) LPA 1차
   const lpa = clusterLPA(prepared, edges, { minEdge, minClusterSize });
@@ -510,12 +556,11 @@ export function clusterHybrid(
     if (iso.has(i) && !inAny[i]) clusters.push([i]);
   }
 
-  // 5) 여전히 한 덩어리면 → 고립 아닌 노드만 강제 분할(MST)
+  // 5) 한 덩어리일 때만 → 고립 아닌 노드 강제 분할(MST)
   const nonIsoNodes = new Set<number>();
   for (let i = 0; i < n; i++) if (!iso.has(i)) nonIsoNodes.add(i);
 
-  // 조건 완화: non-iso가 2개 이상이면 강제 분할
-  if (clusters.length < kMin && nonIsoNodes.size >= 2) {
+  if (clusters.length === 1 && nonIsoNodes.size >= 2) {
     // non-iso 서브그래프 인덱스 재매핑
     const idx = new Map<number, number>(), rev: number[] = [];
     Array.from(nonIsoNodes).forEach((v, p) => { idx.set(v, p); rev[p] = v; });
@@ -534,8 +579,11 @@ export function clusterHybrid(
     for (const comp of comps) clusters.push(comp.map(p => rev[p]));
   }
 
-  // 6) 비어있는 군집 제거
+  // 6) 싱글톤 흡수(고립 제외)로 과분할 완화
+  clusters = _absorbSingletons(clusters, edges.length ? edges : edgesAll, iso);
+
+  // 7) 비어있는 군집 제거
   clusters = clusters.filter(c => c.length > 0);
 
-  return { clusters, method: "hybrid+knn+isolation" as const, meta: { knnK, mutual, isoCut } };
+  return { clusters, method: "hybrid+knn+isolation+absorb" as const, meta: { knnK, mutual, isoCut } };
 }
