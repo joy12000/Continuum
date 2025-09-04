@@ -37,7 +37,7 @@ export function useSearch(query: string, token: string | undefined) {
         }
         const userId = user.id;
 
-        const res = await fetch(`/api/v1?action=search&q=${encodeURIComponent(trimmedQuery)}&uid=${userId}`, {
+        const res = await fetch(`/api/v1?action=search&q=${encodeURIComponent(trimmedQuery)}&uid=${userId}&timestamp=${new Date().getTime()}`, {
           headers,
         });
 
