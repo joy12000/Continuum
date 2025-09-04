@@ -31,7 +31,7 @@ const InsightThreadCard: React.FC<InsightThreadCardProps> = ({ thread, onNoteCli
       </div>
 
       <div className="mt-3 text-xs text-right text-gray-500">
-        <span>관련성 점수: {thread.relevanceScore.toFixed(2)}</span>
+        <span>관련성 점수: {(thread.relevanceScore ?? 0).toFixed(2)}</span>
       </div>
     </div>
   );

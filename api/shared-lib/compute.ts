@@ -267,13 +267,37 @@ function _clusterByThreshold(n: number, edges: Edge[], thr: number) {
 function _modularityWeighted(n: number, edges: Edge[], clusters: number[][]) {
   const deg = new Array(n).fill(0);
   let twoM = 0;
-  for (const e of edges) { deg[e.i] += e.score; deg[e.j] += e.score; twoM += 2 * e.score; }
+  for (const e of edges) {
+    deg[e.i] += e.score;
+    deg[e.j] += e.score;
+    twoM += 2 * e.score;
+  }
   if (twoM === 0) return 0;
-  const cidOf = new Array(n).fill(-1);
-  clusters.forEach((c, cid) => c.forEach(i => cidOf[i] = cid));
-  let sum = 0;
-  for (const e of edges) if (cidOf[e.i] === cidOf[e.j]) sum += e.score - (deg[e.i] * deg[e.j]) / twoM;
-  return sum / twoM;
+
+  let Q = 0;
+  for (const c of clusters) {
+    if (c.length === 0) continue;
+    let M_in_c = 0;
+    let D_c = 0;
+    const nodeSet = new Set(c);
+    for (const i of c) {
+      D_c += deg[i];
+    }
+    for (const e of edges) {
+      if (nodeSet.has(e.i) && nodeSet.has(e.j)) {
+        // 간선이 클러스터 내부에 완전히 포함될 경우
+        if (e.i === e.j) {
+          M_in_c += e.score; // self-loop
+        } else {
+          M_in_c += e.score;
+        }
+      }
+    }
+    // M_in_c는 내부 간선 가중치의 합입니다. 루프가 없으므로 2를 곱할 필요가 없습니다.
+    // D_c는 클러스터 내 노드들의 총 차수(degree) 합입니다.
+    Q += (M_in_c / twoM) - Math.pow(D_c / twoM, 2);
+  }
+  return Q;
 }
 
 /**

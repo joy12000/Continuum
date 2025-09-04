@@ -9,7 +9,17 @@ import { getSupabaseClient } from './shared-lib/supabaseClient.js';
 import type { InsightThread, Note, NoteChunk, NoteLink, PreparedNote } from './shared-lib/types.js';
 import { getInsightThreadsCache, upsertInsightThreadsCache } from './shared-lib/database.js';
 import { summarizeThread } from './shared-lib/ai.js';
-import { prepareNotes, buildCitationSet, buildEdges, clusterHybrid, cluster, clusterScore, pairScore } from './shared-lib/compute.js';
+import {
+  prepareNotes,
+  buildCitationSet,
+  buildEdges,
+  cluster,                 // legacy
+  clusterLPA,              // lpa
+  clusterByAutoThreshold,  // auto
+  clusterHybrid,           // hybrid (fallback)
+  clusterScore,
+  pairScore
+} from './shared-lib/compute.js';
 
 export const config = { runtime: 'nodejs' };
 
@@ -55,12 +65,43 @@ async function runThreadGeneration(jobId: string, userId: string, token: string)
     const citationSet = buildCitationSet((links as NoteLink[]) ?? []);
     const weights = { citation: 0.0, sim: 1.0, tag: 0.0 }; // Set citation and tag weights to 0 as they are not fully implemented
     const edges = buildEdges(prepared, citationSet, weights);
-    const { clusters } = clusterHybrid(prepared, edges, {
-      kMin: 3,          // 보기 좋은 스레드 개수 범위(원하면 조정)
-      kMax: 12,
-      minEdge: 0.05,    // 너무 약한 간선 컷
-      minClusterSize: 2 // 작은 군집 흡수
-    });
+    // === Cluster method selection (env-driven) =======================
+    // Vercel 환경변수에서 선택: hybrid | legacy | lpa | auto
+    const CLUSTER_METHOD = process.env.CONTINUUM_CLUSTER_METHOD ?? "hybrid";
+    const method = String(CLUSTER_METHOD);
+
+    let clusters: number[][];
+
+    try {
+      if (method === "legacy") {
+        // 기존 임계값 기반(너의 cluster 함수)
+        clusters = cluster(prepared, edges).clusters;
+      } else if (method === "lpa") {
+        // 파라미터프리 라벨 전파 (임계값 없음)
+        clusters = clusterLPA(prepared, edges, {
+          minEdge: 0.05,        // 너무 약한 간선 컷
+          minClusterSize: 2     // 작은 군집 흡수
+        }).clusters;
+      } else if (method === "auto") {
+        // 원하는 개수 범위를 맞추는 자동 임계값 + 모듈러리티 최적
+        clusters = clusterByAutoThreshold(prepared, edges, {
+          kMin: 3,
+          kMax: 12
+        }).clusters;
+      } else {
+        // 기본은 하이브리드: LPA 1차 → 범위 벗어나면 auto로 보정
+        clusters = clusterHybrid(prepared, edges, {
+          kMin: 3,
+          kMax: 12,
+          minEdge: 0.05,
+          minClusterSize: 2
+        }).clusters;
+      }
+    } catch (e) {
+      // 안전장치: 문제가 나면 레거시로 폴백
+      clusters = cluster(prepared, edges).clusters;
+    }
+    // === /Cluster method selection ===========================
     const out: InsightThread[] = [];
     for (const idxs of clusters) {
       const groupNotes = idxs.map((i) => prepared[i].note);
