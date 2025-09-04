@@ -123,8 +123,18 @@ const SearchPage = ({ session }: { session: Session | null }) => {
           fullAnswer += decoder.decode(value, { stream: true });
         }
 
+        let parsedAnswerText = fullAnswer;
+        try {
+          const parsed = JSON.parse(fullAnswer);
+          if (parsed && typeof parsed.text === 'string') {
+            parsedAnswerText = parsed.text;
+          }
+        } catch (e) {
+          console.warn("Failed to parse AI answer as JSON, using raw text:", e);
+        }
+
         const finalAnswerData: AnswerData = {
-          answerSegments: [{ sentence: fullAnswer, sourceNoteId: '' }],
+          answerSegments: [{ sentence: parsedAnswerText, sourceNoteId: '' }],
           sourceNotes: contextNotes.map((n: Note) => n.id),
         };
 
@@ -156,7 +166,7 @@ const SearchPage = ({ session }: { session: Session | null }) => {
       <div className="my-6">
         {generatedAnswer.isLoading && <div className="p-4 text-center">답변 생성 중...</div>}
         {generatedAnswer.error && <div className="p-4 text-center text-red-500">오류: {generatedAnswer.error}</div>}
-        {generatedAnswer.data && <GeneratedAnswer data={generatedAnswer.data} />} 
+        {generatedAnswer.data && <GeneratedAnswer data={generatedAnswer.data} noteTitlesMap={noteTitlesMap} />} 
       </div>
       <div className="mt-6">
         <SearchResultsList results={results} loading={loading} noteTitlesMap={noteTitlesMap} />

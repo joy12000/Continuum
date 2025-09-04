@@ -3,6 +3,7 @@ import { AnswerData } from '../types/common';
 
 interface GeneratedAnswerProps {
   data: AnswerData;
+  noteTitlesMap: Record<string, string>;
 }
 
 /**
@@ -10,7 +11,7 @@ interface GeneratedAnswerProps {
  * Each sentence includes a clickable anchor `[number]` that links to the source note.
  * @param {GeneratedAnswerProps} props - The props containing the answer data.
  */
-export function GeneratedAnswer({ data }: GeneratedAnswerProps) {
+export function GeneratedAnswer({ data, noteTitlesMap }: GeneratedAnswerProps) {
   // Create a mapping from sourceNoteId to a display number (e.g., "note123" -> 1)
   const sourceIdToNumberMap = new Map<string, number>();
   let currentSourceNumber = 1;
@@ -53,9 +54,7 @@ export function GeneratedAnswer({ data }: GeneratedAnswerProps) {
           <ul className="space-y-3">
             {data.sourceNotes.map((noteId) => {
               const sourceNumber = sourceIdToNumberMap.get(noteId);
-              // In a real app, we would fetch the note content from the DB using the noteId.
-              // For now, we'll just display the ID as a placeholder.
-              const noteContentPreview = `노트 내용 (ID: ${noteId.substring(0, 8)}...)`; 
+              const noteTitle = noteTitlesMap[noteId] || `노트 내용 (ID: ${noteId.substring(0, 8)}...)`; 
 
               return (
                 <li 
@@ -66,7 +65,7 @@ export function GeneratedAnswer({ data }: GeneratedAnswerProps) {
                   <span className="font-bold text-indigo-500 dark:text-indigo-400 mr-2">
                     [{sourceNumber}]
                   </span>
-                  {noteContentPreview}
+                  {noteTitle}
                 </li>
               );
             })}
