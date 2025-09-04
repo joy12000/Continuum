@@ -5,9 +5,10 @@ import type { InsightThread, Note } from '@lib/types';
 
 interface InsightThreadCardProps {
   thread: InsightThread;
+  onNoteClick: (note: Note) => void;
 }
 
-const InsightThreadCard: React.FC<InsightThreadCardProps> = ({ thread }) => {
+const InsightThreadCard: React.FC<InsightThreadCardProps> = ({ thread, onNoteClick }) => {
   return (
     <div className="p-4 border rounded-lg shadow-md bg-slate-800/50 border-slate-700 flex flex-col h-full">
       <h3 className="text-lg font-bold text-sky-400">{thread.title}</h3>

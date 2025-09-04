@@ -7,7 +7,7 @@ import GenerationProgress from '@/components/GenerationProgress';
 import { useJobStatus } from '@/hooks/useJobStatus';
 import { supabase } from '@/lib/supabase';
 
-import type { InsightThread } from '@lib/types';
+import type { InsightThread, Note } from '@lib/types';
 
 // --- Type Definitions ---
 interface CachedThreadsResponse {
@@ -64,6 +64,13 @@ const startGenerationJob = async (): Promise<{ jobId: string }> => {
 const LinksPage = () => {
   const queryClient = useQueryClient();
   const [jobId, setJobId] = useState<string | null>(localStorage.getItem('continuum_job_id'));
+  const [isModalOpen, setModalOpen] = useState(false);
+  const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+
+  const handleNoteClick = (note: Note) => {
+    setSelectedNote(note);
+    setModalOpen(true);
+  };
 
   const { data: cachedData, error: queryError, isLoading: isLoadingInitial } = useQuery<CachedThreadsResponse, Error>({
     queryKey: ['cachedThreads'],
@@ -154,7 +161,7 @@ const LinksPage = () => {
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {threads.map((thread: InsightThread) => (
-            <InsightThreadCard key={thread.threadId} thread={thread} />
+            <InsightThreadCard key={thread.threadId} thread={thread} onNoteClick={handleNoteClick} />
           ))}
         </div>
       </div>

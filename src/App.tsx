@@ -9,6 +9,7 @@ const SearchPage = lazy(() => import('./pages/SearchPage'));
 const LinksPage = lazy(() => import('./pages/LinksPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const DeveloperPage = lazy(() => import('./pages/DeveloperPage'));
+
 import NoteDetailPage from './pages/NoteDetailPage';
 
 import Diagnostics from './components/Diagnostics';
