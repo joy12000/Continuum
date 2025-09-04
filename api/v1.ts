@@ -107,12 +107,11 @@ async function handleSearch(req: VercelRequest, res: VercelResponse) {
     const qEmb = await getEmbedding(q, TaskType.RETRIEVAL_QUERY);
     const limit_k = Number(Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit) || 12;
 
-    const args: any = {
-      limit_k: limit_k,
-      q_emb: qEmb,
-      uid: finalUid // Pass finalUid
-    };
-    const { data, error } = await sb.rpc('search_chunks', args);
+    const { data, error } = await sb.rpc('match_notes', {
+      query_embedding: qEmb,
+      match_threshold: 0.7,
+      match_count: limit_k,
+    });
 
     if (error) return res.status(500).json({ error: `[supabase] ${error.message}` });
     return res.status(200).json(data || []);
