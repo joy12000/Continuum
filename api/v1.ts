@@ -91,10 +91,11 @@ async function runThreadGeneration(jobId: string, userId: string, token: string)
       } else {
         // 기본은 하이브리드: LPA 1차 → 범위 벗어나면 auto로 보정
         clusters = clusterHybrid(prepared, edges, {
-          kMin: 3,
-          kMax: 12,
+          kMin: 3, kMax: 12,
           minEdge: 0.05,
-          minClusterSize: 2
+          minClusterSize: 2,
+          knnK: Number(process.env.CONTINUUM_CLUSTER_K ?? 8),   // 선택
+          mutual: (process.env.CONTINUUM_CLUSTER_MUTUAL ?? "1") === "1"
         }).clusters;
       }
     } catch (e) {

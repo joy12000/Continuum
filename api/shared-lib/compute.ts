@@ -349,27 +349,151 @@ export function clusterByAutoThreshold(
   return { clusters: bestClusters, threshold: bestThr, Q: bestQ };
 }
 
-/**
- * 하이브리드 오케스트레이터:
- *  - 1차 LPA로 빠르게 클러스터링
- *  - 결과 군집 수가 [kMin, kMax] 밖이면 자동 임계값 방식으로 보정
- */
+// === [ADD] 간선 성기화: 상호 k-최근접 이웃(mutual kNN) =====================
+function _topKByNode(n: number, edges: Edge[], k: number) {
+  const byNode: Map<number, Array<{ nb: number; w: number }>> = new Map();
+  for (let i = 0; i < n; i++) byNode.set(i, []);
+  for (const e of edges) {
+    byNode.get(e.i)!.push({ nb: e.j, w: e.score });
+    byNode.get(e.j)!.push({ nb: e.i, w: e.score });
+  }
+  for (let i = 0; i < n; i++) {
+    const arr = byNode.get(i)!;
+    arr.sort((a, b) => b.w - a.w);
+    if (arr.length > k) arr.length = k;
+  }
+  return byNode;
+}
+
+/** 상호 kNN + 최소 점수 컷으로 간선 성기화 */
+export function sparsifyEdgesKNN(
+  n: number,
+  edges: Edge[],
+  k = 8,
+  { mutual = true, minScore = 0.08 }: { mutual?: boolean; minScore?: number } = {}
+): Edge[] {
+  if (edges.length === 0) return edges;
+  const byNode = _topKByNode(n, edges, Math.max(1, k));
+  const keep = new Set<string>();
+  // 후보 선택(단방향)
+  for (let i = 0; i < n; i++) {
+    for (const { nb, w } of byNode.get(i)!) {
+      if (w < minScore) continue;
+      const a = Math.min(i, nb), b = Math.max(i, nb);
+      keep.add(`${a}-${b}`);
+    }
+  }
+  // 상호 조건 적용
+  if (mutual) {
+    const mutualKeep = new Set<string>();
+    for (let i = 0; i < n; i++) {
+      const A = new Set(byNode.get(i)!.map(x => x.nb));
+      for (const { nb, w } of byNode.get(i)!) {
+        if (w < minScore) continue;
+        const B = new Set(byNode.get(nb)!.map(x => x.nb));
+        if (A.has(nb) && B.has(i)) {
+          const a = Math.min(i, nb), b = Math.max(i, nb);
+          mutualKeep.add(`${a}-${b}`);
+        }
+      }
+    }
+    // 교집합만 남김
+    return edges.filter(e => mutualKeep.has(`${e.i}-${e.j}`));
+  }
+  return edges.filter(e => keep.has(`${e.i}-${e.j}`));
+}
+
+// === [ADD] 최대 스패닝 트리 기반 강제 분할(한 덩어리일 때 마지막 안전장치) ====
+/** 최대 스패닝 트리를 만들고, 가장 약한 간선들 (k-1개)을 잘라서 정확히 k개 컴포넌트로 분할 */
+export function forceSplitByMST(n: number, edges: Edge[], k: number): number[][] {
+  if (k <= 1 || n === 0) return [Array.from({ length: n }, (_, i) => i)];
+  // 최대 스패닝 트리: 점수가 큰 간선부터 크루스칼
+  const dsu = new (class {
+    p = Array.from({ length: n }, (_, i) => i);
+    r = new Array(n).fill(0);
+    f(x: number): number { return this.p[x] === x ? x : (this.p[x] = this.f(this.p[x])); }
+    u(a: number, b: number): boolean {
+      a = this.f(a); b = this.f(b);
+      if (a === b) return false;
+      if (this.r[a] < this.r[b]) [a, b] = [b, a];
+      this.p[b] = a; if (this.r[a] === this.r[b]) this.r[a]++;
+      return true;
+    }
+  })();
+  const sorted = [...edges].sort((a, b) => b.score - a.score);
+  const tree: Edge[] = [];
+  for (const e of sorted) {
+    if (tree.length === n - 1) break;
+    if (dsu.u(e.i, e.j)) tree.push(e);
+  }
+  // 트리가 없으면(간선이 거의 0) 그냥 균등 분할
+  if (tree.length === 0) {
+    const out: number[][] = Array.from({ length: k }, () => []);
+    for (let i = 0; i < n; i++) out[i % k].push(i);
+    return out.filter(c => c.length > 0);
+  }
+  // 약한 간선부터 (k-1)개 제거 → 컴포넌트 추출
+  const cut = [...tree].sort((a, b) => a.score - b.score).slice(0, Math.max(0, k - 1));
+  const cutSet = new Set(cut.map(e => `${Math.min(e.i, e.j)}-${Math.max(e.i, e.j)}`));
+  // 트리 인접리스트 구성
+  const adj: Map<number, number[]> = new Map();
+  for (let i = 0; i < n; i++) adj.set(i, []);
+  for (const e of tree) {
+    const key = `${Math.min(e.i, e.j)}-${Math.max(e.i, e.j)}`;
+    if (cutSet.has(key)) continue;
+    adj.get(e.i)!.push(e.j);
+    adj.get(e.j)!.push(e.i);
+  }
+  // 컴포넌트 DFS
+  const seen = new Array(n).fill(false);
+  const comps: number[][] = [];
+  for (let i = 0; i < n; i++) {
+    if (seen[i]) continue;
+    const stack = [i], comp: number[] = [];
+    seen[i] = true;
+    while (stack.length) {
+      const v = stack.pop()!;
+      comp.push(v);
+      for (const nb of adj.get(v)!) {
+        if (!seen[nb]) { seen[nb] = true; stack.push(nb); }
+      }
+    }
+    comps.push(comp);
+  }
+  return comps;
+}
+
+// === [ADD] 하이브리드 오케스트레이터 보정: 성기화 + 실패 시 강제분할 ========
 export function clusterHybrid(
   prepared: PreparedNote[],
-  edges: Edge[],
-  pref?: { kMin?: number; kMax?: number; minEdge?: number; minClusterSize?: number }
+  edgesAll: Edge[],
+  pref?: { kMin?: number; kMax?: number; minEdge?: number; minClusterSize?: number; knnK?: number; mutual?: boolean }
 ) {
+  const n = prepared.length;
   const kMin = pref?.kMin ?? 3;
   const kMax = pref?.kMax ?? 12;
   const minEdge = pref?.minEdge ?? 0.05;
   const minClusterSize = pref?.minClusterSize ?? 2;
+  const knnK = pref?.knnK ?? 8;
+  const mutual = pref?.mutual ?? true;
 
+  // 0) 간선 성기화(과도한 연결 제거)
+  const edges = sparsifyEdgesKNN(n, edgesAll, knnK, { mutual, minScore: Math.max(0.01, minEdge * 0.8) });
+
+  // 1) LPA 1차
   const lpa = clusterLPA(prepared, edges, { minEdge, minClusterSize });
-  const k = lpa.clusters.length;
+  let clusters = lpa.clusters;
 
-  if (k < kMin || k > kMax) {
+  // 2) 범위 벗어나면 자동 임계값 보정(여기서도 성기화된 간선 사용)
+  if (clusters.length < kMin || clusters.length > kMax) {
     const auto = clusterByAutoThreshold(prepared, edges, { kMin, kMax });
-    return { clusters: auto.clusters, method: "auto-threshold" as const, threshold: auto.threshold };
+    clusters = auto.clusters;
   }
-  return { clusters: lpa.clusters, method: "lpa" as const };
+
+  // 3) 그래도 한 덩어리면(특히 < kMin) → MST 강제 분할로 최소 개수 보장
+  if (clusters.length < kMin && n >= kMin * 2) {
+    clusters = forceSplitByMST(n, edges.length ? edges : edgesAll, kMin);
+  }
+
+  return { clusters, method: "hybrid+knn", meta: { knnK, mutual } };
 }
