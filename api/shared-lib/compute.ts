@@ -59,41 +59,7 @@ export function buildCitationSet(links: NoteLink[]): Set<string> {
   return s;
 }
 
-export function pairScore(
-  a: PreparedNote,
-  b: PreparedNote,
-  cites: Set<string>,
-  w: Weights
-): number {
-  const sim = cosine(a.embedding, b.embedding); // 0..1 (approx)
-  const citation = (cites.has(`${a.note.id}→${b.note.id}`) || cites.has(`${b.note.id}→${a.note.id}`)) ? 1 : 0;
-  const tag = tagOverlap(a.tags, b.tags);
-  const raw = w.sim * sim + w.citation * citation + w.tag * tag;
-  const maxW = w.sim + w.citation + w.tag || 1;
-  return clamp01(raw / maxW);
-}
 
-export type Edge = { i: number; j: number; score: number };
-
-export function buildEdges(
-  prepared: PreparedNote[],
-  cites: Set<string>,
-  w: Weights,
-  capPairs: number | null = null
-): Edge[] {
-  const edges: Edge[] = [];
-  const n = prepared.length;
-  let count = 0;
-  for (let i = 0; i < n; i++) {
-    for (let j = i + 1; j < n; j++) {
-      const score = pairScore(prepared[i], prepared[j], cites, w);
-      edges.push({ i, j, score });
-      count++;
-      if (capPairs && count >= capPairs) return edges;
-    }
-  }
-  return edges;
-}
 
 class DSU {
   p: number[];
