@@ -1,0 +1,131 @@
+/* src/styles/note-detail.css */
+
+.loading-container, .error-container {
+  @apply flex flex-col items-center justify-center h-64 text-gray-400;
+}
+
+.note-detail-grid {
+  @apply grid grid-cols-1 lg:grid-cols-3 gap-8;
+}
+
+.note-content-area {
+  @apply lg:col-span-2 bg-black/20 p-6 rounded-lg flex flex-col;
+}
+
+.note-header {
+  @apply flex items-center gap-4 pb-4 mb-4 border-b border-white/10;
+}
+
+.back-button {
+  @apply p-2 rounded-full text-gray-400 hover:bg-white/10 hover:text-white transition-colors flex-shrink-0;
+}
+
+.note-title {
+  @apply text-3xl font-bold text-sky-300 flex-grow truncate;
+}
+
+.edit-title-input {
+  @apply text-3xl font-bold text-sky-300 bg-transparent border-0 focus:ring-0 w-full;
+}
+
+.edit-button, .cancel-button {
+  @apply inline-flex items-center gap-2 px-3 py-2 border text-sm font-medium rounded-md transition-colors flex-shrink-0;
+}
+
+.edit-button {
+  @apply border-sky-700 text-sky-300 bg-sky-900/30 hover:bg-sky-800/50;
+}
+
+.cancel-button {
+  @apply border-gray-600 text-gray-300 bg-gray-700/30 hover:bg-gray-600/50;
+}
+
+.note-body {
+  @apply mt-6 flex-grow;
+}
+
+.edit-body-textarea {
+  @apply w-full h-full min-h-[400px] bg-black/30 rounded-md p-4 text-gray-200 border border-gray-700 focus:ring-sky-500 focus:border-sky-500 transition;
+}
+
+/* Styles for react-markdown output */
+.prose h1, .prose h2, .prose h3, .prose h4 {
+  @apply text-sky-400 border-b border-white/10 pb-2;
+}
+.prose a {
+  @apply text-teal-400 hover:text-teal-300;
+}
+.prose blockquote {
+  @apply border-l-4 border-sky-700 pl-4 text-gray-400 italic;
+}
+.prose code:not(pre > code) {
+  @apply bg-white/10 text-yellow-400 rounded px-1.5 py-1 text-sm font-mono;
+}
+.prose pre {
+  @apply bg-black/50 p-4 rounded-md;
+}
+
+.note-sidebar {
+  @apply lg:col-span-1 space-y-6;
+}
+
+.sidebar-section {
+  @apply bg-black/20 p-4 rounded-lg;
+}
+
+.sidebar-title {
+  @apply text-lg font-semibold text-gray-300 pb-2 mb-3 border-b border-white/10;
+}
+
+.metadata-list {
+  @apply space-y-2 text-sm;
+}
+.metadata-list li {
+  @apply flex justify-between items-center;
+}
+.metadata-list li strong {
+  @apply text-gray-400 font-medium;
+}
+.metadata-list li span {
+  @apply text-gray-300;
+}
+
+.tags-container {
+  @apply flex flex-wrap gap-2;
+}
+
+.tag-item {
+  @apply inline-flex items-center gap-1.5 bg-teal-900/50 text-teal-300 text-xs font-medium px-2.5 py-1 rounded-full;
+}
+
+.edit-tags-input {
+  @apply w-full bg-black/30 rounded-md p-2 text-gray-200 border border-gray-700 focus:ring-sky-500 focus:border-sky-500 transition;
+}
+
+.links-list {
+  @apply space-y-1;
+}
+
+.link-item {
+  @apply flex items-center gap-2 text-gray-400 hover:text-sky-300 transition-colors p-2 rounded-md hover:bg-white/5 w-full;
+}
+.link-item span {
+  @apply truncate;
+}
+
+.attachment-item {
+  @apply flex items-center justify-between;
+}
+
+.delete-attachment-button {
+  @apply p-2 text-red-500/70 hover:text-red-500 hover:bg-red-500/10 rounded-full transition-colors;
+}
+
+.delete-note-button {
+  @apply w-full inline-flex items-center justify-center gap-2 px-4 py-2 border border-red-800 text-sm font-medium rounded-md text-red-400 bg-red-900/30 hover:bg-red-800/50 transition-colors disabled:opacity-50;
+}
+
+.no-links-text {
+  @apply text-sm text-gray-500;
+}
+

@@ -8,7 +8,6 @@ import type { Note, NoteAttachment } from '../types/common';
 import PageLayout from '../components/PageLayout';
 import { Loader, AlertCircle, Tag, Link as LinkIcon, Edit, ArrowLeft, Trash2, Save, X, Paperclip } from 'lucide-react';
 import { toast } from '../lib/toast';
-import '../styles/note-detail.css';
 
 // --- Type Definitions ---
 type Backlink = { from_note_id: string; title: string | null; };

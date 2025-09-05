@@ -4,7 +4,6 @@ import CalendarMonth from '../components/CalendarMonth';
 import { supabase } from '../lib/supabase';
 import type { Note } from '../types/common';
 import PageLayout from '../components/PageLayout';
-import '../styles/calendar.css'; // Import the new styles
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
