@@ -94,8 +94,11 @@ export function LinkEditorModal({ noteId, onClose, onSave }: LinkEditorModalProp
           <ul>
             {allNotes.map(note => (
               <li key={note.id} className="flex items-center justify-between p-2 hover:bg-slate-700 rounded-md">
-                <span className="truncate">{note.title}</span>
+                <label htmlFor={`note-link-${note.id}`} className="truncate flex-grow cursor-pointer">
+                  {note.title}
+                </label>
                 <input
+                  id={`note-link-${note.id}`}
                   type="checkbox"
                   className="checkbox checkbox-primary"
                   checked={selectedLinks.has(note.id)}

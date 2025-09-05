@@ -33,7 +33,7 @@
 }
 
 .ccell.active {
-  @apply bg-sky-800/50 border border-sky-500;
+  @apply bg-sky-800/50 border-2 border-sky-400;
   box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
 }
 
