@@ -13,9 +13,9 @@ const genAI = new GoogleGenerativeAI(requireEnv("GEMINI_API_KEY"));
 
 export async function summarizeThread(notes: Note[]): Promise<{ title: string; summary: string }> {
   // Sort by created_at to elicit a "narrative over time"
-  const timeline = [...notes].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  const timeline = [...notes].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
   const bullets = timeline.map((n, i) => {
-    const stamp = new Date(n.createdAt).toISOString().slice(0, 10);
+    const stamp = new Date(n.created_at).toISOString().slice(0, 10);
     const title = n.title ?? `Note ${i + 1}`;
     const tags = (n.tags ?? []).slice(0, 6).join(", ");
     const body = (n.body ?? "").slice(0, 400);
@@ -68,7 +68,7 @@ export async function summarizeThread(notes: Note[]): Promise<{ title: string; s
 
 export async function summarizeDay(notes: Note[]): Promise<{ title: string; summary: string }> {
   // Sort by created_at to keep a chronological flow within the day
-  const timeline = [...notes].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  const timeline = [...notes].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
   const bullets = timeline.map((n, i) => {
     const title = n.title ?? `Note ${i + 1}`;
     const body = (n.body ?? "").slice(0, 600); // Limit content length
@@ -89,7 +89,7 @@ ${bullets}
   const result = await model.generateContent(prompt);
   const text = result.response.text();
   try {
-    const parsed = JSON.JSON.parse(text);
+    const parsed = JSON.parse(text);
     if (parsed && typeof parsed.title === "string" && typeof parsed.summary === "string") {
       return { title: parsed.title, summary: parsed.summary };
     }
