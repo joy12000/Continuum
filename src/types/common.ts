@@ -8,7 +8,7 @@ export interface AnswerData {
 
 export interface Note {
   id: string;
-  body: string;
+  body: string | null;
   title?: string;
   tags: string[];
   citations?: { noteId: string }[];

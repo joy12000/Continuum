@@ -1,5 +1,5 @@
 import type { Note, NoteChunk, NoteLink, PreparedNote, UUID } from "./types.js";
-import { clamp01, mean, stddev } from "./utils.js";
+import { clamp01, mean, stddev, unique } from "./utils.js";
 
 export type Weights = { citation: number; sim: number; tag: number };
 
@@ -63,7 +63,7 @@ export function pairScore(
   cites: Set<string>,
   w: Weights
 ): number {
-  const sim = cosine(a.embedding, b.embedding); // 0..1
+  const sim = cosine(a.embedding, b.embedding); // 0..1 (approx)
   const citation = (cites.has(`${a.note.id}→${b.note.id}`) || cites.has(`${b.note.id}→${a.note.id}`)) ? 1 : 0;
   const tag = tagOverlap(a.tags, b.tags);
   const raw = w.sim * sim + w.citation * citation + w.tag * tag;
@@ -115,13 +115,16 @@ export function autoThreshold(edges: Edge[]): number {
   const scores = edges.map((e) => e.score).filter((x) => isFinite(x));
   const m = mean(scores);
   const s = stddev(scores);
+  // baseline 0.35, nudge by distribution
   return Math.max(0.35, Math.min(0.75, m + 0.15 * s));
 }
 
 export function cluster(prepared: PreparedNote[], edges: Edge[], threshold?: number) {
   const dsu = new DSU(prepared.length);
   const thr = threshold ?? autoThreshold(edges);
-  for (const e of edges) if (e.score >= thr) dsu.u(e.i, e.j);
+  for (const e of edges) {
+    if (e.score >= thr) dsu.u(e.i, e.j);
+  }
   const groups = new Map<number, number[]>();
   for (let i = 0; i < prepared.length; i++) {
     const root = dsu.f(i);
@@ -136,11 +139,13 @@ export function clusterScore(indices: number[], edges: Edge[]): number {
   const set = new Set(indices.map((x) => x));
   const rel = edges.filter((e) => set.has(e.i) && set.has(e.j));
   if (!rel.length) return 0;
-  return mean(rel.map((e) => e.score));
+  const avg = mean(rel.map((e) => e.score));
+  return avg;
 }
 
-// ─────────────────────────── 인접 리스트 ───────────────────────────
+// === LPA(라벨 전파) + 자동 임계값 + 하이브리드 ================================
 
+// 내부용 인접리스트
 function _buildAdj(n: number, edges: Edge[], minW = 0): Map<number, Array<{ j: number; w: number }>> {
   const adj = new Map<number, Array<{ j: number; w: number }>>();
   for (let i = 0; i < n; i++) adj.set(i, []);
@@ -152,8 +157,12 @@ function _buildAdj(n: number, edges: Edge[], minW = 0): Map<number, Array<{ j: n
   return adj;
 }
 
-// ─────────────────────────── LPA ───────────────────────────
-
+/**
+ * 파라미터-프리 가중치 라벨 전파(Label Propagation).
+ * - 임계값 없이, 이웃 라벨 가중치합이 최대인 라벨로 갈아탐
+ * - 너무 작은 군집은 강한 이웃 군집으로 흡수
+ * - 셔플 없이 결정적 순회
+ */
 export function clusterLPA(
   prepared: PreparedNote[],
   edges: Edge[],
@@ -192,6 +201,7 @@ export function clusterLPA(
     iter++;
   }
 
+  // 라벨→클러스터
   const map = new Map<number, number>();
   const clusters: number[][] = [];
   for (let i = 0; i < n; i++) {
@@ -200,6 +210,7 @@ export function clusterLPA(
     clusters[map.get(lab)!].push(i);
   }
 
+  // 작은 군집 흡수
   if (minClusterSize > 1) {
     const adjFull = _buildAdj(n, edges, 0);
     const node2cid = new Map<number, number>();
@@ -230,8 +241,7 @@ export function clusterLPA(
   return { clusters: clusters.filter(c => c.length > 0) };
 }
 
-// ───────────────────── DSU 임계 클러스터 & 모듈러리티 ─────────────────────
-
+// 임계값으로 DSU
 function _clusterByThreshold(n: number, edges: Edge[], thr: number) {
   const dsu = new DSU(n);
   for (const e of edges) if (e.score >= thr) dsu.u(e.i, e.j);
@@ -244,31 +254,43 @@ function _clusterByThreshold(n: number, edges: Edge[], thr: number) {
   return [...groups.values()];
 }
 
-/** 가중 모듈러리티(정식식): Q = Σ_c ( l_c / m - (d_c / (2m))^2 )
- * - m = Σ_e w_e (모든 간선 가중치의 합, 한 번만 카운트)
- * - l_c = 커뮤니티 내부 간선 가중치 합(한 번만 카운트)
- * - d_c = 커뮤니티 내 노드의 차수 합(차수는 양 끝으로 더해짐)
- */
+// 가중 모듈러리티
 function _modularityWeighted(n: number, edges: Edge[], clusters: number[][]) {
   const deg = new Array(n).fill(0);
-  let m = 0; // 총 가중치 합(한 번만 카운트)
-  for (const e of edges) { deg[e.i] += e.score; deg[e.j] += e.score; m += e.score; }
-  if (m === 0) return 0;
+  let twoM = 0;
+  for (const e of edges) {
+    deg[e.i] += e.score;
+    deg[e.j] += e.score;
+    twoM += 2 * e.score;
+  }
+  if (twoM === 0) return 0;
 
   let Q = 0;
   for (const c of clusters) {
     if (c.length === 0) continue;
-    const S = new Set(c);
-    let l_c = 0, d_c = 0;
-    for (const i of c) d_c += deg[i];
-    for (const e of edges) if (S.has(e.i) && S.has(e.j)) l_c += e.score;
-    Q += (l_c / m) - Math.pow(d_c / (2 * m), 2);
+    let M_in_c = 0;
+    let D_c = 0;
+    const nodeSet = new Set(c);
+    for (const i of c) {
+      D_c += deg[i];
+    }
+    for (const e of edges) {
+      if (nodeSet.has(e.i) && nodeSet.has(e.j)) {
+        if (e.i === e.j) {
+          M_in_c += e.score; // self-loop
+        } else {
+          M_in_c += e.score;
+        }
+      }
+    }
+    Q += (M_in_c / twoM) - Math.pow(D_c / twoM, 2);
   }
   return Q;
 }
 
-// ───────────────────── Auto-threshold (개수 보정 + MST fallback) ─────────────────────
-
+/**
+ * 목표 군집 수 범위를 만족하도록 임계값 자동 탐색 + 모듈러리티 최대 지점 선택
+ */
 export function clusterByAutoThreshold(
   prepared: PreparedNote[],
   edges: Edge[],
@@ -277,28 +299,26 @@ export function clusterByAutoThreshold(
   const n = prepared.length;
   const kMin = opts?.kMin ?? 3;
   const kMax = opts?.kMax ?? 12;
-  const iters = opts?.iters ?? 14;
-  const grid  = opts?.grid ?? 8;
+  const iters = opts?.iters ?? 12;
+  const grid  = opts?.grid ?? 6;
 
   const scores = edges.map(e => e.score).filter(Number.isFinite).sort((a,b) => a - b);
   if (scores.length === 0) return { clusters: [Array.from({ length: n }, (_, i) => i)], threshold: 1, Q: 0 };
 
   const q = (p: number) => scores[Math.min(scores.length - 1, Math.max(0, Math.floor(p * (scores.length - 1))))];
-
-  // 탐색 구간을 넓게: 0.30 ~ 0.995
-  let lo = q(0.30), hi = q(0.995);
+  let lo = q(0.4), hi = q(0.98);
 
   let bestThr = lo, bestClusters = _clusterByThreshold(n, edges, lo), bestQ = -Infinity;
 
   for (let t = 0; t < iters; t++) {
     const mid = (lo + hi) / 2;
     const cs = _clusterByThreshold(n, edges, mid);
-    if (cs.length < kMin) hi = mid;        // 덜 분할 → 임계 ↑
-    else if (cs.length > kMax) lo = mid;   // 과분할 → 임계 ↓
+    if (cs.length < kMin) hi = mid;           // 덜 분할 → 임계 ↑
+    else if (cs.length > kMax) lo = mid;      // 과분할 → 임계 ↓
     else {
       const Q = _modularityWeighted(n, edges, cs);
       if (Q > bestQ) { bestQ = Q; bestThr = mid; bestClusters = cs; }
-      lo = mid * 0.99; hi = mid * 1.01;    // 근방 탐색
+      lo = mid * 0.98; hi = mid * 1.02;       // 근방 탐색
     }
   }
 
@@ -313,17 +333,10 @@ export function clusterByAutoThreshold(
     }
   }
 
-  // 최후 보정: 여전히 < kMin 이면 MST로 최소 kMin 보장
-  if (bestClusters.length < kMin && n >= Math.max(2, kMin)) {
-    const comps = forceSplitByMST(n, edges, kMin);
-    return { clusters: comps, threshold: bestThr, Q: bestQ };
-  }
-
   return { clusters: bestClusters, threshold: bestThr, Q: bestQ };
 }
 
-// ───────────────────── 고립·성기화·MST·흡수 ─────────────────────
-
+// 고립 노트 감지: 최고 연결이 isoCut 미만이면 고립
 export function detectIsolatedNodes(n: number, edges: Edge[], isoCut = 0.08): Set<number> {
   const maxW = new Array(n).fill(0);
   for (const e of edges) {
@@ -338,6 +351,7 @@ export function detectIsolatedNodes(n: number, edges: Edge[], isoCut = 0.08): Se
   return iso;
 }
 
+// 간선 성기화: 상호 k-최근접 이웃(mutual kNN)
 function _topKByNode(n: number, edges: Edge[], k: number) {
   const byNode: Map<number, Array<{ nb: number; w: number }>> = new Map();
   for (let i = 0; i < n; i++) byNode.set(i, []);
@@ -363,6 +377,7 @@ export function sparsifyEdgesKNN(
   if (edges.length === 0) return edges;
   const byNode = _topKByNode(n, edges, Math.max(1, k));
   const keep = new Set<string>();
+  // 후보 선택(단방향)
   for (let i = 0; i < n; i++) {
     for (const { nb, w } of byNode.get(i)!) {
       if (w < minScore) continue;
@@ -370,6 +385,7 @@ export function sparsifyEdgesKNN(
       keep.add(`${a}-${b}`);
     }
   }
+  // 상호 조건 적용
   if (mutual) {
     const mutualKeep = new Set<string>();
     for (let i = 0; i < n; i++) {
@@ -388,6 +404,7 @@ export function sparsifyEdgesKNN(
   return edges.filter(e => keep.has(`${e.i}-${e.j}`));
 }
 
+// === 싱글톤 흡수(고립 제외): 과분할 완화 ===========================
 function _absorbSingletons(
   clusters: number[][],
   edges: Edge[],
@@ -401,6 +418,7 @@ function _absorbSingletons(
   }
   if (singles.length === 0 || out.length === 0) return [...out, ...singles.map(v => [v])];
 
+  // 노드→이웃(가중치) 맵
   const adj = new Map<number, Array<{ j: number; w: number }>>();
   for (const e of edges) {
     if (!adj.has(e.i)) adj.set(e.i, []);
@@ -411,19 +429,22 @@ function _absorbSingletons(
 
   for (const v of singles) {
     let bestIdx = -1, bestSum = 0;
-    const neigh = adj.get(v) ?? [];
     for (let ci = 0; ci < out.length; ci++) {
       const members = out[ci];
       let s = 0;
+      const neigh = adj.get(v) ?? [];
+      if (neigh.length === 0) continue;
       for (const { j, w } of neigh) if (members.includes(j)) s += w;
       if (s > bestSum) { bestSum = s; bestIdx = ci; }
     }
+    // 충분히 연결돼 있으면 흡수, 아니면 싱글톤 유지
     if (bestIdx >= 0 && bestSum > 0.05) out[bestIdx].push(v);
     else out.push([v]);
   }
   return out;
 }
 
+// 최대 스패닝 트리 기반 강제 분할(한 덩어리일 때 마지막 안전장치)
 export function forceSplitByMST(n: number, edges: Edge[], k: number): number[][] {
   if (k <= 1 || n === 0) return [Array.from({ length: n }, (_, i) => i)];
 
@@ -447,13 +468,16 @@ export function forceSplitByMST(n: number, edges: Edge[], k: number): number[][]
     if (dsu.u(e.i, e.j)) tree.push(e);
   }
 
+  // 트리 간선이 0이면(완전 분리/희박) → 모든 노드를 싱글톤으로 반환
   if (tree.length === 0) {
     return Array.from({ length: n }, (_, i) => [i]);
   }
 
+  // 약한 간선부터 (k-1)개 제거
   const cut = [...tree].sort((a, b) => a.score - b.score).slice(0, Math.max(0, k - 1));
   const cutSet = new Set(cut.map(e => `${Math.min(e.i, e.j)}-${Math.max(e.i, e.j)}`));
 
+  // 트리 인접리스트
   const adj: Map<number, number[]> = new Map();
   for (let i = 0; i < n; i++) adj.set(i, []);
   for (const e of tree) {
@@ -463,6 +487,7 @@ export function forceSplitByMST(n: number, edges: Edge[], k: number): number[][]
     adj.get(e.j)!.push(e.i);
   }
 
+  // 컴포넌트 DFS
   const seen = new Array(n).fill(false);
   const comps: number[][] = [];
   for (let i = 0; i < n; i++) {
@@ -472,15 +497,16 @@ export function forceSplitByMST(n: number, edges: Edge[], k: number): number[][]
     while (stack.length) {
       const v = stack.pop()!;
       comp.push(v);
-      for (const nb of adj.get(v)!) if (!seen[nb]) { seen[nb] = true; stack.push(nb); }
+      for (const nb of adj.get(v)!) {
+        if (!seen[nb]) { seen[nb] = true; stack.push(nb); }
+      }
     }
     comps.push(comp);
   }
   return comps;
 }
 
-// ───────────────────── 하이브리드 오케스트레이터 ─────────────────────
-
+// 하이브리드 오케스트레이터: 성기화 + LPA + 자동보정 + (필요시) 강제분할 + 싱글톤 흡수
 export function clusterHybrid(
   prepared: PreparedNote[],
   edgesAll: Edge[],
@@ -500,11 +526,12 @@ export function clusterHybrid(
   const mutual = pref?.mutual ?? true;
   const isoCut = pref?.isoCut ?? Math.max(0.02, Math.min(0.08, minEdge));
 
-  // 0) 고립 감지
+  // 0) 고립 노트 판정
   const iso = detectIsolatedNodes(n, edgesAll, isoCut);
 
-  // 1) 고립 간선 제거 후 kNN 성기화(간선 보존 완화형)
+  // 1) 고립 노트 간선 제거 후 kNN 성기화
   const edgesDense = edgesAll.filter(e => !iso.has(e.i) && !iso.has(e.j));
+  // 🔧 스파시파이 완화: minScore 낮춰서 간선 더 살림
   const edges = sparsifyEdgesKNN(
     n,
     edgesDense,
@@ -516,29 +543,37 @@ export function clusterHybrid(
   const lpa = clusterLPA(prepared, edges, { minEdge, minClusterSize });
   let clusters = lpa.clusters;
 
-  // 3) 개수 보정
+  // 3) 범위 보정
   if (clusters.length < kMin || clusters.length > kMax) {
     const auto = clusterByAutoThreshold(prepared, edges, { kMin, kMax });
     clusters = auto.clusters;
   }
 
-  // 4) 고립은 싱글톤으로 보장
+  // 4) 고립 노트 싱글톤 보장
   const inAny = new Array(n).fill(false);
   clusters.forEach(c => c.forEach(i => inAny[i] = true));
-  for (let i = 0; i < n; i++) if (iso.has(i) && !inAny[i]) clusters.push([i]);
+  for (let i = 0; i < n; i++) {
+    if (iso.has(i) && !inAny[i]) clusters.push([i]);
+  }
 
-  // 5) 한 덩어리면 → 고립 제외 MST 강제 분할
+  // 5) 한 덩어리일 때만 → 고립 아닌 노드 강제 분할(MST)
   const nonIsoNodes = new Set<number>();
   for (let i = 0; i < n; i++) if (!iso.has(i)) nonIsoNodes.add(i);
 
   if (clusters.length === 1 && nonIsoNodes.size >= 2) {
+    // non-iso 서브그래프 인덱스 재매핑
     const idx = new Map<number, number>(), rev: number[] = [];
     Array.from(nonIsoNodes).forEach((v, p) => { idx.set(v, p); rev[p] = v; });
     const subEdges = edges.filter(e => idx.has(e.i) && idx.has(e.j))
                           .map(e => ({ i: idx.get(e.i)!, j: idx.get(e.j)!, score: e.score }));
+
+    // 타깃 개수: 가능 범위로 자동 조절 (최소 2)
     const desired = kMin - iso.size;
     const kTarget = Math.max(2, Math.min(desired > 0 ? desired : kMin, nonIsoNodes.size));
+
     const comps = forceSplitByMST(nonIsoNodes.size, subEdges, kTarget);
+
+    // 결과 재구성: 고립 싱글톤 + 분할된 non-iso
     clusters = [];
     for (const v of iso) clusters.push([v]);
     for (const comp of comps) clusters.push(comp.map(p => rev[p]));
@@ -547,7 +582,7 @@ export function clusterHybrid(
   // 6) 싱글톤 흡수(고립 제외)로 과분할 완화
   clusters = _absorbSingletons(clusters, edges.length ? edges : edgesAll, iso);
 
-  // 7) 빈 군집 제거
+  // 7) 비어있는 군집 제거
   clusters = clusters.filter(c => c.length > 0);
 
   return { clusters, method: "hybrid+knn+isolation+absorb" as const, meta: { knnK, mutual, isoCut } };

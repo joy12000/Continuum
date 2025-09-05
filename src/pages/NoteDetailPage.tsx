@@ -1,11 +1,11 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { deleteNote } from '../lib/supabaseService';
 import type { Note, NoteAttachment } from '../types/common';
 import { RichNoteEditor } from '../components/RichNoteEditor';
 import ConfirmModal from '../components/ConfirmModal';
-import Modal from '../components/Modal'; // Import generic modal
-import ConnectionsListView from '../components/ConnectionsListView'; // Import connections view
+import Modal from '../components/Modal';
+import ConnectionsListView from '../components/ConnectionsListView';
+import { LinkEditorModal } from '../components/LinkEditorModal';
 import { supabase } from '../lib/supabase';
 import { toast } from '../lib/toast';
 
@@ -30,6 +30,13 @@ function AttachmentItem({ attachment, onDelete }: { attachment: NoteAttachment, 
   )
 }
 
+// Helper to convert HTML to plain text for saving
+function htmlToPlainText(html: string) {
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+    return temp.textContent || temp.innerText || '';
+}
+
 export function NoteDetailPage() {
   const { noteId } = useParams<{ noteId: string }>();
   const navigate = useNavigate();
@@ -38,13 +45,20 @@ export function NoteDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [isConnectionsModalOpen, setIsConnectionsModalOpen] = useState(false); // State for connections modal
+  const [isConnectionsModalOpen, setIsConnectionsModalOpen] = useState(false);
+  const [isLinkEditorModalOpen, setIsLinkEditorModalOpen] = useState(false);
+
+  // --- State for editing ---
+  const [editTitle, setEditTitle] = useState<string | null>('');
+  const [editBody, setEditBody] = useState<string | null>('');
+  const [editTags, setEditTags] = useState(''); // Stored as comma-separated string
+  const [linksToAdd, setLinksToAdd] = useState<string[]>([]);
+  const [linksToRemove, setLinksToRemove] = useState<string[]>([]);
 
   const fetchNoteAndAttachments = useCallback(async () => {
     if (!noteId) return;
     setIsLoading(true);
     try {
-      // Fetch note and attachments in parallel
       const notePromise = supabase.from('notes').select('*').eq('id', noteId).single();
       const attachmentsPromise = supabase.from('note_attachments').select('*').eq('note_id', noteId);
 
@@ -53,8 +67,18 @@ export function NoteDetailPage() {
       if (noteError) throw noteError;
       if (attachmentError) throw attachmentError;
 
-      setNote(noteData);
-      setAttachments(attachmentData || []);
+      if (noteData) {
+        const typedNote = noteData as Note;
+        setNote(typedNote);
+        setAttachments(attachmentData || []);
+
+        // Set initial state for editing
+        setEditTitle(typedNote.title ?? null);
+        setEditBody(typedNote.body ?? null);
+        setEditTags((typedNote.tags || []).join(', '));
+      } else {
+        setNote(null);
+      }
 
     } catch (error: any) {
       console.error('Failed to fetch note and attachments:', error);
@@ -69,23 +93,60 @@ export function NoteDetailPage() {
     fetchNoteAndAttachments();
   }, [fetchNoteAndAttachments]);
 
-  const handleNoteSaved = () => {
-    setIsEditing(false);
-    fetchNoteAndAttachments(); // Refetch everything to show updated state
-    window.dispatchEvent(new CustomEvent('notes:updated'));
+  const handleEnterEditMode = () => {
+    if (!note) return;
+    setEditTitle(note.title ?? null);
+    setEditBody(note.body ?? null);
+    setEditTags((note.tags || []).join(', '));
+    setLinksToAdd([]);
+    setLinksToRemove([]);
+    setIsEditing(true);
+  };
+
+  const handleSave = async () => {
+    if (!noteId) return;
+    toast.info("저장 중...");
+
+    const tagsArray = editTags.split(',').map(t => t.trim()).filter(Boolean);
+    const plainTextBody = htmlToPlainText(editBody || '');
+
+    try {
+        const { error } = await supabase.rpc('update_note_details', {
+            p_note_id: noteId,
+            p_title: editTitle,
+            p_body: plainTextBody,
+            p_tags: tagsArray,
+            p_links_to_add: linksToAdd,
+            p_links_to_remove: linksToRemove,
+        });
+
+        if (error) throw error;
+
+        toast.success("노트가 성공적으로 업데이트되었습니다.");
+        setIsEditing(false);
+        fetchNoteAndAttachments(); // Refresh data
+        window.dispatchEvent(new CustomEvent('notes:updated'));
+
+    } catch (error: any) {
+        toast.error(`업데이트 실패: ${error.message}`);
+    }
+  };
+  
+  const handleLinkModalSave = (toAdd: string[], toRemove: string[]) => {
+    setLinksToAdd(toAdd);
+    setLinksToRemove(toRemove);
+    toast.info(`연결이 수정되었습니다. 저장 버튼을 눌러 반영하세요.`);
   };
 
   const handleDeleteNote = async () => {
     if (!noteId) return;
-    // Note: Supabase cascade delete should handle attachments in DB.
-    // We still need to delete files from storage.
     try {
       const { data: attachmentsToDelete } = await supabase.from('note_attachments').select('storage_path').eq('note_id', noteId);
       if (attachmentsToDelete && attachmentsToDelete.length > 0) {
         const paths = attachmentsToDelete.map(a => a.storage_path);
         await supabase.storage.from('notes-attachments').remove(paths);
       }
-      await deleteNote(noteId);
+      await supabase.from('notes').delete().eq('id', noteId);
       toast.success('노트가 삭제되었습니다.');
       setShowDeleteModal(false);
       window.dispatchEvent(new CustomEvent('notes:updated'));
@@ -98,20 +159,11 @@ export function NoteDetailPage() {
 
   const handleDeleteAttachment = async (attachment: NoteAttachment) => {
     if (!window.confirm(`${attachment.file_name} 파일을 삭제하시겠습니까?`)) return;
-
     try {
-      // 1. Delete from storage
-      const { error: storageError } = await supabase.storage.from('notes-attachments').remove([attachment.storage_path]);
-      if (storageError) throw storageError;
-
-      // 2. Delete from database
-      const { error: dbError } = await supabase.from('note_attachments').delete().eq('id', attachment.id);
-      if (dbError) throw dbError;
-
-      // 3. Update local state
+      await supabase.storage.from('notes-attachments').remove([attachment.storage_path]);
+      await supabase.from('note_attachments').delete().eq('id', attachment.id);
       setAttachments(prev => prev.filter(a => a.id !== attachment.id));
       toast.success("첨부파일이 삭제되었습니다.");
-
     } catch (error: any) {
       console.error("Failed to delete attachment:", error);
       toast.error(`첨부파일 삭제에 실패했습니다: ${error.message}`);
@@ -129,27 +181,53 @@ export function NoteDetailPage() {
   return (
     <div className="p-4 md:p-6 text-white max-w-4xl mx-auto">
       {isEditing ? (
-        <RichNoteEditor
-          note={note}
-          onSaved={handleNoteSaved}
-        />
+        <div className="space-y-4">
+          <input
+            type="text"
+            value={editTitle || ''}
+            onChange={(e) => setEditTitle(e.target.value)}
+            className="input input-bordered w-full text-2xl bg-slate-800"
+            placeholder="제목"
+          />
+          <RichNoteEditor
+            content={editBody || ''}
+            onContentChange={setEditBody}
+          />
+          <input
+            type="text"
+            value={editTags}
+            onChange={(e) => setEditTags(e.target.value)}
+            className="input input-bordered w-full bg-slate-800"
+            placeholder="태그 (쉼표로 구분)"
+          />
+          <div className="flex justify-between items-center">
+            <button onClick={() => setIsLinkEditorModalOpen(true)} className="btn btn-outline">
+              인용/링크 관리
+            </button>
+            <div className="flex gap-2">
+              <button onClick={() => setIsEditing(false)} className="btn">취소</button>
+              <button onClick={handleSave} className="btn btn-primary">저장</button>
+            </div>
+          </div>
+        </div>
       ) : (
         <div>
           <div className="flex justify-between items-center mb-4">
             <h1 className="text-4xl font-bold text-sky-300">{note.title}</h1>
             <div className="flex gap-2">
               <button onClick={() => setIsConnectionsModalOpen(true)} className="btn btn-outline">연결 보기</button>
-              <button onClick={() => setIsEditing(true)} className="btn btn-outline btn-info">수정</button>
+              <button onClick={handleEnterEditMode} className="btn btn-outline btn-info">수정</button>
               <button onClick={() => setShowDeleteModal(true)} className="btn btn-outline btn-error">삭제</button>
             </div>
           </div>
-          <div 
-            className="prose prose-invert max-w-none p-4 bg-gray-800 rounded-lg"
-            style={{ whiteSpace: 'pre-wrap' }}
-          >
-            {note.body} 
-          </div>
+          <div className="prose prose-invert max-w-none p-4 bg-gray-800 rounded-lg" dangerouslySetInnerHTML={{ __html: note.body || '' }} />
           
+          {note.tags && note.tags.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {note.tags.map(tag => <div key={tag} className="badge badge-info badge-outline">{tag}</div>)}
+            </div>
+          )}
+
           {attachments.length > 0 && (
             <div className="mt-6">
               <h3 className="text-lg font-semibold mb-3">첨부파일</h3>
@@ -181,6 +259,14 @@ export function NoteDetailPage() {
         >
           <ConnectionsListView noteId={noteId} />
         </Modal>
+      )}
+
+      {isLinkEditorModalOpen && noteId && (
+        <LinkEditorModal
+          noteId={noteId}
+          onClose={() => setIsLinkEditorModalOpen(false)}
+          onSave={handleLinkModalSave}
+        />
       )}
     </div>
   );

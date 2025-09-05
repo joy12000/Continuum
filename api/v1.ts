@@ -91,14 +91,45 @@ async function runThreadGeneration(jobId: string, userId: string, token: string)
         }).clusters;
       } else {
         // 기본은 하이브리드: LPA 1차 → 범위 벗어나면 auto로 보정
-        clusters = clusterHybrid(prepared, edges, {
-          kMin: 3, kMax: 12,
-          minEdge: 0.05,
-          minClusterSize: 2,
-          knnK: Number(process.env.CONTINUUM_CLUSTER_K ?? 8),
-          mutual: (process.env.CONTINUUM_CLUSTER_MUTUAL ?? "1") === "1",
-          isoCut: Number(process.env.CONTINUUM_CLUSTER_ISOCUT) || undefined,
+        const kMin = Number(process.env.CONTINUUM_KMIN ?? "4");
+        const kMax = Number(process.env.CONTINUUM_KMAX ?? "12");
+        const minEdge = Number(process.env.CONTINUUM_MIN_EDGE ?? "0.02");
+
+        let clusters = clusterHybrid(prepared, edges, {
+          kMin, kMax,
+          minEdge,
+          minClusterSize: 2
         }).clusters;
+
+        // ── [추가] 싱글톤 흡수(고립 아닌 애들만) ─────────────────────────
+        function absorbSingletons(clusters: number[][], edges: { i: number; j: number; score: number }[]) {
+          const out: number[][] = []; const singles: number[][] = [];
+          const adj = new Map<number, { j: number; w: number }[]>();
+          for (const e of edges) {
+            if (!adj.has(e.i)) adj.set(e.i, []);
+            if (!adj.has(e.j)) adj.set(e.j, []);
+            adj.get(e.i)!.push({ j: e.j, w: e.score });
+            adj.get(e.j)!.push({ j: e.i, w: e.score });
+          }
+          for (const c of clusters) (c.length === 1 ? singles : out).push(c);
+          if (!singles.length || !out.length) return clusters;
+
+          for (const [v] of singles) {
+            let best = -1, bestSum = 0;
+            const neigh = adj.get(v) ?? [];
+            for (let ci = 0; ci < out.length; ci++) {
+              const members = out[ci];
+              let s = 0;
+              for (const { j, w } of neigh) if (members.includes(j)) s += w;
+              if (s > bestSum) { bestSum = s; best = ci; }
+            }
+            if (best >= 0 && bestSum > 0.05) out[best].push(v);
+            else out.push([v]);
+          }
+          return out;
+        }
+        clusters = absorbSingletons(clusters, edges);
+        // ────────────────────────────────────────────────────────────────
       }
     } catch (e) {
       // 안전장치: 문제가 나면 레거시로 폴백
@@ -336,6 +367,54 @@ async function handleGetNote(req: VercelRequest, res: VercelResponse) {
   res.status(200).json(data);
 }
 
+async function handleUpdateNote(req: VercelRequest, res: VercelResponse) {
+  const auth = await requireUser(req, res);
+  if (!auth) return;
+  const { supabase } = auth;
+
+  if (req.method !== 'PATCH') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
+
+  const noteId = req.query.noteId as string;
+  if (!noteId) {
+    return res.status(400).json({ error: 'Missing noteId' });
+  }
+
+  const {
+    title,
+    body,
+    tags,
+    links_to_add,
+    links_to_remove
+  } = req.body;
+
+  // Basic validation
+  if (title === undefined && body === undefined && tags === undefined && links_to_add === undefined && links_to_remove === undefined) {
+    return res.status(400).json({ error: 'At least one field to update must be provided.' });
+  }
+
+  try {
+    const { error } = await supabase.rpc('update_note_details', {
+      p_note_id: noteId,
+      p_title: title,
+      p_body: body,
+      p_tags: tags,
+      p_links_to_add: links_to_add,
+      p_links_to_remove: links_to_remove,
+    });
+
+    if (error) {
+      console.error('Error calling update_note_details RPC:', error);
+      return res.status(500).json({ error: 'Failed to update note', detail: error.message });
+    }
+
+    return res.status(200).json({ message: 'Note updated successfully' });
+  } catch (e: any) {
+    return res.status(500).json({ error: 'An unexpected error occurred', detail: e.message });
+  }
+}
+
 async function handleGetBacklinks(req: VercelRequest, res: VercelResponse) {
   const auth = await requireUser(req, res);
   if (!auth) return;
@@ -381,6 +460,44 @@ async function handleGetConnections(req: VercelRequest, res: VercelResponse) {
   return res.status(200).json({ note_id: noteId, connections: data });
 }
 
+async function handleGetAllNotes(req: VercelRequest, res: VercelResponse) {
+  const auth = await requireUser(req, res);
+  if (!auth) return;
+  const { supabase } = auth;
+
+  const { data, error } = await supabase
+    .from("notes")
+    .select("id, title, created_at, updated_at") // Select only necessary fields
+    .order("updated_at", { ascending: false });
+
+  if (error) {
+    return res.status(500).json({ error: "Failed to fetch notes", detail: error.message });
+  }
+
+  res.status(200).json(data || []);
+}
+
+async function handleGetNotesForDate(req: VercelRequest, res: VercelResponse) {
+  const auth = await requireUser(req, res);
+  if (!auth) return;
+  const { supabase } = auth;
+
+  const date = req.query.date as string;
+  if (!date || typeof date !== 'string') {
+    return res.status(400).json({ error: "Missing or invalid 'date' query parameter" });
+  }
+
+  const { data, error } = await supabase.rpc('get_notes_for_date', {
+    target_date_str: date,
+  });
+
+  if (error) {
+    return res.status(500).json({ error: "Failed to fetch notes for date", detail: error.message });
+  }
+
+  return res.status(200).json(data || []);
+}
+
 // --- MAIN ROUTER ---
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -405,8 +522,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleGetBacklinks(req, res);
       case 'get-connections':
         return await handleGetConnections(req, res);
+      case 'get-all-notes':
+        return await handleGetAllNotes(req, res);
       case 'get-note':
         return await handleGetNote(req, res);
+      case 'get-notes-for-date':
+        return await handleGetNotesForDate(req, res);
+      case 'update-note':
+        return await handleUpdateNote(req, res);
       default:
         return res.status(400).json({ error: 'Invalid action' });
     }
