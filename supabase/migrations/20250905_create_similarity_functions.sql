@@ -94,7 +94,8 @@ END;
 CREATE OR REPLACE FUNCTION get_all_edges(
     sim_w float DEFAULT 0.7,
     citation_w float DEFAULT 0.2,
-    tag_w float DEFAULT 0.1
+    tag_w float DEFAULT 0.1,
+    minimum_weight float DEFAULT 0.02 -- New parameter
 )
 RETURNS TABLE (
     source uuid,
@@ -106,12 +107,15 @@ BEGIN
     SELECT
         n1.id as source,
         n2.id as target,
-        _calculate_pair_score(n1.id, n2.id, sim_w, citation_w, tag_w) as weight
+        s.weight
     FROM
         notes n1
     JOIN
-        notes n2 ON n1.id < n2.id -- Prevents duplicate calculations
+        notes n2 ON n1.id < n2.id
+    CROSS JOIN LATERAL
+        (SELECT _calculate_pair_score(n1.id, n2.id, sim_w, citation_w, tag_w) as weight) s
     WHERE
-        n1.user_id = auth.uid() AND n2.user_id = auth.uid(); -- Enforces RLS
+        n1.user_id = auth.uid() AND n2.user_id = auth.uid()
+        AND s.weight >= minimum_weight; -- Filter here
 END;
 ' LANGUAGE plpgsql;

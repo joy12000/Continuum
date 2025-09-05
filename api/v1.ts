@@ -79,7 +79,10 @@ async function runThreadGeneration(jobId: string, userId: string, token: string)
     }
 
     // Precomputed edges via RPC (server-side SQL for speed)
-    const { data: edges, error: edgesError } = await supabase.rpc('get_all_edges', {});
+    const minEdge = envNum('CONTINUUM_MIN_EDGE', 0.02);
+    const { data: edges, error: edgesError } = await supabase.rpc('get_all_edges', {
+      minimum_weight: minEdge
+    });
     if (edgesError) throw new Error(`Failed to build edges: ${edgesError.message}`);
 
     const { data: chunks, error: cerr } = await supabase
@@ -104,9 +107,8 @@ async function runThreadGeneration(jobId: string, userId: string, token: string)
 
       } else if (method === "lpa") {
         // Label Propagation (no hard threshold)
-        const minEdge = envNum('CONTINUUM_MIN_EDGE', 0.05);
         clusters = clusterLPA(prepared, edges as any, {
-          minEdge,
+          minEdge: 0, // Already filtered in DB
           minClusterSize: 2
         }).clusters;
 
@@ -123,13 +125,12 @@ async function runThreadGeneration(jobId: string, userId: string, token: string)
         // HYBRID: LPA → if out-of-range => AUTO; isolation, kNN sparsify, MST fallback, absorb singletons
         const kMin    = envNum('CONTINUUM_KMIN', 4);   // slightly higher default to reduce over-splitting
         const kMax    = envNum('CONTINUUM_KMAX', 12);
-        const minEdge = envNum('CONTINUUM_MIN_EDGE', 0.02);
         const knnK    = Math.max(1, Math.min(64, envNum('CONTINUUM_CLUSTER_K', 8)));
         const mutual  = envBool01('CONTINUUM_CLUSTER_MUTUAL', true);
 
         clusters = clusterHybrid(prepared, edges as any, {
           kMin, kMax,
-          minEdge,
+          minEdge: 0, // Already filtered in DB
           minClusterSize: 2,
           knnK,
           mutual
