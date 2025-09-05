@@ -8,7 +8,7 @@ import { requireUser } from './shared-lib/auth.js';
 import { getSupabaseClient } from './shared-lib/supabaseClient.js';
 import type { InsightThread, Note, NoteChunk, NoteLink, PreparedNote } from './shared-lib/types.js';
 import { getInsightThreadsCache, upsertInsightThreadsCache } from './shared-lib/database.js';
-import { summarizeThread } from './shared-lib/ai.js';
+import { summarizeThread, summarizeDay } from './shared-lib/ai.js';
 import {
   prepareNotes,
   buildCitationSet,
@@ -498,6 +498,30 @@ async function handleGetNotesForDate(req: VercelRequest, res: VercelResponse) {
   return res.status(200).json(data || []);
 }
 
+async function handleSummarizeDay(req: VercelRequest, res: VercelResponse) {
+  const auth = await requireUser(req, res);
+  if (!auth) return;
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
+
+  const { notes } = req.body;
+  if (!notes || !Array.isArray(notes) || notes.length === 0) {
+    return res.status(400).json({ error: '`notes` field must be a non-empty array of note objects.' });
+  }
+
+  try {
+    const summary = await summarizeDay(notes as Note[]);
+    return res.status(200).json(summary);
+  } catch (e: any) {
+    console.error('Failed to generate daily summary:', e);
+    const msg = e?.message || 'Failed to generate daily summary';
+    const tag = /^\^\[(supabase|google|openai|config)\]/.test(msg) ? '' : '[google] ';
+    return res.status(500).json({ error: `${tag}${msg}` });
+  }
+}
+
 // --- MAIN ROUTER ---
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -528,6 +552,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleGetNote(req, res);
       case 'get-notes-for-date':
         return await handleGetNotesForDate(req, res);
+      case 'summarize-day':
+        return await handleSummarizeDay(req, res);
       case 'update-note':
         return await handleUpdateNote(req, res);
       default:

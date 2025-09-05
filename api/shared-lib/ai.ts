@@ -18,8 +18,8 @@ export async function summarizeThread(notes: Note[]): Promise<{ title: string; s
     const stamp = new Date(n.created_at).toISOString().slice(0, 10);
     const title = n.title ?? `Note ${i + 1}`;
     const tags = (n.tags ?? []).slice(0, 6).join(", ");
-    const body = (n.body ?? "").slice(0, 600);
-    return `- [${stamp}] ${title}${tags ? ` (tags: ${tags})` : ""}: ${content}`;
+    const body = (n.body ?? "").slice(0, 400);
+    return `- [${stamp}] ${title}${tags ? ` (tags: ${tags})` : ""}: ${body}`;
   }).join("\n");
 
   const prompt = `You are an analytical assistant building "insight threads" out of a user's notes.
@@ -46,5 +46,38 @@ ${bullets}
   } catch {} // Fallback: heuristic extraction
   const title = (text.match(new RegExp("\"title\"\s*:\s*\"([^\"]+)\""))?.[1]) || "Insight Thread";
   const summary = (text.match(new RegExp("\"summary\"\s*:\s*([\s\S]*?)\"\s*}"))?.[1]) || text.slice(0, 1200);
+  return { title, summary };
+}
+
+export async function summarizeDay(notes: Note[]): Promise<{ title: string; summary: string }> {
+  // Sort by created_at to keep a chronological flow within the day
+  const timeline = [...notes].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  const bullets = timeline.map((n, i) => {
+    const title = n.title ?? `Note ${i + 1}`;
+    const body = (n.body ?? "").slice(0, 600); // Limit content length
+    return `- ${title}: ${body}`;
+  }).join("\n");
+
+  const prompt = `You are an analytical assistant. Based on the following notes from a single day, please perform two tasks:
+1. Create a concise, insightful title that captures the main theme of the day's thoughts. The title should be a maximum of 8 words and in Korean.
+2. Write a short narrative summary (3-5 sentences) that connects the ideas from the notes, reflecting on the day's activities or thoughts. The summary must be in Korean.
+
+Return the result strictly as a JSON object with keys: "title" and "summary".
+
+Today's Notes:
+${bullets}
+`;
+
+  const model = genAI.getGenerativeModel({ model: MODEL });
+  const result = await model.generateContent(prompt);
+  const text = result.response.text();
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed.title === "string" && typeof parsed.summary === "string") {
+      return { title: parsed.title, summary: parsed.summary };
+    }
+  } catch {}
+  const title = (text.match(/"title"\s*:\s*"([^"]+)"/)?.[1]) || "하루의 생각들";
+  const summary = (text.match(/"summary"\s*:\s*"([\s\S]*?)"\s*\}/)?.[1]) || "요약 생성에 실패했습니다.";
   return { title, summary };
 }
