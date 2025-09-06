@@ -15,6 +15,8 @@ import {
   clusterLPA,              // lpa
   clusterByAutoThreshold,  // auto
   clusterHybrid,           // hybrid (fallback)
+  clusterLouvain,          // louvain
+  clusterAdvanced,         // advanced
   clusterScore,
 } from './shared-lib/compute.js';
 
@@ -121,6 +123,32 @@ async function runThreadGeneration(jobId: string, userId: string, token: string)
           kMax
         }).clusters;
 
+      } else if (method === "louvain") {
+        const kMin   = envNum('CONTINUUM_KMIN', 3);
+        const kMax   = envNum('CONTINUUM_KMAX', 12);
+        const topK   = envNum('CONTINUUM_CLUSTER_K', 8);
+        const mutual = envBool01('CONTINUUM_CLUSTER_MUTUAL', true);
+        const isoCut = envNum('CONTINUUM_ISO_CUT', 0.02);
+
+        // DB에서 이미 minimum_weight로 컷했다면 compute에는 minEdge: 0
+        clusters = clusterLouvain(prepared, edges as any, {
+          minEdge: 0,
+          topK, mutual, isoCut
+        }).clusters;
+
+      } else if (method === "advanced") {
+        const kMin   = envNum('CONTINUUM_KMIN', 3);
+        const kMax   = envNum('CONTINUUM_KMAX', 12);
+        const topK   = envNum('CONTINUUM_CLUSTER_K', 8);
+        const mutual = envBool01('CONTINUUM_CLUSTER_MUTUAL', true);
+        const isoCut = envNum('CONTINUUM_ISO_CUT', 0.02);
+
+        clusters = clusterAdvanced(prepared, edges as any, {
+          minEdge: 0, // DB에서 컷했음
+          topK, mutual, isoCut,
+          kMin, kMax
+        }).clusters;
+        
       } else {
         // HYBRID: LPA → if out-of-range => AUTO; isolation, kNN sparsify, MST fallback, absorb singletons
         const kMin    = envNum('CONTINUUM_KMIN', 4);   // slightly higher default to reduce over-splitting
