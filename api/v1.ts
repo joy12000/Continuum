@@ -559,7 +559,8 @@ async function handleGetConnections(req: VercelRequest, res: VercelResponse) {
     rpcName = 'get_connections_for_note';
     rpcArgs = {
       target_note_id: noteId,
-      sim_w, citation_w, tag_w
+      sim_w, citation_w, tag_w,
+      match_count: K * 3  // 살짝 오버샘플 후 서버/클라에서 K로 자름
     };
   }
 
