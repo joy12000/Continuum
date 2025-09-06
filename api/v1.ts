@@ -458,7 +458,6 @@ async function handleUpdateNote(req: VercelRequest, res: VercelResponse) {
     // Auto-generate title and tags if title is empty but body is not.
     if (!title && body) {
       const aiResult = await generateTitleAndTags(body);
-      console.log('AI Result:', aiResult); // Logging the result
       title = aiResult.title;
       // If user didn't provide tags, use the generated ones.
       if (!tags || tags.length === 0) {
