@@ -9,10 +9,6 @@ import PageLayout from '../components/PageLayout';
 import { Loader, AlertCircle, Tag, Link as LinkIcon, Edit, ArrowLeft, Trash2, Save, X, Paperclip } from 'lucide-react';
 import { toast } from '../lib/toast';
 
-// --- Type Definitions ---
-type Backlink = { from_note_id: string; title: string | null; };
-type Connection = { id: string; title: string | null; score: number; };
-
 // --- API Fetching Functions ---
 const fetchNoteData = async (noteId: string) => {
   const { data: { session } } = await supabase.auth.getSession();
@@ -34,8 +30,8 @@ const fetchNoteData = async (noteId: string) => {
   if (attachmentsError) throw new Error('첨부파일을 불러오는 데 실패했습니다.');
 
   const note: Note = await noteRes.json();
-  const backlinks: { backlinks: Backlink[] } = await backlinksRes.json();
-  const connections: { connections: Connection[] } = await connectionsRes.json();
+  const backlinks: { backlinks: { from_note_id: string; title: string | null; }[] } = await backlinksRes.json();
+  const connections: { connections: { id: string; title: string | null; score: number; }[] } = await connectionsRes.json();
 
   return {
     note,
@@ -56,10 +52,6 @@ const NoteDetailPage = () => {
   const [editTitle, setEditTitle] = useState('');
   const [editBody, setEditBody] = useState('');
   const [editTags, setEditTags] = useState('');
-
-  // --- Link Management State ---
-  const [linksToAdd, setLinksToAdd] = useState<string[]>([]);
-  const [linksToRemove, setLinksToRemove] = useState<string[]>([]);
 
   // --- Data Fetching with React Query ---
   const { data, isLoading, error } = useQuery({
@@ -82,20 +74,34 @@ const NoteDetailPage = () => {
   // --- Mutations ---
   const updateNoteMutation = useMutation({
     mutationFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error('인증이 필요합니다.');
+
       const tagsArray = editTags.split(',').map(t => t.trim()).filter(Boolean);
-      const { error } = await supabase.rpc('update_note_details', {
-        p_note_id: noteId,
-        p_title: editTitle,
-        p_body: editBody,
-        p_tags: tagsArray,
-        p_links_to_add: linksToAdd, // Add this
-        p_links_to_remove: linksToRemove, // Add this
+
+      const response = await fetch(`/api/v1?action=update-note&noteId=${noteId}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: editTitle,
+          body: editBody,
+          tags: tagsArray,
+        }),
       });
-      if (error) throw error;
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || '노트 업데이트에 실패했습니다.');
+      }
     },
     onSuccess: () => {
       toast.success("노트가 업데이트되었습니다.");
       queryClient.invalidateQueries({ queryKey: ['noteDetail', noteId] });
+      queryClient.invalidateQueries({ queryKey: ['noteActivity'] });
       window.dispatchEvent(new CustomEvent('notes:updated'));
       setIsEditing(false);
     },
@@ -156,7 +162,7 @@ const NoteDetailPage = () => {
           <div className="note-header">
             <button onClick={() => navigate(-1)} className="back-button" aria-label="뒤로 가기"><ArrowLeft size={20} /></button>
             {isEditing ? (
-              <input type="text" value={editTitle} onChange={e => setEditTitle(e.target.value)} className="edit-title-input" placeholder="제목" />
+              <input type="text" value={editTitle} onChange={e => setEditTitle(e.target.value)} className="edit-title-input" placeholder="제목 (비워두면 자동 생성)" />
             ) : (
               <h1 className="note-title">{note.title || '제목 없음'}</h1>
             )}
@@ -182,11 +188,9 @@ const NoteDetailPage = () => {
                 placeholder="노트 내용 (마크다운 지원)"
               />
             ) : (
-              <div className="prose prose-invert max-w-none">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {note.body || ''}
-                </ReactMarkdown>
-              </div>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {note.body || ''}
+              </ReactMarkdown>
             )}
           </div>
         </main>

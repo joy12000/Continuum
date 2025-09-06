@@ -8,7 +8,7 @@ import { requireUser } from './shared-lib/auth.js';
 import { getSupabaseClient } from './shared-lib/supabaseClient.js';
 import type { InsightThread, Note, NoteChunk } from './shared-lib/types.js';
 import { getInsightThreadsCache, upsertInsightThreadsCache } from './shared-lib/database.js';
-import { summarizeThread, summarizeDay, generateTitleForNote } from './shared-lib/ai.js';
+import { summarizeThread, summarizeDay, generateTitleAndTags } from './shared-lib/ai.js';
 import {
   prepareNotes,
   cluster,                 // legacy
@@ -454,11 +454,16 @@ async function handleUpdateNote(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // Auto-generate title if it's empty but body is not
-    let generatedTitle = null;
+    let generatedData: { title: string; tags: string[] } | null = null;
+    // Auto-generate title and tags if title is empty but body is not.
     if (!title && body) {
-      title = await generateTitleForNote(body);
-      generatedTitle = title; // Keep track of the generated title to send back
+      const aiResult = await generateTitleAndTags(body);
+      title = aiResult.title;
+      // If user didn't provide tags, use the generated ones.
+      if (!tags || tags.length === 0) {
+        tags = aiResult.tags;
+      }
+      generatedData = aiResult;
     }
 
     const { error } = await supabase.rpc('update_note_details', {
@@ -475,8 +480,8 @@ async function handleUpdateNote(req: VercelRequest, res: VercelResponse) {
       return res.status(500).json({ error: 'Failed to update note', detail: error.message });
     }
 
-    // Return the generated title so the frontend can update its state if needed
-    return res.status(200).json({ message: 'Note updated successfully', generatedTitle });
+    // Return the generated data so the frontend can update its state if needed
+    return res.status(200).json({ message: 'Note updated successfully', generatedData });
   } catch (e: any) {
     return res.status(500).json({ error: 'An unexpected error occurred', detail: e.message });
   }

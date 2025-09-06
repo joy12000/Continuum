@@ -99,26 +99,40 @@ ${bullets}
   return { title, summary };
 }
 
-export async function generateTitleForNote(noteBody: string): Promise<string> {
+export async function generateTitleAndTags(noteBody: string): Promise<{ title: string; tags: string[] }> {
   if (!noteBody.trim()) {
-    return "제목 없음";
+    return { title: "제목 없음", tags: [] };
   }
 
-  const bodyExcerpt = noteBody.slice(0, 1000);
+  const bodyExcerpt = noteBody.slice(0, 1500);
 
-  const prompt = `다음 노트 내용을 기반으로, 핵심을 꿰뚫는 간결한 한국어 제목을 지어주세요.
-- 제목은 5-8단어 이내로 작성해주세요.
-- 질문 형태의 제목도 좋습니다.
-- 가장 중요한 키워드가 제목에 포함되도록 해주세요.
-- 응답은 다른 설명 없이 오직 '제목'만 포함해야 합니다.
+  const prompt = `You are a content analyst. Based on the following note, perform two tasks:
+1.  **Generate a title**: Create a concise, insightful Korean title (5-8 words) that captures the core theme.
+2.  **Extract tags**: Identify and list 3-5 main keywords or topics as an array of Korean strings.
 
-노트 내용:
+Return the result strictly as a JSON object with keys: "title" (string) and "tags" (array of strings).
+
+Note Content:
 ---
 ${bodyExcerpt}
 ---
+
+Your response must be ONLY the raw JSON object.
 `;
   const model = genAI.getGenerativeModel({ model: MODEL });
   const result = await model.generateContent(prompt);
-  const text = result.response.text().trim().replace(/["*]/g, ''); // Remove quotes and asterisks
-  return text || "새로운 노트";
+  const text = result.response.text().replace(/^```json\s*/, '').replace(/\s*```$/, '');
+
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed.title === "string" && Array.isArray(parsed.tags)) {
+      const tags = parsed.tags.filter((t: any) => typeof t === 'string' && t.length > 0 && t.length < 20);
+      return { title: parsed.title || "새로운 노트", tags };
+    }
+  } catch (e) {
+    console.error("Failed to parse AI response for title/tags:", text, e);
+  }
+
+  // Fallback
+  return { title: "새로운 노트", tags: [] };
 }
