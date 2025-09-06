@@ -541,15 +541,35 @@ async function handleGetConnections(req: VercelRequest, res: VercelResponse) {
   const citation_w  = req.query.citation_weight  ? Number(req.query.citation_weight)  : 0.2;
   const tag_w       = req.query.tag_weight       ? Number(req.query.tag_weight)       : 0.1;
 
-  const { data, error } = await supabase.rpc('get_connections_for_note', {
-    target_note_id: noteId,
-    sim_w, citation_w, tag_w
-  });
+  let rpcName: string;
+  let rpcArgs: any;
+
+  if (MUTUAL) {
+    // mutual kNN 버전 호출
+    rpcName = 'get_connections_knn';
+    rpcArgs = {
+      target_note_id: noteId,
+      k: K,
+      min_score: MIN_SCORE,
+      sim_w, citation_w, tag_w,
+      mutual: true
+    };
+  } else {
+    // 기존 단방향 Top-K 버전
+    rpcName = 'get_connections_for_note';
+    rpcArgs = {
+      target_note_id: noteId,
+      sim_w, citation_w, tag_w,
+      match_count: K * 3  // 살짝 오버샘플 후 서버/클라에서 K로 자름
+    };
+  }
+
+  const { data, error } = await supabase.rpc(rpcName, rpcArgs);
   if (error) {
     return res.status(500).json({ error: "Failed to fetch connections", detail: error.message });
   }
 
-  // 1) 점수 NaN/NULL 방지 → 2) 점수컷 → 3) 내림차순 정렬 → 4) Top-K
+  // mutual RPC는 이미 k와 min_score 적용하지만, 안전하게 한 번 더 가드
   const conns = (data ?? [])
     .map((d: any) => ({
       note_id: d.note_id,
@@ -566,8 +586,9 @@ async function handleGetConnections(req: VercelRequest, res: VercelResponse) {
     meta: {
       k: K,
       min_score: MIN_SCORE,
-      mutual_requested: MUTUAL,   // 현재는 적용 안 함(표시만)
-      mutual_applied: true,
+      mutual_requested: MUTUAL,
+      // 실제 mutual 적용 여부
+      mutual_applied: MUTUAL,
       weights: { sim: sim_w, citation: citation_w, tag: tag_w }
     }
   });
