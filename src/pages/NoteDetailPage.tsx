@@ -31,7 +31,7 @@ const fetchNoteData = async (noteId: string) => {
 
   const note: Note = await noteRes.json();
   const backlinks: { backlinks: { from_note_id: string; title: string | null; }[] } = await backlinksRes.json();
-  const connections: { connections: { id: string; title: string | null; score: number; }[] } = await connectionsRes.json();
+  const connections: { connections: { note_id: string; title: string | null; score: number; }[] } = await connectionsRes.json();
 
   return {
     note,
