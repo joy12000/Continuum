@@ -57,6 +57,10 @@ const NoteDetailPage = () => {
   const [editBody, setEditBody] = useState('');
   const [editTags, setEditTags] = useState('');
 
+  // --- Link Management State ---
+  const [linksToAdd, setLinksToAdd] = useState<string[]>([]);
+  const [linksToRemove, setLinksToRemove] = useState<string[]>([]);
+
   // --- Data Fetching with React Query ---
   const { data, isLoading, error } = useQuery({
     queryKey: ['noteDetail', noteId],
@@ -84,6 +88,8 @@ const NoteDetailPage = () => {
         p_title: editTitle,
         p_body: editBody,
         p_tags: tagsArray,
+        p_links_to_add: linksToAdd, // Add this
+        p_links_to_remove: linksToRemove, // Add this
       });
       if (error) throw error;
     },

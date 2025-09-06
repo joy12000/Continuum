@@ -98,3 +98,27 @@ ${bullets}
   const summary = (text.match(/"summary"\s*:\s*"([\s\S]*?)"\s*\}/)?.[1] || "요약 생성에 실패했습니다.");
   return { title, summary };
 }
+
+export async function generateTitleForNote(noteBody: string): Promise<string> {
+  if (!noteBody.trim()) {
+    return "제목 없음";
+  }
+
+  const bodyExcerpt = noteBody.slice(0, 1000);
+
+  const prompt = `다음 노트 내용을 기반으로, 핵심을 꿰뚫는 간결한 한국어 제목을 지어주세요.
+- 제목은 5-8단어 이내로 작성해주세요.
+- 질문 형태의 제목도 좋습니다.
+- 가장 중요한 키워드가 제목에 포함되도록 해주세요.
+- 응답은 다른 설명 없이 오직 '제목'만 포함해야 합니다.
+
+노트 내용:
+---
+${bodyExcerpt}
+---
+`;
+  const model = genAI.getGenerativeModel({ model: MODEL });
+  const result = await model.generateContent(prompt);
+  const text = result.response.text().trim().replace(/["*]/g, ''); // Remove quotes and asterisks
+  return text || "새로운 노트";
+}

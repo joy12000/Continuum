@@ -8,7 +8,7 @@ import { requireUser } from './shared-lib/auth.js';
 import { getSupabaseClient } from './shared-lib/supabaseClient.js';
 import type { InsightThread, Note, NoteChunk } from './shared-lib/types.js';
 import { getInsightThreadsCache, upsertInsightThreadsCache } from './shared-lib/database.js';
-import { summarizeThread, summarizeDay } from './shared-lib/ai.js';
+import { summarizeThread, summarizeDay, generateTitleForNote } from './shared-lib/ai.js';
 import {
   prepareNotes,
   cluster,                 // legacy
@@ -433,8 +433,8 @@ async function handleUpdateNote(req: VercelRequest, res: VercelResponse) {
   const auth = await requireUser(req, res);
   if (!auth) return;
   const { supabase } = auth;
-
-  if (req.method !== 'PATCH') {
+  
+  if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
@@ -443,26 +443,31 @@ async function handleUpdateNote(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Missing noteId' });
   }
 
-  const {
+  let {
     title,
     body,
     tags,
-    links_to_add,
-    links_to_remove
   } = req.body;
 
-  if (title === undefined && body === undefined && tags === undefined && links_to_add === undefined && links_to_remove === undefined) {
+  if (title === undefined && body === undefined && tags === undefined) {
     return res.status(400).json({ error: 'At least one field to update must be provided.' });
   }
 
   try {
+    // Auto-generate title if it's empty but body is not
+    let generatedTitle = null;
+    if (!title && body) {
+      title = await generateTitleForNote(body);
+      generatedTitle = title; // Keep track of the generated title to send back
+    }
+
     const { error } = await supabase.rpc('update_note_details', {
       p_note_id: noteId,
       p_title: title,
       p_body: body,
       p_tags: tags,
-      p_links_to_add: links_to_add,
-      p_links_to_remove: links_to_remove,
+      p_links_to_add: [], // Link editing is a separate feature, keeping this simple
+      p_links_to_remove: [],
     });
 
     if (error) {
@@ -470,7 +475,8 @@ async function handleUpdateNote(req: VercelRequest, res: VercelResponse) {
       return res.status(500).json({ error: 'Failed to update note', detail: error.message });
     }
 
-    return res.status(200).json({ message: 'Note updated successfully' });
+    // Return the generated title so the frontend can update its state if needed
+    return res.status(200).json({ message: 'Note updated successfully', generatedTitle });
   } catch (e: any) {
     return res.status(500).json({ error: 'An unexpected error occurred', detail: e.message });
   }
