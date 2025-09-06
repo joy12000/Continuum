@@ -425,8 +425,15 @@ async function handleGetNote(req: VercelRequest, res: VercelResponse) {
     return res.status(404).json({ error: "Note not found" });
   }
 
-  console.log("Fetched note data:", data); // Added for debugging
-  res.status(200).json(data);
+  const note = {
+    ...data,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
+  delete (note as any).created_at;
+  delete (note as any).updated_at;
+
+  res.status(200).json(note);
 }
 
 async function handleUpdateNote(req: VercelRequest, res: VercelResponse) {
@@ -553,7 +560,15 @@ async function handleGetAllNotes(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: "Failed to fetch notes", detail: error.message });
   }
 
-  res.status(200).json(data || []);
+  const notes = (data || []).map(note => ({
+    ...note,
+    createdAt: note.created_at,
+    updatedAt: note.updated_at,
+    created_at: undefined,
+    updated_at: undefined,
+  }));
+
+  res.status(200).json(notes);
 }
 
 async function handleGetNotesForDate(req: VercelRequest, res: VercelResponse) {
@@ -574,7 +589,15 @@ async function handleGetNotesForDate(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: "Failed to fetch notes for date", detail: error.message });
   }
 
-  return res.status(200).json(data || []);
+  const notes = (data || []).map((note: any) => ({
+    ...note,
+    createdAt: note.created_at,
+    updatedAt: note.updated_at,
+    created_at: undefined,
+    updated_at: undefined,
+  }));
+
+  return res.status(200).json(notes);
 }
 
 async function handleSummarizeDay(req: VercelRequest, res: VercelResponse) {
