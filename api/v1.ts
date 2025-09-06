@@ -532,6 +532,10 @@ async function handleGetConnections(req: VercelRequest, res: VercelResponse) {
   const citation_w = req.query.citation_weight ? Number(req.query.citation_weight) : undefined;
   const tag_w = req.query.tag_weight ? Number(req.query.tag_weight) : undefined;
 
+  const K = Number(req.query.k ?? process.env.CONTINUUM_CONN_K ?? 12);
+  const MIN_SCORE = Number(req.query.min_score ?? process.env.CONTINUUM_CONN_MIN ?? 0.05);
+  const MUTUAL = String(req.query.mutual ?? process.env.CONTINUUM_CONN_MUTUAL ?? "false") === "true";
+
   const { data, error } = await supabase.rpc('get_connections_for_note', {
     target_note_id: noteId,
     sim_w,
@@ -543,7 +547,16 @@ async function handleGetConnections(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: "Failed to fetch connections", detail: error.message });
   }
 
-  return res.status(200).json({ note_id: noteId, connections: data });
+  let conns = (data || [])
+    .filter((d: any) => Number(d.score) >= MIN_SCORE)
+    .sort((a: any, b: any) => Number(b.score) - Number(a.score))
+    .slice(0, K);
+
+  return res.status(200).json({
+    note_id: noteId,
+    connections: conns,
+    meta: { k: K, min_score: MIN_SCORE, mutual_applied: false }
+  });
 }
 
 async function handleGetAllNotes(req: VercelRequest, res: VercelResponse) {
