@@ -254,7 +254,7 @@ const NoteDetailPage = () => {
                 <div className="sidebar-section">
                   <h3 className="sidebar-title">연결된 노트</h3>
                   <ul className="links-list">
-                    {connections.map(conn => <li key={conn.id}><Link to={`/notes/${conn.id}`} className="link-item"><LinkIcon size={14} /><span>{conn.title || '제목 없음'}</span></Link></li>)}
+                    {connections.map(conn => <li key={conn.note_id}><Link to={`/notes/${conn.note_id}`} className="link-item"><LinkIcon size={14} /><span>{conn.title || '제목 없음'}</span></Link></li>)}
                   </ul>
                 </div>
               )}
