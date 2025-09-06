@@ -121,9 +121,7 @@ Your response must be ONLY the raw JSON object.
 `;
   const model = genAI.getGenerativeModel({ model: MODEL });
   const result = await model.generateContent(prompt);
-  const text = result.response.text().replace(/^```json\s*|\s*```$/g, '');
-
-  console.log("Raw AI response for title/tags:", text); // Logging the raw text
+  const text = result.response.text().replace(/```json|```/g, '');
 
   try {
     const parsed = JSON.parse(text);
