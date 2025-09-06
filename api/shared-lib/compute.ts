@@ -479,6 +479,102 @@ export function forceSplitByMST(n: number, edges: Edge[], k: number): number[][]
   return comps;
 }
 
+// ───────────────────── 최종 개수 캡핑(하드 kMax 보장) ─────────────────────
+
+function _buildAdjMap(n: number, edges: Edge[]): Map<number, Map<number, number>> {
+  const M = new Map<number, Map<number, number>>();
+  for (let i = 0; i < n; i++) M.set(i, new Map());
+  for (const e of edges) {
+    const a = M.get(e.i)!; a.set(e.j, (a.get(e.j) ?? 0) + e.score);
+    const b = M.get(e.j)!; b.set(e.i, (b.get(e.i) ?? 0) + e.score);
+  }
+  return M;
+}
+
+function _sumToCluster(v: number, cluster: number[], adj: Map<number, Map<number, number>>): number {
+  const row = adj.get(v)!;
+  let s = 0;
+  for (const u of cluster) s += row.get(u) ?? 0;
+  return s;
+}
+
+function _interAffinity(a: number[], b: number[], adj: Map<number, Map<number, number>>): number {
+  if (!a.length || !b.length) return 0;
+  let s = 0;
+  for (const u of a) for (const v of b) s += adj.get(u)!.get(v) ?? 0;
+  return s / (a.length * b.length);
+}
+
+/** 클러스터 수가 kMax를 넘으면
+ *  1) 비고립 싱글톤을 가장 맞는 군집에 흡수
+ *  2) 그래도 넘치면 고립 싱글톤도 흡수
+ *  3) 그래도 넘치면 상호 결속이 가장 강한 두 군집부터 병합
+ */
+function capClusterCount(
+  clustersIn: number[][],
+  edges: Edge[],
+  kMax: number,
+  iso: Set<number>
+): number[][] {
+  let clusters = clustersIn.map(c => [...c]);
+  if (clusters.length <= kMax) return clusters;
+
+  const n = clusters.reduce((acc, c) => acc + c.length, 0);
+  const adj = _buildAdjMap(n, edges);
+
+  const absorbPhase = (absorbIso: boolean) => {
+    let changed = true;
+    while (changed && clusters.length > kMax) {
+      changed = false;
+      for (let i = 0; i < clusters.length && clusters.length > kMax; i++) {
+        const c = clusters[i];
+        if (c.length !== 1) continue;
+        const v = c[0];
+        if (!absorbIso && iso.has(v)) continue;
+
+        let best = -1, bestSum = -Infinity;
+        for (let j = 0; j < clusters.length; j++) {
+          if (j === i) continue;
+          const s = _sumToCluster(v, clusters[j], adj);
+          if (s > bestSum) { bestSum = s; best = j; }
+        }
+        if (best >= 0) {
+          clusters[best].push(v);
+          clusters.splice(i, 1);
+          changed = true;
+          i--;
+        }
+      }
+    }
+  };
+
+  // 1) 비고립 싱글톤 먼저
+  absorbPhase(false);
+
+  // 2) 아직 넘치면 고립도
+  if (clusters.length > kMax) absorbPhase(true);
+
+  // 3) 그래도 넘치면 결속 최댓값 기준 병합
+  while (clusters.length > kMax) {
+    let bi = -1, bj = -1, best = -Infinity;
+    for (let i = 0; i < clusters.length; i++) {
+      for (let j = i + 1; j < clusters.length; j++) {
+        const s = _interAffinity(clusters[i], clusters[j], adj);
+        if (s > best) { best = s; bi = i; bj = j; }
+      }
+    }
+    if (bi < 0 || bj < 0) {
+      clusters.sort((a, b) => a.length - b.length);
+      clusters[1] = clusters[1].concat(clusters[0]);
+      clusters.splice(0, 1);
+    } else {
+      clusters[bi] = clusters[bi].concat(clusters[bj]);
+      clusters.splice(bj, 1);
+    }
+  }
+  return clusters;
+}
+
 // ───────────────────── 하이브리드 오케스트레이터 ─────────────────────
 
 export function clusterHybrid(
@@ -547,8 +643,11 @@ export function clusterHybrid(
   // 6) 싱글톤 흡수(고립 제외)로 과분할 완화
   clusters = _absorbSingletons(clusters, edges.length ? edges : edgesAll, iso);
 
-  // 7) 빈 군집 제거
+  // 7) ★최종 개수 하드 캡핑: kMax 초과 금지(가능하면 고립은 보존)
+  clusters = capClusterCount(clusters, edges.length ? edges : edgesAll, kMax, iso);
+
+  // 8) 빈 군집 제거
   clusters = clusters.filter(c => c.length > 0);
 
-  return { clusters, method: "hybrid+knn+isolation+absorb" as const, meta: { knnK, mutual, isoCut } };
+  return { clusters, method: "hybrid+knn+isolation+absorb+cap" as const, meta: { knnK, mutual, isoCut } };
 }
