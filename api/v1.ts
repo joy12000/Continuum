@@ -425,6 +425,7 @@ async function handleGetNote(req: VercelRequest, res: VercelResponse) {
     return res.status(404).json({ error: "Note not found" });
   }
 
+  console.log("Fetched note data:", data); // Added for debugging
   res.status(200).json(data);
 }
 
