@@ -522,77 +522,95 @@ async function handleGetConnections(req: VercelRequest, res: VercelResponse) {
   const auth = await requireUser(req, res);
   if (!auth) return;
   const { supabase } = auth;
+
   const noteId = req.query.noteId as string;
   if (!noteId) {
     return res.status(400).json({ error: "Missing noteId" });
   }
 
-  // v1.ts - handleGetConnections 내부 (빠른 패치: Top-K + 점수컷)
+  // 환경변수/쿼리 → 파라미터
   const K_ENV   = Number(process.env.CONTINUUM_CONN_K ?? 12);
   const MIN_ENV = Number(process.env.CONTINUUM_CONN_MIN ?? 0.05);
   const MUT_ENV = String(process.env.CONTINUUM_CONN_MUTUAL ?? "false") === "true";
 
-  const K         = Math.max(1, Number(req.query.k ?? K_ENV));          // k 하한
-  const MIN_SCORE = Math.max(0, Number(req.query.min_score ?? MIN_ENV)); // 점수컷 하한
-  const MUTUAL    = String(req.query.mutual ?? String(MUT_ENV)) === "true"; // 지금은 표시만
+  const K         = Math.max(1, Number(req.query.k ?? K_ENV));
+  const MIN_SCORE = Math.max(0, Number(req.query.min_score ?? MIN_ENV));
+  const MUTUAL    = String(req.query.mutual ?? String(MUT_ENV)) === "true";
 
-  // 가중치: 프런트 쿼리 없으면 기본값
-  const sim_w       = req.query.sim_weight       ? Number(req.query.sim_weight)       : 0.7;
-  const citation_w  = req.query.citation_weight  ? Number(req.query.citation_weight)  : 0.2;
-  const tag_w       = req.query.tag_weight       ? Number(req.query.tag_weight)       : 0.1;
+  const sim_w      = req.query.sim_weight      ? Number(req.query.sim_weight)      : 0.7;
+  const citation_w = req.query.citation_weight ? Number(req.query.citation_weight) : 0.2;
+  const tag_w      = req.query.tag_weight      ? Number(req.query.tag_weight)      : 0.1;
 
-  let rpcName: string;
-  let rpcArgs: any;
+  try {
+    let data: any[] | null = null;
+    let error: any = null;
 
-  if (MUTUAL) {
-    // mutual kNN 버전 호출
-    rpcName = 'get_connections_knn';
-    rpcArgs = {
-      target_note_id: noteId,
-      k: K,
-      min_score: MIN_SCORE,
-      sim_w, citation_w, tag_w,
-      mutual: true
-    };
-  } else {
-    // 기존 단방향 Top-K 버전
-    rpcName = 'get_connections_for_note';
-    rpcArgs = {
-      target_note_id: noteId,
-      sim_w, citation_w, tag_w,
-      match_count: K * 3  // 살짝 오버샘플 후 서버/클라에서 K로 자름
-    };
-  }
+    if (MUTUAL) {
+      // 서버에서 mutual kNN 적용
+      const resp = await supabase.rpc('get_connections_knn', {
+        target_note_id: noteId,
+        k: K,
+        min_score: MIN_SCORE,
+        sim_w,
+        citation_w,
+        tag_w,
+        mutual: true
+      });
+      data = resp.data;
+      error = resp.error;
+    } else {
+      // 단순 점수 계산 버전
+      const resp = await supabase.rpc('get_connections_for_note', {
+        target_note_id: noteId,
+        sim_w,
+        citation_w,
+        tag_w,
+        // match_count는 함수 기본값 50; 원하면 여기서 K로 넣어도 됨
+        match_count: Math.max(K, 50),
+      });
+      if (resp.error) {
+        error = resp.error;
+      } else {
+        // 서버에서 Top-K 까지 다 하고 오지 않으니, 여기서 컷/정렬/슬라이스
+        data = (resp.data ?? [])
+          .map((d: any) => ({
+            note_id: d.note_id,
+            title: d.title ?? null,
+            score: Number.isFinite(Number(d.score)) ? Number(d.score) : 0
+          }))
+          .filter((d: any) => d.score >= MIN_SCORE)
+          .sort((a: any, b: any) => b.score - a.score)
+          .slice(0, K);
+      }
+    }
 
-  const { data, error } = await supabase.rpc(rpcName, rpcArgs);
-  if (error) {
-    console.error('[get-connections][rpc error]', error);
-    return res.status(500).json({ error: "Failed to fetch connections", detail: error.message });
-  }
+    if (error) {
+      console.error('[get-connections][rpc error]', error);
+      return res.status(500).json({ error: "Failed to fetch connections", detail: error.message });
+    }
 
-  // mutual RPC는 이미 k와 min_score 적용하지만, 안전하게 한 번 더 가드
-  const conns = (data ?? [])
-    .map((d: any) => ({
+    // get_connections_knn는 이미 Top-K + 컷이 끝나서 바로 반환
+    const conns = (data ?? []).map((d: any) => ({
       note_id: d.note_id,
       title: d.title ?? null,
       score: Number.isFinite(Number(d.score)) ? Number(d.score) : 0
-    }))
-    .filter(d => d.score >= MIN_SCORE)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, K);
+    }));
 
-  return res.status(200).json({
-    note_id: noteId,
-    connections: conns,
-    meta: {
-      k: K,
-      min_score: MIN_SCORE,
-      mutual_requested: MUTUAL,
-      // 실제 mutual 적용 여부
-      mutual_applied: MUTUAL,
-      weights: { sim: sim_w, citation: citation_w, tag: tag_w }
-    }
-  });
+    return res.status(200).json({
+      note_id: noteId,
+      connections: conns,
+      meta: {
+        k: K,
+        min_score: MIN_SCORE,
+        mutual_requested: MUTUAL,
+        mutual_applied: MUTUAL,
+        weights: { sim: sim_w, citation: citation_w, tag: tag_w }
+      }
+    });
+  } catch (e: any) {
+    console.error('[get-connections][handler error]', e);
+    return res.status(500).json({ error: "Internal error", detail: e?.message ?? String(e) });
+  }
 }
 
 async function handleGetAllNotes(req: VercelRequest, res: VercelResponse) {
