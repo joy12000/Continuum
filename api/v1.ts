@@ -566,6 +566,7 @@ async function handleGetConnections(req: VercelRequest, res: VercelResponse) {
 
   const { data, error } = await supabase.rpc(rpcName, rpcArgs);
   if (error) {
+    console.error('[get-connections][rpc error]', error); // ← 추가!
     return res.status(500).json({ error: "Failed to fetch connections", detail: error.message });
   }
 
