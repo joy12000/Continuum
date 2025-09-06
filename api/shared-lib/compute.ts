@@ -244,14 +244,10 @@ function _clusterByThreshold(n: number, edges: Edge[], thr: number) {
   return [...groups.values()];
 }
 
-/** 가중 모듈러리티(정식식): Q = Σ_c ( l_c / m - (d_c / (2m))^2 )
- * - m = Σ_e w_e (모든 간선 가중치의 합, 한 번만 카운트)
- * - l_c = 커뮤니티 내부 간선 가중치 합(한 번만 카운트)
- * - d_c = 커뮤니티 내 노드의 차수 합(차수는 양 끝으로 더해짐)
- */
+/** 가중 모듈러리티(정식식): Q = Σ_c ( l_c / m - (d_c / (2m))^2 ) */
 function _modularityWeighted(n: number, edges: Edge[], clusters: number[][]) {
   const deg = new Array(n).fill(0);
-  let m = 0; // 총 가중치 합(한 번만 카운트)
+  let m = 0;
   for (const e of edges) { deg[e.i] += e.score; deg[e.j] += e.score; m += e.score; }
   if (m === 0) return 0;
 
@@ -285,7 +281,7 @@ export function clusterByAutoThreshold(
 
   const q = (p: number) => scores[Math.min(scores.length - 1, Math.max(0, Math.floor(p * (scores.length - 1))))];
 
-  // 탐색 구간을 넓게: 0.30 ~ 0.995
+  // 넓은 구간에서 탐색
   let lo = q(0.30), hi = q(0.995);
 
   let bestThr = lo, bestClusters = _clusterByThreshold(n, edges, lo), bestQ = -Infinity;
@@ -293,12 +289,12 @@ export function clusterByAutoThreshold(
   for (let t = 0; t < iters; t++) {
     const mid = (lo + hi) / 2;
     const cs = _clusterByThreshold(n, edges, mid);
-    if (cs.length < kMin) hi = mid;        // 덜 분할 → 임계 ↑
-    else if (cs.length > kMax) lo = mid;   // 과분할 → 임계 ↓
+    if (cs.length < kMin) hi = mid;
+    else if (cs.length > kMax) lo = mid;
     else {
       const Q = _modularityWeighted(n, edges, cs);
       if (Q > bestQ) { bestQ = Q; bestThr = mid; bestClusters = cs; }
-      lo = mid * 0.99; hi = mid * 1.01;    // 근방 탐색
+      lo = mid * 0.99; hi = mid * 1.01;
     }
   }
 
@@ -313,7 +309,6 @@ export function clusterByAutoThreshold(
     }
   }
 
-  // 최후 보정: 여전히 < kMin 이면 MST로 최소 kMin 보장
   if (bestClusters.length < kMin && n >= Math.max(2, kMin)) {
     const comps = forceSplitByMST(n, edges, kMin);
     return { clusters: comps, threshold: bestThr, Q: bestQ };
@@ -481,10 +476,17 @@ export function forceSplitByMST(n: number, edges: Edge[], k: number): number[][]
 
 // ───────────────────── 최종 개수 캡핑(하드 kMax 보장) ─────────────────────
 
+function _maxIndexInClusters(clusters: number[][]): number {
+  let mx = -1;
+  for (const c of clusters) for (const v of c) if (v > mx) mx = v;
+  return mx;
+}
+
 function _buildAdjMap(n: number, edges: Edge[]): Map<number, Map<number, number>> {
   const M = new Map<number, Map<number, number>>();
   for (let i = 0; i < n; i++) M.set(i, new Map());
   for (const e of edges) {
+    if (!M.has(e.i) || !M.has(e.j)) continue; // 방어
     const a = M.get(e.i)!; a.set(e.j, (a.get(e.j) ?? 0) + e.score);
     const b = M.get(e.j)!; b.set(e.i, (b.get(e.i) ?? 0) + e.score);
   }
@@ -492,7 +494,7 @@ function _buildAdjMap(n: number, edges: Edge[]): Map<number, Map<number, number>
 }
 
 function _sumToCluster(v: number, cluster: number[], adj: Map<number, Map<number, number>>): number {
-  const row = adj.get(v)!;
+  const row = adj.get(v) ?? new Map();
   let s = 0;
   for (const u of cluster) s += row.get(u) ?? 0;
   return s;
@@ -501,15 +503,11 @@ function _sumToCluster(v: number, cluster: number[], adj: Map<number, Map<number
 function _interAffinity(a: number[], b: number[], adj: Map<number, Map<number, number>>): number {
   if (!a.length || !b.length) return 0;
   let s = 0;
-  for (const u of a) for (const v of b) s += adj.get(u)!.get(v) ?? 0;
+  for (const u of a) for (const v of b) s += (adj.get(u)?.get(v) ?? 0);
   return s / (a.length * b.length);
 }
 
-/** 클러스터 수가 kMax를 넘으면
- *  1) 비고립 싱글톤을 가장 맞는 군집에 흡수
- *  2) 그래도 넘치면 고립 싱글톤도 흡수
- *  3) 그래도 넘치면 상호 결속이 가장 강한 두 군집부터 병합
- */
+/** 클러스터 수를 kMax 이하로 강제 */
 function capClusterCount(
   clustersIn: number[][],
   edges: Edge[],
@@ -519,7 +517,8 @@ function capClusterCount(
   let clusters = clustersIn.map(c => [...c]);
   if (clusters.length <= kMax) return clusters;
 
-  const n = clusters.reduce((acc, c) => acc + c.length, 0);
+  // n은 "실제 최대 노드 인덱스 + 1"로 계산 (연속 가정 X)
+  const n = _maxIndexInClusters(clusters) + 1;
   const adj = _buildAdjMap(n, edges);
 
   const absorbPhase = (absorbIso: boolean) => {
@@ -538,11 +537,25 @@ function capClusterCount(
           const s = _sumToCluster(v, clusters[j], adj);
           if (s > bestSum) { bestSum = s; best = j; }
         }
-        if (best >= 0) {
+
+        if (best >= 0 && bestSum > 0) {
           clusters[best].push(v);
           clusters.splice(i, 1);
           changed = true;
           i--;
+        } else if (best === -1) {
+          // 간선이 전혀 없으면 가장 큰 군집으로 강제 흡수 (무한 대기 방지)
+          let tgt = -1, maxSize = -1;
+          for (let j = 0; j < clusters.length; j++) {
+            if (j === i) continue;
+            if (clusters[j].length > maxSize) { maxSize = clusters[j].length; tgt = j; }
+          }
+          if (tgt >= 0) {
+            clusters[tgt].push(v);
+            clusters.splice(i, 1);
+            changed = true;
+            i--;
+          }
         }
       }
     }
@@ -554,7 +567,7 @@ function capClusterCount(
   // 2) 아직 넘치면 고립도
   if (clusters.length > kMax) absorbPhase(true);
 
-  // 3) 그래도 넘치면 결속 최댓값 기준 병합
+  // 3) 그래도 넘치면 결속 최댓값 기준 병합, 없으면 최소 둘 병합
   while (clusters.length > kMax) {
     let bi = -1, bj = -1, best = -Infinity;
     for (let i = 0; i < clusters.length; i++) {
@@ -565,8 +578,12 @@ function capClusterCount(
     }
     if (bi < 0 || bj < 0) {
       clusters.sort((a, b) => a.length - b.length);
-      clusters[1] = clusters[1].concat(clusters[0]);
-      clusters.splice(0, 1);
+      if (clusters.length >= 2) {
+        clusters[1] = clusters[1].concat(clusters[0]);
+        clusters.splice(0, 1);
+      } else {
+        break;
+      }
     } else {
       clusters[bi] = clusters[bi].concat(clusters[bj]);
       clusters.splice(bj, 1);
@@ -592,7 +609,7 @@ export function clusterHybrid(
   const kMax = pref?.kMax ?? 12;
   const minEdge = pref?.minEdge ?? 0.05;
   const minClusterSize = pref?.minClusterSize ?? 2;
-  const knnK = pref?.knnK ?? 8;
+  const knnK = Math.min(pref?.knnK ?? 8, Math.max(1, n - 1)); // 유효범위 보호
   const mutual = pref?.mutual ?? true;
   const isoCut = pref?.isoCut ?? Math.max(0.02, Math.min(0.08, minEdge));
 
@@ -643,10 +660,19 @@ export function clusterHybrid(
   // 6) 싱글톤 흡수(고립 제외)로 과분할 완화
   clusters = _absorbSingletons(clusters, edges.length ? edges : edgesAll, iso);
 
-  // 7) ★최종 개수 하드 캡핑: kMax 초과 금지(가능하면 고립은 보존)
+  // 7) ★최종 개수 하드 캡핑
   clusters = capClusterCount(clusters, edges.length ? edges : edgesAll, kMax, iso);
 
-  // 8) 빈 군집 제거
+  // 8) 그래도 혹시 남아 있으면(이론상 거의 없음) — 가장 작은 군집부터 병합해 kMax 보장
+  if (clusters.length > kMax) {
+    clusters.sort((a,b) => a.length - b.length);
+    while (clusters.length > kMax) {
+      clusters[1] = clusters[1].concat(clusters[0]);
+      clusters.splice(0, 1);
+    }
+  }
+
+  // 9) 빈 군집 제거
   clusters = clusters.filter(c => c.length > 0);
 
   return { clusters, method: "hybrid+knn+isolation+absorb+cap" as const, meta: { knnK, mutual, isoCut } };
