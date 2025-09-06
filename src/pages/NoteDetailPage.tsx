@@ -100,7 +100,7 @@ const NoteDetailPage = () => {
     },
     onSuccess: () => {
       toast.success("노트가 업데이트되었습니다.");
-      queryClient.invalidateQueries({ queryKey: ['noteDetail', noteId] });
+      queryClient.invalidateQueries({ queryKey: ['noteDetail'] });
       queryClient.invalidateQueries({ queryKey: ['noteActivity'] });
       window.dispatchEvent(new CustomEvent('notes:updated'));
       setIsEditing(false);
