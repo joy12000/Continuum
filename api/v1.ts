@@ -527,35 +527,49 @@ async function handleGetConnections(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: "Missing noteId" });
   }
 
-  // 가중치: 쿼리 제공 없으면 DB RPC의 기본값을 사용
-  const sim_w = req.query.sim_weight ? Number(req.query.sim_weight) : undefined;
-  const citation_w = req.query.citation_weight ? Number(req.query.citation_weight) : undefined;
-  const tag_w = req.query.tag_weight ? Number(req.query.tag_weight) : undefined;
+  // v1.ts - handleGetConnections 내부 (빠른 패치: Top-K + 점수컷)
+  const K_ENV   = Number(process.env.CONTINUUM_CONN_K ?? 12);
+  const MIN_ENV = Number(process.env.CONTINUUM_CONN_MIN ?? 0.05);
+  const MUT_ENV = String(process.env.CONTINUUM_CONN_MUTUAL ?? "false") === "true";
 
-  const K = Number(req.query.k ?? process.env.CONTINUUM_CONN_K ?? 12);
-  const MIN_SCORE = Number(req.query.min_score ?? process.env.CONTINUUM_CONN_MIN ?? 0.05);
-  const MUTUAL = String(req.query.mutual ?? process.env.CONTINUUM_CONN_MUTUAL ?? "false") === "true";
+  const K         = Math.max(1, Number(req.query.k ?? K_ENV));          // k 하한
+  const MIN_SCORE = Math.max(0, Number(req.query.min_score ?? MIN_ENV)); // 점수컷 하한
+  const MUTUAL    = String(req.query.mutual ?? String(MUT_ENV)) === "true"; // 지금은 표시만
+
+  // 가중치: 프런트 쿼리 없으면 기본값
+  const sim_w       = req.query.sim_weight       ? Number(req.query.sim_weight)       : 0.7;
+  const citation_w  = req.query.citation_weight  ? Number(req.query.citation_weight)  : 0.2;
+  const tag_w       = req.query.tag_weight       ? Number(req.query.tag_weight)       : 0.1;
 
   const { data, error } = await supabase.rpc('get_connections_for_note', {
     target_note_id: noteId,
-    sim_w,
-    citation_w,
-    tag_w
+    sim_w, citation_w, tag_w
   });
-
   if (error) {
     return res.status(500).json({ error: "Failed to fetch connections", detail: error.message });
   }
 
-  let conns = (data || [])
-    .filter((d: any) => Number(d.score) >= MIN_SCORE)
-    .sort((a: any, b: any) => Number(b.score) - Number(a.score))
+  // 1) 점수 NaN/NULL 방지 → 2) 점수컷 → 3) 내림차순 정렬 → 4) Top-K
+  const conns = (data ?? [])
+    .map((d: any) => ({
+      note_id: d.note_id,
+      title: d.title ?? null,
+      score: Number.isFinite(Number(d.score)) ? Number(d.score) : 0
+    }))
+    .filter(d => d.score >= MIN_SCORE)
+    .sort((a, b) => b.score - a.score)
     .slice(0, K);
 
   return res.status(200).json({
     note_id: noteId,
     connections: conns,
-    meta: { k: K, min_score: MIN_SCORE, mutual_applied: false }
+    meta: {
+      k: K,
+      min_score: MIN_SCORE,
+      mutual_requested: MUTUAL,   // 현재는 적용 안 함(표시만)
+      mutual_applied: false,
+      weights: { sim: sim_w, citation: citation_w, tag: tag_w }
+    }
   });
 }
 
