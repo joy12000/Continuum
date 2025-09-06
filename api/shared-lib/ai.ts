@@ -123,6 +123,8 @@ Your response must be ONLY the raw JSON object.
   const result = await model.generateContent(prompt);
   const text = result.response.text().replace(/^```json\s*|\s*```$/g, '');
 
+  console.log("Raw AI response for title/tags:", text); // Logging the raw text
+
   try {
     const parsed = JSON.parse(text);
     if (parsed && typeof parsed.title === "string" && Array.isArray(parsed.tags)) {
