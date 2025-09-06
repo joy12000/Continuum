@@ -559,14 +559,13 @@ async function handleGetConnections(req: VercelRequest, res: VercelResponse) {
     rpcName = 'get_connections_for_note';
     rpcArgs = {
       target_note_id: noteId,
-      sim_w, citation_w, tag_w,
-      match_count: K * 3  // 살짝 오버샘플 후 서버/클라에서 K로 자름
+      sim_w, citation_w, tag_w
     };
   }
 
   const { data, error } = await supabase.rpc(rpcName, rpcArgs);
   if (error) {
-    console.error('[get-connections][rpc error]', error); // ← 추가!
+    console.error('[get-connections][rpc error]', error);
     return res.status(500).json({ error: "Failed to fetch connections", detail: error.message });
   }
 
