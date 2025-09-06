@@ -51,6 +51,11 @@ export async function summarizeThread(notes: Note[]): Promise<{ title: string; s
 
   // Clean the response before parsing
   text = text.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+  const startIndex = text.indexOf('{');
+  const endIndex = text.lastIndexOf('}');
+  if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
+    text = text.substring(startIndex, endIndex + 1);
+  }
 
   try {
     const parsed = JSON.parse(text);
