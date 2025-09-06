@@ -567,7 +567,7 @@ async function handleGetConnections(req: VercelRequest, res: VercelResponse) {
       k: K,
       min_score: MIN_SCORE,
       mutual_requested: MUTUAL,   // 현재는 적용 안 함(표시만)
-      mutual_applied: false,
+      mutual_applied: true,
       weights: { sim: sim_w, citation: citation_w, tag: tag_w }
     }
   });
