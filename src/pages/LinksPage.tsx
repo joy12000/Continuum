@@ -48,12 +48,16 @@ const fetchCachedThreads = async (): Promise<CachedThreadsResponse> => {
   return response.json();
 };
 
-const startGenerationJob = async (): Promise<{ jobId: string }> => {
+const startGenerationJob = async (excludeSingletons: boolean): Promise<{ jobId: string }> => {
     const { data: { session } } = await supabase.auth.getSession();
     const token = session?.access_token;
     const response = await fetch('/api/v1?action=generate-thread', {
         method: 'POST',
-        headers: { ...(token && { Authorization: `Bearer ${token}` }) },
+        headers: {
+            'Content-Type': 'application/json',
+            ...(token && { Authorization: `Bearer ${token}` }) 
+        },
+        body: JSON.stringify({ excludeSingletons })
     });
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: "An unknown error occurred." }));
@@ -67,6 +71,7 @@ const LinksPage = () => {
   const [jobId, setJobId] = useState<string | null>(localStorage.getItem('continuum_job_id'));
   const [isModalOpen, setModalOpen] = useState(false);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+  const [excludeSingletons, setExcludeSingletons] = useState<boolean>(true);
 
   const handleNoteClick = (note: Note) => {
     setSelectedNote(note);
@@ -101,7 +106,7 @@ const LinksPage = () => {
 
   const handleGenerateClick = async () => {
     try {
-      const data = await startGenerationJob();
+      const data = await startGenerationJob(excludeSingletons);
       localStorage.setItem('continuum_job_id', data.jobId);
       setJobId(data.jobId);
     } catch (error: any) {
@@ -137,12 +142,26 @@ const LinksPage = () => {
         <div className="text-center p-8">
           <h3 className="text-xl font-bold mb-4">아직 연결된 생각이 없어요</h3>
           <p className="text-gray-400 mb-6">내 노트들을 분석해서 새로운 인사이트를 발견해보세요.</p>
-          <button
-            onClick={handleGenerateClick}
-            className="px-6 py-2 font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:bg-gray-500"
-          >
-            내 생각 연결하기
-          </button>
+          <div className="flex flex-col items-center gap-4">
+            <button
+                onClick={handleGenerateClick}
+                className="px-6 py-2 font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:bg-gray-500"
+            >
+                내 생각 연결하기
+            </button>
+            <div className="flex items-center">
+                <input
+                    type="checkbox"
+                    id="exclude-singletons-initial"
+                    checked={excludeSingletons}
+                    onChange={(e) => setExcludeSingletons(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                />
+                <label htmlFor="exclude-singletons-initial" className="ml-2 text-sm text-gray-400">
+                    단일 노트 스레드 제외
+                </label>
+            </div>
+          </div>
         </div>
       );
     }
@@ -153,12 +172,26 @@ const LinksPage = () => {
           <span className="text-sm text-gray-400">
             마지막 분석: {formatTimeAgo(cachedData.lastUpdatedAt)}
           </span>
-          <button
-            onClick={handleGenerateClick}
-            className="px-4 py-2 text-sm font-bold text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-gray-500"
-          >
-            새로 분석하기
-          </button>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="exclude-singletons"
+                checked={excludeSingletons}
+                onChange={(e) => setExcludeSingletons(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+              />
+              <label htmlFor="exclude-singletons" className="ml-2 text-sm text-gray-300">
+                단일 노트 제외
+              </label>
+            </div>
+            <button
+              onClick={handleGenerateClick}
+              className="px-4 py-2 text-sm font-bold text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-gray-500"
+            >
+              새로 분석하기
+            </button>
+          </div>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {threads.map((thread: InsightThread) => (
