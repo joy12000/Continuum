@@ -145,7 +145,7 @@ const SearchPage = ({ session }: { session: Session | null }) => {
           suggestionError={null}
           isModelReady={true}
           modelStatus="Ready"
-          className="bg-card border-border text-primary-foreground placeholder-muted-foreground focus:ring-ring focus:border-ring"
+          className="bg-card border-border text-primary placeholder-muted-foreground focus:ring-ring focus:border-ring"
         />
         <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
