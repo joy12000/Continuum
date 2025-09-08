@@ -2,10 +2,10 @@ import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const TABS = [
-  { to: '/', icon: 'home', label: 'Home' },
-  { to: '/calendar', icon: 'calendar', label: 'Calendar' },
-  { to: '/search', icon: 'search', label: 'Search' },
-  { to: '/threads', icon: 'link', label: 'Threads' },
+  { to: '/', icon: 'home', label: '홈' },
+  { to: '/calendar', icon: 'calendar', label: '캘린더' },
+  { to: '/search', icon: 'search', label: '검색' },
+  { to: '/threads', icon: 'link', label: '스레드' },
 ];
 
 export default function NewBottomNav() {

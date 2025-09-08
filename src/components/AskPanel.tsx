@@ -95,18 +95,18 @@ export function AskPanel({ engine, setQuery, notes }: { engine: "auto" | "remote
           <input
             ref={qRef}
             className="input input-bordered w-full"
-            placeholder="Ask a question..."
+            placeholder="질문을 입력하세요..."
             onKeyDown={(e) => {
               if (e.key === "Enter") onAsk();
             }}
           />
           <button className="btn btn-primary" onClick={onAsk} disabled={isGenerating}>
-            {isGenerating ? <span className="loading loading-spinner"></span> : "Ask"}
+            {isGenerating ? <span className="loading loading-spinner"></span> : "질문하기"}
           </button>
         </div>
         <div className="flex items-center space-x-4 text-sm mt-2">
           <label className="label cursor-pointer flex-1">
-            <span className="label-text">Semantic Weight: {alpha.toFixed(2)}</span>
+            <span className="label-text">의미론적 가중치: {alpha.toFixed(2)}</span>
             <input type="range" min={0} max={1} step={0.05} value={alpha} onChange={(e) => setAlpha(parseFloat(e.target.value))} className="range range-xs" />
           </label>
           <label className="label cursor-pointer flex-1">

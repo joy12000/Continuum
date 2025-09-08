@@ -10,10 +10,8 @@ interface GlobalStatusMoonProps {
 const GlobalStatusMoon: React.FC<GlobalStatusMoonProps> = ({ status }) => {
   const navigate = useNavigate();
   const longPressTimer = useRef<number | null>(null);
-  const [isPressed, setIsPressed] = useState(false);
 
   const handlePointerDown = () => {
-    setIsPressed(true);
     if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
     longPressTimer.current = window.setTimeout(() => {
       window.dispatchEvent(new CustomEvent('global-moon:long-press'));
@@ -22,7 +20,6 @@ const GlobalStatusMoon: React.FC<GlobalStatusMoonProps> = ({ status }) => {
   };
 
   const handlePointerUp = () => {
-    setIsPressed(false);
     if (longPressTimer.current) {
       window.clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
@@ -30,44 +27,68 @@ const GlobalStatusMoon: React.FC<GlobalStatusMoonProps> = ({ status }) => {
     }
   };
 
+  const handlePointerLeave = () => {
+    // Cancel pending click/long-press if pointer leaves the button area
+    if (longPressTimer.current) {
+      window.clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
   const getStatusClasses = () => {
     switch (status) {
       case 'loading':
-        return 'animate-pulse text-sky-300';
+        // A "breathing glow" effect by combining color and a pulsing shadow.
+        return 'animate-pulse text-sky-300 shadow-sky-300/50 shadow-[0_0_15px]';
       case 'success':
-        return 'text-green-400';
+        // A static glow to indicate success.
+        return 'text-green-400 shadow-green-400/50 shadow-[0_0_15px]';
       case 'error':
-        return 'text-red-500';
+        // A static glow to indicate an error.
+        return 'text-red-500 shadow-red-500/50 shadow-[0_0_15px]';
       default:
-        return 'text-white';
+        // No glow in idle state.
+        return 'text-white shadow-transparent';
     }
   };
 
   return (
     <button
       aria-label="Status and Settings"
-      className={`fixed top-2 right-2 z-50 p-2 rounded-full transition-all duration-200 focus:outline-none hover:scale-105 ${isPressed ? 'scale-95' : ''} ${getStatusClasses()}`}
+      className={`fixed top-2 right-2 z-50 p-2 rounded-full transition-[color,box-shadow,transform] duration-300 ease-in-out focus:outline-none hover:scale-105 active:scale-95 ${getStatusClasses()}`}
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
-      onPointerLeave={handlePointerUp}
-      onPointerCancel={handlePointerUp}
+      onPointerLeave={handlePointerLeave}
+      onPointerCancel={handlePointerLeave}
     >
-      <svg width="44" height="44" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+      <svg width="88" height="88" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
         <defs>
-          <filter id="realisticGlow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur" />
+          {/* A more subtle, wider glow */}
+          <filter id="realisticGlow" x="-75%" y="-75%" width="250%" height="250%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="3.5" result="blur" />
           </filter>
-          <radialGradient id="moonShading" cx="30%" cy="30%" r="70%">
-            <stop offset="0%" stopColor="white" stopOpacity="0.3" />
-            <stop offset="100%" stopColor="black" stopOpacity="0.3" />
+          {/* A base texture using turbulence to create a more realistic surface */}
+          <filter id="moonTexture">
+            <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="5" seed="10" stitchTiles="stitch" result="noise"/>
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="3" xChannelSelector="R" yChannelSelector="G" result="bumpy"/>
+            <feSpecularLighting in="bumpy" surfaceScale="2" specularConstant="1" specularExponent="20" lighting-color="#dddddd" result="specular">
+              <fePointLight x="10" y="10" z="40" />
+            </feSpecularLighting>
+            <feComposite in="specular" in2="SourceGraphic" operator="in" result="lit"/>
+            <feBlend in="SourceGraphic" in2="lit" mode="screen"/>
+          </filter>
+          {/* A gradient for overall shading (light source from top-left) */}
+          <radialGradient id="moonShading" cx="25%" cy="25%" r="75%">
+            <stop offset="0%" stopColor="white" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="black" stopOpacity="0.25" />
           </radialGradient>
         </defs>
-        <circle cx="32" cy="32" r="24" fill="currentColor" />
         <circle cx="32" cy="32" r="24" fill="currentColor" opacity="0.5" filter="url(#realisticGlow)" />
-        <g opacity="0.2" fill="black">
-          <circle cx="25" cy="25" r="8" /><circle cx="42" cy="40" r="5" /><circle cx="45" cy="28" r="3" /><circle cx="22" cy="40" r="2.5" /><circle cx="33" cy="45" r="2" />
+        <g>
+          <circle cx="32" cy="32" r="24" fill="currentColor" />
+          <circle cx="32" cy="32" r="24" fill="currentColor" filter="url(#moonTexture)" opacity="0.5" />
+          <circle cx="32" cy="32" r="24" fill="url(#moonShading)" />
         </g>
-        <circle cx="32" cy="32" r="24" fill="url(#moonShading)" />
       </svg>
     </button>
   );

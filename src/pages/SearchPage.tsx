@@ -19,11 +19,11 @@ const highlight = (text: string, query: string) => {
 // Component to render the search results
 const SearchResultsList = ({ results, loading, noteTitlesMap, query }: { results: SearchResult[], loading: boolean, noteTitlesMap: Record<string, string>, query: string }) => {
   if (loading) {
-    return <div className="p-4 text-muted-foreground text-center">Searching...</div>;
+    return <div className="p-4 text-muted-foreground text-center">검색 중...</div>;
   }
 
   if (results.length === 0) {
-    return <div className="p-4 text-muted-foreground text-center">No results found.</div>;
+    return <div className="p-4 text-muted-foreground text-center">검색 결과가 없습니다.</div>;
   }
 
   const handleFeedback = (result: SearchResult, feedback: 'like' | 'dislike') => {
@@ -38,7 +38,7 @@ const SearchResultsList = ({ results, loading, noteTitlesMap, query }: { results
           <Link to={`/notes/${result.note_id}`} className="block border border-border bg-card rounded-lg p-4 transition-all duration-300 hover:bg-secondary hover:shadow-md">
             <div className="flex justify-between items-start">
               <div className="flex-grow">
-                <h3 className="text-lg font-semibold text-primary">{noteTitlesMap[result.note_id] || 'Untitled Note'}</h3>
+                <h3 className="text-lg font-semibold text-primary">{noteTitlesMap[result.note_id] || '제목 없는 노트'}</h3>
                 <div 
                   className="text-sm text-muted-foreground mt-2 snippet"
                   dangerouslySetInnerHTML={{ __html: highlight(result.content, query) }}
@@ -53,7 +53,7 @@ const SearchResultsList = ({ results, loading, noteTitlesMap, query }: { results
                 </button>
               </div>
             </div>
-            <div className="text-xs text-muted-foreground/80 mt-2">Similarity: {result.similarity.toFixed(3)}</div>
+            <div className="text-xs text-muted-foreground/80 mt-2">유사도: {result.similarity.toFixed(3)}</div>
           </Link>
         </li>
       ))}
@@ -94,7 +94,7 @@ const SearchPage = ({ session }: { session: Session | null }) => {
 
         const newNoteTitlesMap: Record<string, string> = {};
         contextNotes.forEach((n: Note) => {
-          newNoteTitlesMap[n.id] = n.title || 'Untitled Note';
+          newNoteTitlesMap[n.id] = n.title || '제목 없는 노트';
         });
         setNoteTitlesMap(newNoteTitlesMap);
 
@@ -110,7 +110,7 @@ const SearchPage = ({ session }: { session: Session | null }) => {
 
         if (!generateRes.ok || !generateRes.body) {
           const errorText = await generateRes.text();
-          throw new Error(`Failed to generate summary: ${errorText}`);
+          throw new Error(`요약 생성 실패: ${errorText}`);
         }
 
         const result = await generateRes.json();
@@ -134,7 +134,7 @@ const SearchPage = ({ session }: { session: Session | null }) => {
   }, [results, query]);
 
   return (
-    <PageLayout title="Search Notes">
+    <PageLayout title="노트 검색">
       <div className="p-4 sm:p-6">
         <SearchBar 
           q={query} 
@@ -149,14 +149,14 @@ const SearchPage = ({ session }: { session: Session | null }) => {
         />
         <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
-            <h2 className="text-xl font-semibold mb-4">Search Results</h2>
+            <h2 className="text-xl font-semibold mb-4">검색 결과</h2>
             <SearchResultsList results={results} loading={loading} noteTitlesMap={noteTitlesMap} query={query} />
           </div>
           <div className="lg:col-span-1">
-            <h2 className="text-xl font-semibold mb-4">Generated Answer</h2>
+            <h2 className="text-xl font-semibold mb-4">생성된 답변</h2>
             <div className="bg-card border border-border rounded-lg p-4">
-              {generatedAnswer.isLoading && <div className="p-4 text-center text-muted-foreground">Generating answer...</div>}
-              {generatedAnswer.error && <div className="p-4 text-center text-destructive">Error: {generatedAnswer.error}</div>}
+              {generatedAnswer.isLoading && <div className="p-4 text-center text-muted-foreground">답변 생성 중...</div>}
+              {generatedAnswer.error && <div className="p-4 text-center text-destructive">오류: {generatedAnswer.error}</div>}
               {generatedAnswer.data && <GeneratedAnswer data={generatedAnswer.data} noteTitlesMap={noteTitlesMap} />} 
             </div>
           </div>
@@ -165,5 +165,7 @@ const SearchPage = ({ session }: { session: Session | null }) => {
     </PageLayout>
   );
 };
+
+export default SearchPage;
 
 export default SearchPage;

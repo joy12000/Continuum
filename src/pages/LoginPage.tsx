@@ -51,7 +51,7 @@ const LoginPage = () => {
           {/* Placeholder for a logo */}
           <div className="w-24 h-24 mx-auto mb-4 bg-primary rounded-full"></div>
           <h1 className="text-3xl font-bold text-primary-foreground">Continuum</h1>
-          <p className="text-muted-foreground">Sign in to continue</p>
+          <p className="text-muted-foreground">로그인하여 계속하세요</p>
         </div>
         <Auth
           supabaseClient={supabase}

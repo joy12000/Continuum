@@ -13,7 +13,7 @@ type NoteActivity = {
   count: number;
 };
 
-const WEEK_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const WEEK_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 
 function ymd(d: Date): string {
   const y = d.getFullYear();
@@ -28,7 +28,7 @@ const fetchNotesForDate = async (date: string | null): Promise<Note[]> => {
 
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
-  if (!token) throw new Error('Authentication required.');
+  if (!token) throw new Error('인증이 필요합니다.');
 
   const response = await fetch(`/api/v1?action=get-notes-for-date&date=${date}`, {
     headers: { 'Authorization': `Bearer ${token}` },
@@ -36,7 +36,7 @@ const fetchNotesForDate = async (date: string | null): Promise<Note[]> => {
 
   if (!response.ok) {
     const errorData = await response.json();
-    throw new Error(errorData.error || 'Failed to load notes for the selected date.');
+    throw new Error(errorData.error || '선택한 날짜의 노트를 불러오는데 실패했습니다.');
   }
   return response.json();
 };
@@ -49,7 +49,7 @@ const fetchDailySummary = async (notes: Note[] | undefined): Promise<{ title: st
 
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
-  if (!token) throw new Error('Authentication required.');
+  if (!token) throw new Error('인증이 필요합니다.');
 
   const response = await fetch(`/api/v1?action=summarize-day`, {
     method: 'POST',
@@ -62,7 +62,7 @@ const fetchDailySummary = async (notes: Note[] | undefined): Promise<{ title: st
 
   if (!response.ok) {
     const errorData = await response.json();
-    throw new Error(errorData.error || 'Failed to generate daily summary.');
+    throw new Error(errorData.error || '일일 요약을 생성하는데 실패했습니다.');
   }
   return response.json();
 };
@@ -71,7 +71,7 @@ const fetchDailySummary = async (notes: Note[] | undefined): Promise<{ title: st
 const fetchNoteActivity = async (startDate: string, endDate: string): Promise<NoteActivity[]> => {
     const { data: { session } } = await supabase.auth.getSession();
     const token = session?.access_token;
-    if (!token) throw new Error('Authentication required.');
+    if (!token) throw new Error('인증이 필요합니다.');
 
     const response = await fetch(`/api/v1?action=calendar&start_date=${startDate}&end_date=${endDate}`, {
         headers: { 'Authorization': `Bearer ${token}` },
@@ -79,7 +79,7 @@ const fetchNoteActivity = async (startDate: string, endDate: string): Promise<No
 
     if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to load note activity.');
+        throw new Error(errorData.error || '노트 활동을 불러오는데 실패했습니다.');
     }
     return response.json();
 }
@@ -136,22 +136,22 @@ const CalendarPage = () => {
     setSelectedDate(ymd(today));
   };
 
-  const pageTitle = `${year} ${displayDate.toLocaleString('en-US', { month: 'long' })}`;
+  const pageTitle = `${year} ${displayDate.toLocaleString('ko-KR', { month: 'long' })}`;
 
   return (
-    <PageLayout title="Calendar">
+    <PageLayout title="캘린더">
       <div className="p-4 sm:p-6">
         <div className="flex justify-between items-center mb-6">
-          <button onClick={() => handleMonthChange(-1)} className="p-2 rounded-full hover:bg-secondary transition-colors" aria-label="Previous month"><ChevronLeftIcon className="w-6 h-6" /></button>
+          <button onClick={() => handleMonthChange(-1)} className="p-2 rounded-full hover:bg-secondary transition-colors" aria-label="이전 달"><ChevronLeftIcon className="w-6 h-6" /></button>
           <div className="flex items-center gap-4">
             <h1 className="text-2xl font-bold text-center">{pageTitle}</h1>
-            <button onClick={goToToday} className="px-4 py-2 text-sm font-medium text-primary-foreground bg-accent rounded-lg hover:bg-accent/80 transition-colors">Today</button>
+            <button onClick={goToToday} className="px-4 py-2 text-sm font-medium text-primary-foreground bg-accent rounded-lg hover:bg-accent/80 transition-colors">오늘</button>
           </div>
-          <button onClick={() => handleMonthChange(1)} className="p-2 rounded-full hover:bg-secondary transition-colors" aria-label="Next month"><ChevronRightIcon className="w-6 h-6" /></button>
+          <button onClick={() => handleMonthChange(1)} className="p-2 rounded-full hover:bg-secondary transition-colors" aria-label="다음 달"><ChevronRightIcon className="w-6 h-6" /></button>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
           <div className="lg:col-span-3 bg-card border border-border rounded-lg p-4 shadow-lg">
-            {isActivityLoading ? <div className="text-center p-8 text-muted-foreground">Loading calendar...</div> : activityError ? <div className="text-center p-8 text-destructive">Error: {activityError.message}</div> : (
+            {isActivityLoading ? <div className="text-center p-8 text-muted-foreground">캘린더 로딩 중...</div> : activityError ? <div className="text-center p-8 text-destructive">오류: {activityError.message}</div> : (
               <CalendarMonth 
                 year={year}
                 month={month}
@@ -166,11 +166,11 @@ const CalendarPage = () => {
             <h2 className="text-xl font-semibold text-primary mb-4">{selectedDate}</h2>
             <div className="space-y-4">
               {isSummaryLoading && (
-                <div className="p-4 rounded-lg bg-secondary text-center text-muted-foreground animate-pulse">Generating daily summary...</div>
+                <div className="p-4 rounded-lg bg-secondary text-center text-muted-foreground animate-pulse">일일 요약 생성 중...</div>
               )}
               {summaryError && (
                 <div className="p-4 rounded-lg bg-destructive/20 text-destructive">
-                  <p className="font-bold">Summary Error</p><p className="text-sm mt-1">{summaryError.message}</p>
+                  <p className="font-bold">요약 오류</p><p className="text-sm mt-1">{summaryError.message}</p>
                 </div>
               )}
               {dailySummary && (
@@ -180,22 +180,22 @@ const CalendarPage = () => {
                 </div>
               )}
 
-              {areNotesLoading && <p className="text-center text-muted-foreground">Loading notes...</p>}
-              {notesError && <p className="text-center text-destructive">Error: {notesError.message}</p>}
+              {areNotesLoading && <p className="text-center text-muted-foreground">노트 로딩 중...</p>}
+              {notesError && <p className="text-center text-destructive">오류: {notesError.message}</p>}
               {notesForSelectedDay && notesForSelectedDay.length > 0 ? (
                 <ul className="space-y-3">
                   {notesForSelectedDay.map(note => (
                     <li key={note.id}>
                       <Link to={`/notes/${note.id}`} className="block p-4 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors duration-200">
-                        <h3 className="font-semibold text-primary truncate">{note.title || 'Untitled Note'}</h3>
+                        <h3 className="font-semibold text-primary truncate">{note.title || '제목 없는 노트'}</h3>
                         <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{note.body}</p>
-                        <div className="text-xs text-muted-foreground/80 mt-2 text-right">{new Date(note.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
+                        <div className="text-xs text-muted-foreground/80 mt-2 text-right">{new Date(note.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</div>
                       </Link>
                     </li>
                   ))}
                 </ul>
               ) : (
-                !areNotesLoading && !isSummaryLoading && <div className="text-center text-muted-foreground p-8 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center"><CalendarIcon className="w-12 h-12 mb-4"/><p>No notes for this date.</p></div>
+                !areNotesLoading && !isSummaryLoading && <div className="text-center text-muted-foreground p-8 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center"><CalendarIcon className="w-12 h-12 mb-4"/><p>이 날짜에 노트가 없습니다.</p></div>
               )}
             </div>
           </div>
