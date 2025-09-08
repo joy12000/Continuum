@@ -489,9 +489,11 @@ async function handleUpdateNote(req: VercelRequest, res: VercelResponse) {
     title,
     body,
     tags,
+    links_to_add,
+    links_to_remove,
   } = req.body;
 
-  if (title === undefined && body === undefined && tags === undefined) {
+  if (title === undefined && body === undefined && tags === undefined && links_to_add === undefined && links_to_remove === undefined) {
     return res.status(400).json({ error: 'At least one field to update must be provided.' });
   }
 
@@ -513,8 +515,8 @@ async function handleUpdateNote(req: VercelRequest, res: VercelResponse) {
       p_title: title,
       p_body: body,
       p_tags: tags,
-      p_links_to_add: [], // Link editing is a separate feature, keeping this simple
-      p_links_to_remove: [],
+      p_links_to_add: links_to_add || [],
+      p_links_to_remove: links_to_remove || [],
     });
 
     if (error) {

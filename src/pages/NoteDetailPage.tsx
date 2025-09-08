@@ -8,6 +8,7 @@ import type { Note, NoteAttachment } from '../types/common';
 import PageLayout from '../components/PageLayout';
 import { Loader, AlertCircle, Tag, Link as LinkIcon, Edit, ArrowLeft, Trash2, Save, X, Paperclip } from 'lucide-react';
 import { toast } from '../lib/toast';
+import { LinkEditorModal } from '../components/LinkEditorModal';
 
 // --- API Fetching Functions ---
 const fetchNoteData = async (noteId: string) => {
@@ -47,6 +48,7 @@ const NoteDetailPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
+  const [isLinkEditorOpen, setIsLinkEditorOpen] = useState(false);
 
   // --- Edit State ---
   const [editTitle, setEditTitle] = useState('');
@@ -106,6 +108,39 @@ const NoteDetailPage = () => {
       setIsEditing(false);
     },
     onError: (err: any) => toast.error(`업데이트 실패: ${err.message}`),
+  });
+
+  const updateNoteLinksMutation = useMutation({
+    mutationFn: async ({ linksToAdd, linksToRemove }: { linksToAdd: string[], linksToRemove: string[] }) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error('인증이 필요합니다.');
+
+      const response = await fetch(`/api/v1?action=update-note&noteId=${noteId}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          links_to_add: linksToAdd,
+          links_to_remove: linksToRemove,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || '노트 링크 업데이트에 실패했습니다.');
+      }
+    },
+    onSuccess: () => {
+      toast.success("노트 연결이 업데이트되었습니다.");
+      queryClient.invalidateQueries({ queryKey: ['noteDetail', noteId] });
+      setIsLinkEditorOpen(false);
+    },
+    onError: (err: any) => {
+      toast.error(`링크 업데이트 실패: ${err.message}`);
+    },
   });
 
   const deleteNoteMutation = useMutation({
@@ -207,6 +242,13 @@ const NoteDetailPage = () => {
                 placeholder="쉼표로 태그 구분"
               />
             </div>
+            <div className="sidebar-section">
+              <h3 className="sidebar-title">연결된 노트 관리</h3>
+              <button onClick={() => setIsLinkEditorOpen(true)} className="btn btn-outline w-full">
+                <LinkIcon size={16} />
+                <span>연결 수정</span>
+              </button>
+            </div>
           ) : (
             <>
               <div className="sidebar-section">
@@ -278,6 +320,15 @@ const NoteDetailPage = () => {
           )}
         </aside>
       </div>
+      {isLinkEditorOpen && (
+        <LinkEditorModal
+            noteId={noteId!}
+            onClose={() => setIsLinkEditorOpen(false)}
+            onSave={(linksToAdd, linksToRemove) => {
+                updateNoteLinksMutation.mutate({ linksToAdd, linksToRemove });
+            }}
+        />
+      )}
     </PageLayout>
   );
 };
