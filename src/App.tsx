@@ -2,6 +2,7 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { Session } from '@supabase/supabase-js';
 
+import toast from 'react-hot-toast';
 // Lazy load pages
 const HomeSky = lazy(() => import('./pages/HomeSky'));
 const Settings = lazy(() => import('./pages/Settings'));
@@ -22,6 +23,7 @@ import AnswerCardsModal from './components/AnswerCardsModal';
 import { GeneratedAnswer } from './components/GeneratedAnswer';
 import { addNoteAndChunks, getNotesByIds } from './lib/supabaseService';
 import type { AnswerData, Note } from './types/common';
+import GlobalStatusMoon, { NotificationStatus } from './components/GlobalStatusMoon';
 
 // Main layout component to handle conditional nav bar and protected routes
 const MainLayout = () => {
@@ -38,15 +40,21 @@ const MainLayout = () => {
     error: null,
   });
   const [noteTitlesMap, setNoteTitlesMap] = useState<Record<string, string>>({});
+  const [notificationStatus, setNotificationStatus] = useState<NotificationStatus>('idle');
 
   async function generateSummaryAfterSave(newNoteId: string, noteText: string, userId: string) {
+    setNotificationStatus('loading');
+    toast.loading("과거 노트와 연결하는 중...", { id: 'ai-summary-toast' });
     try {
       setGeneratedAnswer({ data: null, isLoading: true, error: null });
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
 
       const clusterRes = await fetch(`/api/v1?action=find-context-cluster&noteId=${newNoteId}`, {
-        headers: { ...(token && { Authorization: `Bearer ${token}` }) },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` })
+        },
       });
       if (!clusterRes.ok) throw new Error("Failed to find context cluster.");
       
@@ -54,7 +62,9 @@ const MainLayout = () => {
       // If the cluster only contains the new note itself (or is empty),
       // it means no other relevant notes were found to form a meaningful context.
       if (!contextNoteIds || contextNoteIds.length <= 1) {
-        setGeneratedAnswer({ data: null, isLoading: false, error: "유사한 노트를 찾지 못했습니다." });
+        setNotificationStatus('idle');
+        toast.dismiss('ai-summary-toast');
+        setGeneratedAnswer({ data: null, isLoading: false, error: "연결할 만한 과거 노트를 찾지 못했습니다." });
         setAnswerOpen(true);
         return;
       }
@@ -67,6 +77,8 @@ const MainLayout = () => {
 
       // If no other notes are left in the context, inform the user.
       if (finalContextNotes.length === 0) {
+        setNotificationStatus('idle');
+        toast.dismiss('ai-summary-toast');
         setGeneratedAnswer({ data: null, isLoading: false, error: "새 노트를 제외하고 연결된 다른 노트가 없습니다." });
         setAnswerOpen(true);
         return;
@@ -99,13 +111,19 @@ const MainLayout = () => {
         sourceNotes: finalContextNotes.map((n: Note) => n.id),
       };
 
+      setNotificationStatus('success');
+      toast.success("생각 연결이 완료되었습니다!", { id: 'ai-summary-toast' });
       setGeneratedAnswer({ data: finalAnswerData, isLoading: false, error: null });
       setAnswerSignal(s => s + 1);
       setAnswerOpen(true);
+      setTimeout(() => setNotificationStatus('idle'), 4000); // Reset after 4s
     } catch (error: any) {
       console.error("Failed to generate summary after save:", error);
-      setGeneratedAnswer({ data: null, isLoading: false, error: error.message });
+      setNotificationStatus('error');
+      toast.error(`연결 실패: ${error.message}`, { id: 'ai-summary-toast' });
+      setGeneratedAnswer({ data: null, isLoading: false, error: `오류가 발생했습니다: ${error.message}` });
       setAnswerOpen(true);
+      setTimeout(() => setNotificationStatus('idle'), 4000); // Reset after 4s
     }
   }
 
@@ -137,16 +155,37 @@ const MainLayout = () => {
       
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
+        toast.error("로그인이 필요합니다.");
         console.error("User not logged in, cannot save note.");
         return;
       }
       try {
+        // Step 1: Create the note with a null title.
         const newNote = await addNoteAndChunks({ title: undefined, body: detail.text, user_id: user.id });
+
+        // Step 2: Immediately call the update-note endpoint.
+        // This reuses the existing backend logic to generate a title and tags.
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        await fetch(`/api/v1?action=update-note&noteId=${newNote.id}`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                ...(token && { Authorization: `Bearer ${token}` })
+            },
+            // The backend `update-note` handler will see the body but no title,
+            // and trigger the `generateTitleAndTags` function.
+            body: JSON.stringify({ body: detail.text }) 
+        });
+
+        // Step 3: Now that the note is fully set up, start the AI connection process.
+        // The delay is kept to allow vector indexes to propagate.
         setTimeout(() => {
           generateSummaryAfterSave(newNote.id, detail.text, user.id);
-        }, 2000); // Delay to allow DB index to update
+        }, 2000);
       } catch (error) {
-        console.error("Failed to save note from HomeSky:", error);
+        console.error("Failed to save note and generate title:", error);
+        toast.error("노트 저장 중 오류가 발생했습니다.");
       }
     };
     window.addEventListener('sky:save', handleSave);
@@ -163,6 +202,7 @@ const MainLayout = () => {
   return (
     <div className="flex flex-col h-screen bg-surface text-text-primary">
       <Toasts />
+      {session && <GlobalStatusMoon status={notificationStatus} />}
       <main className="flex-grow overflow-y-auto">
         <Suspense fallback={<div className="flex justify-center items-center h-full">Loading Page...</div>}>
           <Routes>

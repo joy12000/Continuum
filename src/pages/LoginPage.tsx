@@ -1,33 +1,33 @@
 import { supabase } from '../lib/supabase';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
-import '../styles/sky.css';
 
+// Improved custom theme for the Auth component
 const customTheme = {
   ...ThemeSupa,
   default: {
     ...ThemeSupa.default,
     colors: {
       ...ThemeSupa.default.colors,
-      brand: 'hsl(210, 80%, 60%)',
-      brandAccent: 'hsl(210, 80%, 70%)',
+      brand: 'hsl(217, 39%, 40%)', // accent color from tailwind.config.js
+      brandAccent: 'hsl(217, 39%, 50%)',
       brandButtonText: 'white',
-      defaultButtonBackground: 'rgba(255, 255, 255, 0.05)',
-      defaultButtonBackgroundHover: 'rgba(255, 255, 255, 0.1)',
-      defaultButtonBorder: 'rgba(255, 255, 255, 0.1)',
+      defaultButtonBackground: 'hsl(217, 39%, 25%)', // secondary color
+      defaultButtonBackgroundHover: 'hsl(217, 39%, 35%)',
+      defaultButtonBorder: 'hsl(217, 39%, 25%)',
       defaultButtonText: 'white',
-      dividerBackground: 'rgba(255, 255, 255, 0.1)',
-      inputBackground: 'rgba(0, 0, 0, 0.2)',
-      inputBorder: 'rgba(255, 255, 255, 0.1)',
-      inputBorderHover: 'rgba(255, 255, 255, 0.2)',
-      inputBorderFocus: 'hsl(210, 80%, 60%)',
+      dividerBackground: 'hsl(217, 39%, 25%)',
+      inputBackground: 'hsl(222, 47%, 11%)', // background color
+      inputBorder: 'hsl(217, 39%, 25%)',
+      inputBorderHover: 'hsl(217, 39%, 40%)',
+      inputBorderFocus: 'hsl(217, 39%, 40%)',
       inputText: 'white',
-      inputLabelText: 'rgba(255, 255, 255, 0.7)',
-      inputPlaceholder: 'rgba(255, 255, 255, 0.4)',
-      messageText: 'rgba(255, 255, 255, 0.7)',
-      messageTextDanger: 'hsl(0, 80%, 70%)',
-      anchorTextColor: 'hsl(210, 80%, 70%)',
-      anchorTextHoverColor: 'hsl(210, 80%, 80%)',
+      inputLabelText: 'hsl(215, 20%, 65%)', // muted-foreground
+      inputPlaceholder: 'hsl(215, 20%, 55%)',
+      messageText: 'hsl(215, 20%, 65%)',
+      messageTextDanger: 'hsl(0, 84%, 60%)', // destructive
+      anchorTextColor: 'hsl(217, 39%, 40%)',
+      anchorTextHoverColor: 'hsl(217, 39%, 50%)',
     },
     space: {
       ...ThemeSupa.default.space,
@@ -36,8 +36,8 @@ const customTheme = {
     },
     radii: {
       ...ThemeSupa.default.radii,
-      borderRadiusButton: '0.5rem',
-      buttonBorderRadius: '0.5rem',
+      borderRadiusButton: '0.75rem', // Increased border radius
+      buttonBorderRadius: '0.75rem',
       inputBorderRadius: '0.5rem',
     },
   },
@@ -45,19 +45,21 @@ const customTheme = {
 
 const LoginPage = () => {
   return (
-    <div className="sky-root">
-      <div className="sky-gradient" />
-      <div className="sky-stars" />
-      <div className="flex items-center justify-center h-full p-4">
-        <div className="w-full max-w-md p-8 space-y-8 bg-black/30 backdrop-blur-md rounded-2xl border border-white/10">
-          <Auth
-            supabaseClient={supabase}
-            appearance={{ theme: customTheme }}
-            providers={['google']}
-            theme="dark"
-            redirectTo={window.location.origin}
-          />
+    <div className="flex items-center justify-center h-screen bg-background">
+      <div className="w-full max-w-sm p-8 space-y-6 bg-card rounded-2xl shadow-lg">
+        <div className="text-center">
+          {/* Placeholder for a logo */}
+          <div className="w-24 h-24 mx-auto mb-4 bg-primary rounded-full"></div>
+          <h1 className="text-3xl font-bold text-primary-foreground">Continuum</h1>
+          <p className="text-muted-foreground">Sign in to continue</p>
         </div>
+        <Auth
+          supabaseClient={supabase}
+          appearance={{ theme: customTheme }}
+          providers={['google']}
+          theme="dark"
+          redirectTo={window.location.origin}
+        />
       </div>
     </div>
   );

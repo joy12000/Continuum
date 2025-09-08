@@ -2,6 +2,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import type { InsightThread, Note } from '@lib/types';
+import { DocumentTextIcon } from '@heroicons/react/24/outline';
 
 interface InsightThreadCardProps {
   thread: InsightThread;
@@ -10,28 +11,29 @@ interface InsightThreadCardProps {
 
 const InsightThreadCard: React.FC<InsightThreadCardProps> = ({ thread, onNoteClick }) => {
   return (
-    <div className="p-4 border rounded-lg shadow-md bg-slate-800/50 border-slate-700 flex flex-col h-full">
-      <h3 className="text-lg font-bold text-sky-400">{thread.title}</h3>
-      <p className="mt-2 text-gray-300 flex-grow">{thread.summary}</p>
+    <div className="bg-card border border-border rounded-lg p-4 shadow-lg flex flex-col h-full transition-all duration-300 hover:shadow-xl hover:border-accent">
+      <h3 className="text-lg font-bold text-primary">{thread.title}</h3>
+      <p className="mt-2 text-muted-foreground flex-grow text-sm">{thread.summary}</p>
       
-      <div className="mt-4 pt-3 border-t border-slate-700">
-        <h4 className="text-sm font-semibold text-gray-400 mb-2">포함된 노트</h4>
-        <ul className="space-y-1">
+      <div className="mt-4 pt-3 border-t border-border">
+        <h4 className="text-sm font-semibold text-muted-foreground mb-2">Included Notes</h4>
+        <ul className="space-y-2">
           {thread.notes.map((note: Note) => (
             <li key={note.id}>
               <button 
                 onClick={(e) => { e.stopPropagation(); onNoteClick(note); }}
-                className="text-left text-sm text-gray-300 hover:underline hover:text-white transition-colors w-full truncate block"
+                className="flex items-center gap-2 text-left text-sm text-primary-foreground hover:underline hover:text-accent transition-colors w-full truncate"
               >
-                📝 {note.title || '제목 없는 노트'}
+                <DocumentTextIcon className="w-5 h-5 flex-shrink-0" />
+                <span>{note.title || 'Untitled Note'}</span>
               </button>
             </li>
           ))}
         </ul>
       </div>
 
-      <div className="mt-3 text-xs text-right text-gray-500">
-        <span>관련성 점수: {(thread.relevanceScore ?? 0).toFixed(2)}</span>
+      <div className="mt-3 text-xs text-right text-muted-foreground/80">
+        <span>Relevance Score: {(thread.relevanceScore ?? 0).toFixed(2)}</span>
       </div>
     </div>
   );

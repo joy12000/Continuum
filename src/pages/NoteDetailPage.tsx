@@ -6,15 +6,15 @@ import remarkGfm from 'remark-gfm';
 import { supabase } from '../lib/supabase';
 import type { Note, NoteAttachment } from '../types/common';
 import PageLayout from '../components/PageLayout';
-import { Loader, AlertCircle, Tag, Link as LinkIcon, Edit, ArrowLeft, Trash2, Save, X, Paperclip } from 'lucide-react';
-import { toast } from '../lib/toast';
+import { DocumentTextIcon, TagIcon, LinkIcon, PencilIcon, ArrowLeftIcon, TrashIcon, CheckIcon, XMarkIcon, PaperClipIcon, ExclamationTriangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { toast } from 'react-hot-toast';
 import { LinkEditorModal } from '../components/LinkEditorModal';
 
 // --- API Fetching Functions ---
 const fetchNoteData = async (noteId: string) => {
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
-  if (!token) throw new Error('인증이 필요합니다.');
+  if (!token) throw new Error('Authentication required.');
 
   const notePromise = fetch(`/api/v1?action=get-note&noteId=${noteId}`, { headers: { 'Authorization': `Bearer ${token}` } });
   const attachmentsPromise = supabase.from('note_attachments').select('*').eq('note_id', noteId);
@@ -24,11 +24,11 @@ const fetchNoteData = async (noteId: string) => {
   const [noteRes, { data: attachments, error: attachmentsError }, backlinksRes, connectionsRes] = await Promise.all([notePromise, attachmentsPromise, backlinksPromise, connectionsPromise]);
 
   if (!noteRes.ok) {
-    if (noteRes.status === 404) throw new Error('노트를 찾을 수 없습니다.');
+    if (noteRes.status === 404) throw new Error('Note not found.');
     const errorData = await noteRes.json();
-    throw new Error(errorData.error || '노트를 불러오는 데 실패했습니다.');
+    throw new Error(errorData.error || 'Failed to load the note.');
   }
-  if (attachmentsError) throw new Error('첨부파일을 불러오는 데 실패했습니다.');
+  if (attachmentsError) throw new Error('Failed to load attachments.');
 
   const note: Note = await noteRes.json();
   const backlinks: { backlinks: { from_note_id: string; title: string | null; }[] } = await backlinksRes.json();
@@ -78,7 +78,7 @@ const NoteDetailPage = () => {
     mutationFn: async () => {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
-      if (!token) throw new Error('인증이 필요합니다.');
+      if (!token) throw new Error('Authentication required.');
 
       const tagsArray = editTags.split(',').map(t => t.trim()).filter(Boolean);
 
@@ -97,24 +97,24 @@ const NoteDetailPage = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || '노트 업데이트에 실패했습니다.');
+        throw new Error(errorData.error || 'Failed to update note.');
       }
     },
     onSuccess: () => {
-      toast.success("노트가 업데이트되었습니다.");
-      queryClient.invalidateQueries({ queryKey: ['noteDetail'] });
+      toast.success("Note updated successfully.");
+      queryClient.invalidateQueries({ queryKey: ['noteDetail', noteId] });
       queryClient.invalidateQueries({ queryKey: ['noteActivity'] });
       window.dispatchEvent(new CustomEvent('notes:updated'));
       setIsEditing(false);
     },
-    onError: (err: any) => toast.error(`업데이트 실패: ${err.message}`),
+    onError: (err: any) => toast.error(`Update failed: ${err.message}`),
   });
 
   const updateNoteLinksMutation = useMutation({
     mutationFn: async ({ linksToAdd, linksToRemove }: { linksToAdd: string[], linksToRemove: string[] }) => {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
-      if (!token) throw new Error('인증이 필요합니다.');
+      if (!token) throw new Error('Authentication required.');
 
       const response = await fetch(`/api/v1?action=update-note&noteId=${noteId}`, {
         method: 'POST',
@@ -130,16 +130,16 @@ const NoteDetailPage = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || '노트 링크 업데이트에 실패했습니다.');
+        throw new Error(errorData.error || 'Failed to update note links.');
       }
     },
     onSuccess: () => {
-      toast.success("노트 연결이 업데이트되었습니다.");
+      toast.success("Note links updated.");
       queryClient.invalidateQueries({ queryKey: ['noteDetail', noteId] });
       setIsLinkEditorOpen(false);
     },
     onError: (err: any) => {
-      toast.error(`링크 업데이트 실패: ${err.message}`);
+      toast.error(`Link update failed: ${err.message}`);
     },
   });
 
@@ -153,12 +153,12 @@ const NoteDetailPage = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success('노트가 삭제되었습니다.');
+      toast.success('Note deleted.');
       queryClient.invalidateQueries({ queryKey: ['notes'] }); // For any note list
       window.dispatchEvent(new CustomEvent('notes:updated'));
       navigate('/');
     },
-    onError: (err: any) => toast.error(`삭제 실패: ${err.message}`),
+    onError: (err: any) => toast.error(`Deletion failed: ${err.message}`),
   });
 
   const deleteAttachmentMutation = useMutation({
@@ -168,165 +168,152 @@ const NoteDetailPage = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("첨부파일이 삭제되었습니다.");
+      toast.success("Attachment deleted.");
       queryClient.invalidateQueries({ queryKey: ['noteDetail', noteId] });
     },
-    onError: (err: any) => toast.error(`첨부파일 삭제 실패: ${err.message}`),
+    onError: (err: any) => toast.error(`Attachment deletion failed: ${err.message}`),
   });
 
   // --- Render Logic ---
   if (isLoading) {
-    return <PageLayout title="로딩 중..."><div className="loading-container"><Loader className="w-12 h-12 animate-spin text-sky-400" /></div></PageLayout>;
+    return <PageLayout title="Loading..."><div className="flex justify-center items-center h-full"><ArrowPathIcon className="w-12 h-12 animate-spin text-accent" /></div></PageLayout>;
   }
 
   if (error) {
-    return <PageLayout title="오류"><div className="error-container"><AlertCircle className="w-12 h-12 text-red-500" /><p className="mt-4 text-xl">{error.message}</p></div></PageLayout>;
+    return <PageLayout title="Error"><div className="flex flex-col justify-center items-center h-full text-destructive"><ExclamationTriangleIcon className="w-12 h-12" /><p className="mt-4 text-xl">{error.message}</p></div></PageLayout>;
   }
 
   if (!note) {
-    return <PageLayout title="오류"><div className="error-container"><AlertCircle className="w-12 h-12 text-red-500" /><p className="mt-4 text-xl">노트를 찾을 수 없습니다.</p></div></PageLayout>;
+    return <PageLayout title="Error"><div className="flex flex-col justify-center items-center h-full text-destructive"><ExclamationTriangleIcon className="w-12 h-12" /><p className="mt-4 text-xl">Note not found.</p></div></PageLayout>;
   }
 
   const getPublicUrl = (path: string) => supabase.storage.from('notes-attachments').getPublicUrl(path).data.publicUrl;
 
   return (
-    <PageLayout title={isEditing ? '노트 수정' : (note.title || '노트 상세')}>
-      <div className="note-detail-grid">
-        <main className="note-content-area">
-          {/* Header */}
-          <div className="note-header">
-            <button onClick={() => navigate(-1)} className="back-button" aria-label="뒤로 가기"><ArrowLeft size={20} /></button>
-            {isEditing ? (
-              <input type="text" value={editTitle} onChange={e => setEditTitle(e.target.value)} className="edit-title-input" placeholder="제목 (비워두면 자동 생성)" />
-            ) : (
-              <h1 className="note-title">{note.title || '제목 없음'}</h1>
-            )}
-            <div className="flex items-center gap-2 ml-auto">
+    <PageLayout title={isEditing ? 'Edit Note' : (note.title || 'Note Detail')}>
+      <div className="p-4 sm:p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <main className="lg:col-span-2 bg-card border border-border rounded-lg p-6 shadow-lg">
+            {/* Header */}
+            <div className="flex items-center mb-6 pb-4 border-b border-border">
+              <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-secondary transition-colors" aria-label="Go back"><ArrowLeftIcon className="w-6 h-6 text-muted-foreground" /></button>
               {isEditing ? (
-                <>
-                  <button onClick={() => updateNoteMutation.mutate()} className="edit-button" disabled={updateNoteMutation.isPending}><Save size={16} /><span>저장</span></button>
-                  <button onClick={() => setIsEditing(false)} className="cancel-button"><X size={16} /><span>취소</span></button>
-                </>
+                <input type="text" value={editTitle} onChange={e => setEditTitle(e.target.value)} className="flex-grow bg-transparent text-3xl font-bold text-primary-foreground focus:outline-none focus:ring-0 border-b-2 border-transparent focus:border-accent transition-colors mx-4" placeholder="Title (optional)" />
               ) : (
-                <button onClick={() => setIsEditing(true)} className="edit-button"><Edit size={16} /><span>수정</span></button>
+                <h1 className="text-3xl font-bold text-primary-foreground flex-grow mx-4">{note.title || 'Untitled Note'}</h1>
+              )}
+              <div className="flex items-center gap-2 ml-auto">
+                {isEditing ? (
+                  <>
+                    <button onClick={() => updateNoteMutation.mutate()} className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors" disabled={updateNoteMutation.isPending}><CheckIcon className="w-5 h-5" /><span>Save</span></button>
+                    <button onClick={() => setIsEditing(false)} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground bg-secondary rounded-lg hover:bg-secondary/80 transition-colors"><XMarkIcon className="w-5 h-5" /><span>Cancel</span></button>
+                  </>
+                ) : (
+                  <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary-foreground bg-accent rounded-lg hover:bg-accent/80 transition-colors"><PencilIcon className="w-5 h-5" /><span>Edit</span></button>
+                )}
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="prose prose-invert max-w-none prose-lg prose-p:text-muted-foreground prose-headings:text-primary-foreground prose-a:text-accent prose-strong:text-primary-foreground">
+              {isEditing ? (
+                <textarea
+                  value={editBody}
+                  onChange={e => setEditBody(e.target.value)}
+                  className="w-full h-96 bg-background border border-border rounded-lg p-4 focus:outline-none focus:ring-2 focus:ring-accent transition-colors"
+                  placeholder="Note content (Markdown supported)"
+                />
+              ) : (
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {note.body || ''}
+                </ReactMarkdown>
               )}
             </div>
-          </div>
+          </main>
 
-          {/* Body */}
-          <div className="note-body prose prose-invert max-w-none">
-            {isEditing ? (
-              <textarea
-                value={editBody}
-                onChange={e => setEditBody(e.target.value)}
-                className="edit-body-textarea"
-                placeholder="노트 내용 (마크다운 지원)"
-              />
-            ) : (
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {note.body || ''}
-              </ReactMarkdown>
-            )}
-          </div>
-        </main>
-
-        <aside className="note-sidebar">
-          {isEditing ? (
-            <>
-              <div className="sidebar-section">
-                <h3 className="sidebar-title">태그 수정</h3>
-                <input
-                  type="text"
-                  value={editTags}
-                  onChange={e => setEditTags(e.target.value)}
-                  className="edit-tags-input"
-                  placeholder="쉼표로 태그 구분"
-                />
-              </div>
-              <div className="sidebar-section">
-                <h3 className="sidebar-title">연결된 노트 관리</h3>
-                <button onClick={() => setIsLinkEditorOpen(true)} className="btn btn-outline w-full">
-                  <LinkIcon size={16} />
-                  <span>연결 수정</span>
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="sidebar-section">
-                <h3 className="sidebar-title">세부 정보</h3>
-                <ul className="metadata-list">
-                  <li><strong>생성일</strong><span>{new Date(note.createdAt).toLocaleString('ko-KR')}</span></li>
-                  <li><strong>수정일</strong><span>{new Date(note.updatedAt).toLocaleString('ko-KR')}</span></li>
-                </ul>
-              </div>
-
-              <div className="sidebar-section">
-                <h3 className="sidebar-title">태그</h3>
-                {note.tags && note.tags.length > 0 ? (
-                  <div className="tags-container">
-                    {note.tags.map(tag => <span key={tag} className="tag-item"><Tag size={14} /> {tag}</span>)}
-                  </div>
-                ) : (
-                  <p className="no-links-text">태그가 없습니다.</p>
-                )}
-              </div>
-            </>
-          )}
-
-          {attachments && attachments.length > 0 && (
-            <div className="sidebar-section">
-              <h3 className="sidebar-title">첨부파일</h3>
-              <ul className="links-list">
-                {attachments.map(att => (
-                  <li key={att.id} className="attachment-item">
-                    <a href={getPublicUrl(att.storage_path)} target="_blank" rel="noopener noreferrer" className="link-item">
-                      <Paperclip size={14} /><span>{att.file_name}</span>
-                    </a>
-                    {isEditing && (
-                      <button onClick={() => deleteAttachmentMutation.mutate(att)} className="delete-attachment-button" aria-label="첨부파일 삭제">
-                        <Trash2 size={14} />
-                      </button>
-                    )}
-                  </li>
-                ))}
+          <aside className="lg:col-span-1 space-y-6">
+            <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
+              <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">Details</h3>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li className="flex justify-between"><strong>Created</strong><span>{new Date(note.createdAt).toLocaleString('en-US')}</span></li>
+                <li className="flex justify-between"><strong>Modified</strong><span>{new Date(note.updatedAt).toLocaleString('en-US')}</span></li>
               </ul>
             </div>
-          )}
 
-          {!isEditing && (
-            <>
-              <div className="sidebar-section">
-                <h3 className="sidebar-title">연결된 노트</h3>
-                {connections && connections.length > 0 ? (
-                  <ul className="links-list">
-                    {connections.map(conn => <li key={conn.note_id}><Link to={`/notes/${conn.note_id}`} className="link-item"><LinkIcon size={14} /><span>{conn.title || '제목 없음'}</span></Link></li>)}
-                  </ul>
-                ) : (
-                  <p className="no-links-text">연결된 노트가 없습니다.</p>
-                )}
-              </div>
+            <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
+              <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">Tags</h3>
+              {note.tags && note.tags.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {note.tags.map(tag => <span key={tag} className="flex items-center gap-1 bg-secondary text-secondary-foreground text-xs font-medium px-3 py-1 rounded-full"><TagIcon className="w-4 h-4" /> {tag}</span>)}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No tags.</p>
+              )}
+            </div>
 
-              <div className="sidebar-section">
-                <h3 className="sidebar-title">이 노트를 언급한 노트 (백링크)</h3>
-                {backlinks && backlinks.length > 0 ? (
-                  <ul className="links-list">
-                    {backlinks.map(link => <li key={link.from_note_id}><Link to={`/notes/${link.from_note_id}`} className="link-item"><LinkIcon size={14} /><span>{link.title || '제목 없음'}</span></Link></li>)}
-                  </ul>
-                ) : (
-                  <p className="no-links-text">이 노트를 언급한 노트가 없습니다.</p>
-                )}
+            {attachments && attachments.length > 0 && (
+              <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
+                <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">Attachments</h3>
+                <ul className="space-y-2">
+                  {attachments.map(att => (
+                    <li key={att.id} className="flex items-center justify-between bg-secondary p-2 rounded-lg">
+                      <a href={getPublicUrl(att.storage_path)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-primary-foreground hover:underline">
+                        <PaperClipIcon className="w-5 h-5" /><span>{att.file_name}</span>
+                      </a>
+                      {isEditing && (
+                        <button onClick={() => deleteAttachmentMutation.mutate(att)} className="p-1 text-muted-foreground hover:text-destructive rounded-full hover:bg-destructive/10 transition-colors" aria-label="Delete attachment">
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
               </div>
+            )}
 
-              <div className="sidebar-section">
-                <button onClick={() => { if(window.confirm('정말로 이 노트를 삭제하시겠습니까?')) deleteNoteMutation.mutate() }} className="delete-note-button" disabled={deleteNoteMutation.isPending}>
-                  <Trash2 size={16} />
-                  <span>노트 삭제</span>
-                </button>
-              </div>
-            </>
-          )}
-        </aside>
+            {!isEditing && (
+              <>
+                <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
+                  <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">Linked Notes</h3>
+                  {connections && connections.length > 0 ? (
+                    <ul className="space-y-2">
+                      {connections.map(conn => <li key={conn.note_id}><Link to={`/notes/${conn.note_id}`} className="flex items-center gap-2 text-sm text-primary-foreground hover:underline"><LinkIcon className="w-5 h-5" /><span>{conn.title || 'Untitled Note'}</span></Link></li>)}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No linked notes.</p>
+                  )}
+                </div>
+
+                <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
+                  <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">Backlinks</h3>
+                  {backlinks && backlinks.length > 0 ? (
+                    <ul className="space-y-2">
+                      {backlinks.map(link => <li key={link.from_note_id}><Link to={`/notes/${link.from_note_id}`} className="flex items-center gap-2 text-sm text-primary-foreground hover:underline"><LinkIcon className="w-5 h-5" /><span>{link.title || 'Untitled Note'}</span></Link></li>)}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No backlinks.</p>
+                  )}
+                </div>
+
+                <div className="bg-card border border-border rounded-lg p-4 shadow-lg mt-6">
+                  <button onClick={() => { if(window.confirm('Are you sure you want to delete this note?')) deleteNoteMutation.mutate() }} className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-destructive-foreground bg-destructive rounded-lg hover:bg-destructive/80 disabled:opacity-50 transition-colors" disabled={deleteNoteMutation.isPending}>
+                    <TrashIcon className="w-5 h-5" />
+                    <span>Delete Note</span>
+                  </button>
+                </div>
+              </>
+            )}
+             {isEditing && (
+                <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
+                  <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">Manage Links</h3>
+                  <button onClick={() => setIsLinkEditorOpen(true)} className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-primary-foreground bg-secondary rounded-lg hover:bg-secondary/80 transition-colors">
+                    <LinkIcon className="w-5 h-5" />
+                    <span>Edit Links</span>
+                  </button>
+                </div>
+              )}
+          </aside>
+        </div>
       </div>
       {isLinkEditorOpen && (
         <LinkEditorModal

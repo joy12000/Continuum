@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Toasts } from "../components/Toasts";
 import { toast } from "../lib/toast";
-import SkyCanvasAnimation from "../components/SkyCanvasAnimation";
 
 // Type definitions
 type QuickPrefs = {
@@ -15,6 +14,8 @@ const DEFAULT_PREFS: QuickPrefs = {
   starBrightness: 1.0,
 };
 
+const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+
 interface HomeSkyProps {
   answerSignal?: number;
   onOpenAnswer?: () => void;
@@ -23,7 +24,9 @@ interface HomeSkyProps {
 // Main Component
 export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
   const navigate = useNavigate();
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null); // Ref for meteor container
+  const rafRef = useRef<number | null>(null);
   const [prefs, setPrefs] = useState<QuickPrefs>(() => {
     try {
       const saved = localStorage.getItem("sky.prefs");
@@ -37,6 +40,9 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
   const editorRef = useRef<HTMLDivElement | null>(null);
   const [showQuick, setShowQuick] = useState(false);
   const [showAnswerStar, setShowAnswerStar] = useState(false);
+  const longPressTimer = useRef<number | null>(null);
+  const moonRef = useRef<HTMLButtonElement | null>(null);
+  const starsRef = useRef<{ x: number; y: number; r: number; tw: number }[]>([]);
 
   useEffect(() => {
     if (answerSignal && answerSignal > 0) {
@@ -44,25 +50,100 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
     }
   }, [answerSignal]);
 
+  // Canvas resize and star seeding effect
+  useEffect(() => {
+    const canvas = canvasRef.current!;
+    const ctx = canvas.getContext("2d")!;
+
+    const resize = () => {
+      const { innerWidth: w, innerHeight: h } = window;
+      canvas.width = Math.floor(w * dpr);
+      canvas.height = Math.floor(h * dpr);
+      canvas.style.width = w + "px";
+      canvas.style.height = h + "px";
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      seedStars();
+    };
+
+    const seedStars = () => {
+      const w = canvas.width / dpr;
+      const h = canvas.height / dpr;
+      const base = Math.round((w * h) / 9000);
+      const count = Math.max(100, Math.floor(base * prefs.starDensity));
+      starsRef.current = Array.from({ length: count }, () => ({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        r: Math.random() * 1.3 + 0.2,
+        tw: Math.random() * Math.PI * 2,
+      }));
+    };
+
+    resize();
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, [prefs.starDensity]);
+
+  // Canvas render loop
+  useEffect(() => {
+    const canvas = canvasRef.current!;
+    const ctx = canvas.getContext("2d")!;
+
+    const render = () => {
+      const w = canvas.width / dpr;
+      const h = canvas.height / dpr;
+      const g = ctx.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, "#071739");
+      g.addColorStop(0.45, "#09224a");
+      g.addColorStop(1, "#0a2c50");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.globalAlpha = 0.08;
+      for (let i = 0; i < 2; i++) {
+        const rg = ctx.createRadialGradient(w*(0.2+0.6*Math.random()),h*(0.25+0.3*Math.random()),0,w*0.5,h*0.5,Math.max(w,h)*(0.8+Math.random()*0.4));
+        rg.addColorStop(0, "rgba(255,255,255,0.03)");
+        rg.addColorStop(1, "rgba(255,255,255,0.0)");
+        ctx.fillStyle = rg;
+        ctx.fillRect(0, 0, w, h);
+      }
+      ctx.globalAlpha = 1;
+
+      const stars = starsRef.current;
+      for (const s of stars) {
+        s.tw += 0.015 + (s.x % 7) * 0.0005;
+        const twinkle = (Math.sin(s.tw) + 1) * 0.5;
+        const a = (0.35 + 0.65 * twinkle) * prefs.starBrightness;
+        ctx.fillStyle = `rgba(255,255,255,${Math.min(0.9, a)})`;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r * (0.9 + twinkle * 0.4), 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      const groundH = Math.max(36, Math.min(120, h * 0.12));
+      const gg = ctx.createLinearGradient(0, h - groundH, 0, h);
+      gg.addColorStop(0, "rgba(0,0,0,0.0)");
+      gg.addColorStop(1, "rgba(0,0,0,0.85)");
+      ctx.fillStyle = gg;
+      ctx.fillRect(0, h - groundH, w, groundH);
+
+      rafRef.current = requestAnimationFrame(render);
+    };
+
+    rafRef.current = requestAnimationFrame(render);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, [prefs.starBrightness]);
+
   // Focus handling
   useEffect(() => {
-    // Listen for long-press event from the global moon component
-    const handleToggleQuickPanel = () => {
-      setShowQuick(s => !s);
-    };
-    window.addEventListener('global-moon:long-press', handleToggleQuickPanel);
-
     const onSkyClick = (e: MouseEvent) => {
       const target = e.target as Node;
+      if (moonRef.current?.contains(target)) return;
       if (document.getElementById("quick-panel")?.contains(target)) return;
       if (document.getElementById("save-button")?.contains(target)) return;
       editorRef.current?.focus();
     };
     window.addEventListener("click", onSkyClick);
-    return () => {
-      window.removeEventListener("click", onSkyClick);
-      window.removeEventListener('global-moon:long-press', handleToggleQuickPanel);
-    };
+    return () => window.removeEventListener("click", onSkyClick);
   }, []);
 
   // Save prefs to localStorage
@@ -109,6 +190,20 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
   }
 
   // Event Handlers
+  const onMoonPointerDown = () => {
+    if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
+    longPressTimer.current = window.setTimeout(() => setShowQuick(s => !s), 520);
+  };
+  const onMoonPointerUp = () => {
+    if (longPressTimer.current) {
+      window.clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+  const onMoonClick = () => {
+    if (showQuick) return;
+    navigate("/settings");
+  };
   const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
     setDraft((e.target as HTMLDivElement).innerText);
   };
@@ -126,7 +221,7 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
   return (
     <div ref={containerRef} className="relative h-dvh w-full overflow-hidden text-white">
       <Toasts />
-      <SkyCanvasAnimation prefs={prefs} />
+      <canvas ref={canvasRef} className="absolute inset-0 block w-full h-full" />
 
       <div className="absolute top-3 left-3 z-30">
         <button className="sky-constellation" onClick={handleSave} aria-label="저장">
@@ -135,17 +230,21 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
       </div>
 
       <div className="absolute right-4 top-4 z-30 flex items-center gap-2">
-        {answerSignal && answerSignal > 0 && (
+        {showAnswerStar && (
           <button
             className="p-2 rounded-full hover:scale-105 transition-transform animate-pulse"
             onClick={() => {
               onOpenAnswer?.();
+              setShowAnswerStar(false);
             }}
             aria-label="답변 보기"
           >
             <AnswerStarSVG />
           </button>
         )}
+        <button ref={moonRef} aria-label="Settings" className="rounded-full p-2 hover:scale-105 transition-transform" onClick={onMoonClick} onPointerDown={onMoonPointerDown} onPointerUp={onMoonPointerUp} onPointerCancel={onMoonPointerUp}>
+          <CrescentMoonSVG />
+        </button>
       </div>
 
       <div
