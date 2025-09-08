@@ -12,12 +12,12 @@ import { summarizeThread, summarizeDay, generateTitleAndTags } from './shared-li
 import {
   prepareNotes,
   cluster,                 // legacy
+  clusterLouvain,          // louvain
   clusterLPA,              // lpa
   clusterByAutoThreshold,  // auto
-  clusterHybrid,           // hybrid (fallback)
-  clusterLouvain,          // louvain
-  clusterAdvanced,         // advanced
   clusterScore,
+  clusterHybrid,
+  normalizeEdges,
 } from './shared-lib/compute.js';
 
 export const config = { runtime: 'nodejs' };
@@ -50,9 +50,47 @@ const envBool01 = (name: string, def: boolean) => {
   return v === '1' || v.toLowerCase() === 'true';
 };
 
+/**
+ * Post-processing step for clustering. Finds singleton clusters and attempts to merge
+ * them into the most relevant larger cluster based on connection weights.
+ * @param clustersIn - The initial list of clusters (arrays of node indices).
+ * @param edgesIn - The list of all edges in the graph.
+ * @returns A new list of clusters with singletons absorbed where possible.
+ */
+function absorbSingletons(
+  clustersIn: number[][],
+  edgesIn: { i: number; j: number; score: number }[]
+) {
+  const out: number[][] = [];
+  const singles: number[][] = [];
+  const adj = new Map<number, { j: number; w: number }[]>();
+  for (const e of edgesIn) {
+    if (!adj.has(e.i)) adj.set(e.i, []);
+    if (!adj.has(e.j)) adj.set(e.j, []);
+    adj.get(e.i)!.push({ j: e.j, w: e.score });
+    adj.get(e.j)!.push({ j: e.i, w: e.score });
+  }
+  for (const c of clustersIn) (c.length === 1 ? singles : out).push(c);
+  if (!singles.length || !out.length) return clustersIn;
+
+  for (const [v] of singles) {
+    let best = -1, bestSum = 0;
+    const neigh = adj.get(v) ?? [];
+    for (let ci = 0; ci < out.length; ci++) {
+      const members = out[ci];
+      let s = 0;
+      for (const { j, w } of neigh) if (members.includes(j)) s += w;
+      if (s > bestSum) { bestSum = s; best = ci; }
+    }
+    if (best >= 0 && bestSum > 0.05) out[best].push(v);
+    else out.push([v]);
+  }
+  return out;
+}
+
 // --- THREAD GENERATION (async job) ---
 
-async function runThreadGeneration(jobId: string, userId: string, token: string, excludeSingletons?: boolean) {
+async function runThreadGeneration(jobId: string, userId: string, token: string) {
   const supabase = getSupabaseClient(token);
   const updateJobStatus = async (status: string) => {
     const { error } = await supabase
@@ -123,32 +161,6 @@ async function runThreadGeneration(jobId: string, userId: string, token: string,
           kMax
         }).clusters;
 
-      } else if (method === "louvain") {
-        const kMin   = envNum('CONTINUUM_KMIN', 3);
-        const kMax   = envNum('CONTINUUM_KMAX', 12);
-        const topK   = envNum('CONTINUUM_CLUSTER_K', 8);
-        const mutual = envBool01('CONTINUUM_CLUSTER_MUTUAL', true);
-        const isoCut = envNum('CONTINUUM_ISO_CUT', 0.02);
-
-        // DB에서 이미 minimum_weight로 컷했다면 compute에는 minEdge: 0
-        clusters = clusterLouvain(prepared, edges as any, {
-          minEdge: 0,
-          topK, mutual, isoCut
-        }).clusters;
-
-      } else if (method === "advanced") {
-        const kMin   = envNum('CONTINUUM_KMIN', 3);
-        const kMax   = envNum('CONTINUUM_KMAX', 12);
-        const topK   = envNum('CONTINUUM_CLUSTER_K', 8);
-        const mutual = envBool01('CONTINUUM_CLUSTER_MUTUAL', true);
-        const isoCut = envNum('CONTINUUM_ISO_CUT', 0.02);
-
-        clusters = clusterAdvanced(prepared, edges as any, {
-          minEdge: 0, // DB에서 컷했음
-          topK, mutual, isoCut,
-          kMin, kMax
-        }).clusters;
-        
       } else {
         // HYBRID: LPA → if out-of-range => AUTO; isolation, kNN sparsify, MST fallback, absorb singletons
         const kMin    = envNum('CONTINUUM_KMIN', 4);   // slightly higher default to reduce over-splitting
@@ -165,36 +177,6 @@ async function runThreadGeneration(jobId: string, userId: string, token: string,
         }).clusters;
 
         // ── [absorbSingletons] 고립 아닌 싱글톤은 가장 잘 맞는 군집으로 흡수 ──
-        function absorbSingletons(
-          clustersIn: number[][],
-          edgesIn: { i: number; j: number; score: number }[]
-        ) {
-          const out: number[][] = [];
-          const singles: number[][] = [];
-          const adj = new Map<number, { j: number; w: number }[]>();
-          for (const e of edgesIn) {
-            if (!adj.has(e.i)) adj.set(e.i, []);
-            if (!adj.has(e.j)) adj.set(e.j, []);
-            adj.get(e.i)!.push({ j: e.j, w: e.score });
-            adj.get(e.j)!.push({ j: e.i, w: e.score });
-          }
-          for (const c of clustersIn) (c.length === 1 ? singles : out).push(c);
-          if (!singles.length || !out.length) return clustersIn;
-
-          for (const [v] of singles) {
-            let best = -1, bestSum = 0;
-            const neigh = adj.get(v) ?? [];
-            for (let ci = 0; ci < out.length; ci++) {
-              const members = out[ci];
-              let s = 0;
-              for (const { j, w } of neigh) if (members.includes(j)) s += w;
-              if (s > bestSum) { bestSum = s; best = ci; }
-            }
-            if (best >= 0 && bestSum > 0.05) out[best].push(v);
-            else out.push([v]);
-          }
-          return out;
-        }
         clusters = absorbSingletons(clusters, edges as any);
       }
     } catch (e) {
@@ -203,12 +185,6 @@ async function runThreadGeneration(jobId: string, userId: string, token: string,
       clusters = cluster(prepared, edges as any).clusters;
     }
     // === /Cluster method selection ===================================
-
-    if (excludeSingletons) {
-      const before = clusters.length;
-      clusters = clusters.filter((c) => c.length > 1);
-      console.log(`[cluster] Filtered ${before - clusters.length} singleton clusters.`);
-    }
 
     // Build response threads (LLM summaries with safe numeric fields)
     const out: InsightThread[] = [];
@@ -247,6 +223,91 @@ async function runThreadGeneration(jobId: string, userId: string, token: string,
   } catch (error: any) {
     console.error(`runThreadGeneration failed for job ${jobId}:`, error);
     await updateJobStatus('failed');
+  }
+}
+
+async function handleFindContextCluster(req: VercelRequest, res: VercelResponse) {
+  const auth = await requireUser(req, res);
+  if (!auth) return;
+  const { supabase } = auth;
+
+  const noteId = req.query.noteId as string;
+  if (!noteId) {
+    return res.status(400).json({ error: "Missing noteId" });
+  }
+
+  try {
+    // 1. Get candidate notes (the new note + its top connections)
+    const { data: connections, error: connError } = await supabase.rpc('get_connections_for_note', {
+      target_note_id: noteId,
+      match_count: 20 // Get a decent number of candidates
+    });
+    if (connError) throw new Error(`Failed to get connections: ${connError.message}`);
+
+    const candidateNoteIds = [...new Set([noteId, ...(connections || []).map((c: any) => c.note_id)])];
+
+    if (candidateNoteIds.length <= 1) {
+      return res.status(200).json({ contextNoteIds: [noteId] });
+    }
+
+    // 2. Fetch full data for these candidates
+    const { data: notes, error: notesError } = await supabase
+      .from("notes")
+      .select("id,title,body,tags,created_at,updated_at")
+      .in("id", candidateNoteIds);
+    if (notesError) throw new Error(`Failed to fetch candidate notes: ${notesError.message}`);
+    if (!notes || notes.length === 0) {
+        return res.status(200).json({ contextNoteIds: [noteId] });
+    }
+
+    // 3. Fetch necessary data for clustering (chunks and edges for the subgraph)
+    const { data: chunks, error: chunksError } = await supabase
+      .from("note_chunks")
+      .select("note_id,embedding")
+      .in("note_id", candidateNoteIds);
+    if (chunksError) throw new Error(`Failed to fetch chunks: ${chunksError.message}`);
+
+    const { data: edges, error: edgesError } = await supabase.rpc('get_edges_for_subgraph', {
+      p_note_ids: candidateNoteIds
+    });
+    if (edgesError) throw new Error(`Failed to get subgraph edges: ${edgesError.message}`);
+
+    // 4. Run clustering
+    const prepared = prepareNotes(notes as Note[], (chunks as NoteChunk[]) ?? []);
+    const normalizedEdges = normalizeEdges(prepared, edges as any);
+
+    // === Cluster method selection (env-driven) =======================
+    const CLUSTER_METHOD = process.env.CONTINUUM_CLUSTER_METHOD ?? "hybrid";
+    const method = String(CLUSTER_METHOD).toLowerCase();
+    let clusters: number[][];
+
+    if (method === 'louvain') {
+      clusters = clusterLouvain(prepared, normalizedEdges as any, {
+        minClusterSize: 1, // Allow single-note clusters
+      }).clusters;
+    } else { // Default to hybrid
+      const { clusters: initialClusters } = clusterHybrid(prepared, normalizedEdges, {
+        kMin: 1, kMax: 5, minClusterSize: 1
+      });
+      clusters = absorbSingletons(initialClusters, normalizedEdges as any);
+    }
+    // === /Cluster method selection ===================================
+
+
+    // 5. Find the cluster containing the new note
+    const noteIndex = prepared.findIndex(p => p.note.id === noteId);
+    let contextCluster: number[] = noteIndex !== -1 ? [noteIndex] : [];
+    if (noteIndex !== -1) {
+        const foundCluster = clusters.find(c => c.includes(noteIndex));
+        if (foundCluster) contextCluster = foundCluster;
+    }
+
+    const contextNoteIds = contextCluster.map(idx => prepared[idx].note.id);
+    return res.status(200).json({ contextNoteIds });
+
+  } catch (e: any) {
+    console.error(`handleFindContextCluster failed:`, e);
+    return res.status(500).json({ error: e.message });
   }
 }
 
@@ -401,7 +462,6 @@ async function handleGenerateThread(req: VercelRequest, res: VercelResponse) {
   const { supabase, userId, token } = auth;
 
   if (req.method === "POST") {
-    const { excludeSingletons } = req.body;
     const { data: job, error: jobError } = await supabase
       .from('thread_generation_jobs')
       .insert({ user_id: userId, status: 'pending' })
@@ -413,7 +473,7 @@ async function handleGenerateThread(req: VercelRequest, res: VercelResponse) {
     }
 
     // fire and forget
-    runThreadGeneration(job.id, userId, token, excludeSingletons).catch(console.error);
+    runThreadGeneration(job.id, userId, token).catch(console.error);
     return res.status(202).json({ jobId: job.id });
 
   } else if (req.method === "GET") {
@@ -489,11 +549,9 @@ async function handleUpdateNote(req: VercelRequest, res: VercelResponse) {
     title,
     body,
     tags,
-    links_to_add,
-    links_to_remove,
   } = req.body;
 
-  if (title === undefined && body === undefined && tags === undefined && links_to_add === undefined && links_to_remove === undefined) {
+  if (title === undefined && body === undefined && tags === undefined) {
     return res.status(400).json({ error: 'At least one field to update must be provided.' });
   }
 
@@ -515,8 +573,8 @@ async function handleUpdateNote(req: VercelRequest, res: VercelResponse) {
       p_title: title,
       p_body: body,
       p_tags: tags,
-      p_links_to_add: links_to_add || [],
-      p_links_to_remove: links_to_remove || [],
+      p_links_to_add: [], // Link editing is a separate feature, keeping this simple
+      p_links_to_remove: [],
     });
 
     if (error) {
@@ -559,95 +617,59 @@ async function handleGetConnections(req: VercelRequest, res: VercelResponse) {
   const auth = await requireUser(req, res);
   if (!auth) return;
   const { supabase } = auth;
-
   const noteId = req.query.noteId as string;
   if (!noteId) {
     return res.status(400).json({ error: "Missing noteId" });
   }
 
-  // 환경변수/쿼리 → 파라미터
+  // 환경값 + 쿼리값 파싱 (NaN 가드 포함)
   const K_ENV   = Number(process.env.CONTINUUM_CONN_K ?? 12);
   const MIN_ENV = Number(process.env.CONTINUUM_CONN_MIN ?? 0.05);
   const MUT_ENV = String(process.env.CONTINUUM_CONN_MUTUAL ?? "false") === "true";
 
-  const K         = Math.max(1, Number(req.query.k ?? K_ENV));
-  const MIN_SCORE = Math.max(0, Number(req.query.min_score ?? MIN_ENV));
+  const kRaw   = Number(req.query.k ?? K_ENV);
+  const minRaw = Number(req.query.min_score ?? MIN_ENV);
+  const K         = Number.isFinite(kRaw)   && kRaw   > 0 ? kRaw   : K_ENV;
+  const MIN_SCORE = Number.isFinite(minRaw) && minRaw >= 0 ? minRaw : MIN_ENV;
+
+  // mutual: 현재는 표시만 (실적용하려면 get_connections_knn RPC 분기 필요)
   const MUTUAL    = String(req.query.mutual ?? String(MUT_ENV)) === "true";
 
-  const sim_w      = req.query.sim_weight      ? Number(req.query.sim_weight)      : 0.7;
-  const citation_w = req.query.citation_weight ? Number(req.query.citation_weight) : 0.2;
-  const tag_w      = req.query.tag_weight      ? Number(req.query.tag_weight)      : 0.1;
+  // 가중치: 프런트 쿼리 없으면 기본값
+  const sim_w       = req.query.sim_weight       ? Number(req.query.sim_weight)       : 0.7;
+  const citation_w  = req.query.citation_weight  ? Number(req.query.citation_weight)  : 0.2;
+  const tag_w       = req.query.tag_weight       ? Number(req.query.tag_weight)       : 0.1;
 
-  try {
-    let data: any[] | null = null;
-    let error: any = null;
+  const { data, error } = await supabase.rpc('get_connections_for_note', {
+    target_note_id: noteId,
+    sim_w, citation_w, tag_w
+  });
+  if (error) {
+    return res.status(500).json({ error: "Failed to fetch connections", detail: error.message });
+  }
 
-    if (MUTUAL) {
-      // 서버에서 mutual kNN 적용
-      const resp = await supabase.rpc('get_connections_knn', {
-        target_note_id: noteId,
-        k: K,
-        min_score: MIN_SCORE,
-        sim_w,
-        citation_w,
-        tag_w,
-        mutual: true
-      });
-      data = resp.data;
-      error = resp.error;
-    } else {
-      // 단순 점수 계산 버전
-      const resp = await supabase.rpc('get_connections_for_note', {
-        target_note_id: noteId,
-        sim_w,
-        citation_w,
-        tag_w,
-        // match_count는 함수 기본값 50; 원하면 여기서 K로 넣어도 됨
-        match_count: Math.max(K, 50),
-      });
-      if (resp.error) {
-        error = resp.error;
-      } else {
-        // 서버에서 Top-K 까지 다 하고 오지 않으니, 여기서 컷/정렬/슬라이스
-        data = (resp.data ?? [])
-          .map((d: any) => ({
-            note_id: d.note_id,
-            title: d.title ?? null,
-            score: Number.isFinite(Number(d.score)) ? Number(d.score) : 0
-          }))
-          .filter((d: any) => d.score >= MIN_SCORE)
-          .sort((a: any, b: any) => b.score - a.score)
-          .slice(0, K);
-      }
-    }
-
-    if (error) {
-      console.error('[get-connections][rpc error]', error);
-      return res.status(500).json({ error: "Failed to fetch connections", detail: error.message });
-    }
-
-    // get_connections_knn는 이미 Top-K + 컷이 끝나서 바로 반환
-    const conns = (data ?? []).map((d: any) => ({
+  // 1) 점수 NaN/NULL 방지 → 2) 점수컷 → 3) 내림차순 정렬 → 4) Top-K
+  const conns = (data ?? [])
+    .map((d: any) => ({
       note_id: d.note_id,
       title: d.title ?? null,
       score: Number.isFinite(Number(d.score)) ? Number(d.score) : 0
-    }));
+    }))
+    .filter(d => d.score >= MIN_SCORE)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, K);
 
-    return res.status(200).json({
-      note_id: noteId,
-      connections: conns,
-      meta: {
-        k: K,
-        min_score: MIN_SCORE,
-        mutual_requested: MUTUAL,
-        mutual_applied: MUTUAL,
-        weights: { sim: sim_w, citation: citation_w, tag: tag_w }
-      }
-    });
-  } catch (e: any) {
-    console.error('[get-connections][handler error]', e);
-    return res.status(500).json({ error: "Internal error", detail: e?.message ?? String(e) });
-  }
+  return res.status(200).json({
+    note_id: noteId,
+    connections: conns,
+    meta: {
+      k: K,
+      min_score: MIN_SCORE,
+      mutual_requested: MUTUAL,   // 현재는 적용 안 함(표시만)
+      mutual_applied: true,      // ← 실제 mutual kNN 적용 시 true로 바꿔
+      weights: { sim: sim_w, citation: citation_w, tag: tag_w }
+    }
+  });
 }
 
 async function handleGetAllNotes(req: VercelRequest, res: VercelResponse) {
@@ -664,12 +686,11 @@ async function handleGetAllNotes(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: "Failed to fetch notes", detail: error.message });
   }
 
-  const notes = (data || []).map(note => ({
-    ...note,
-    createdAt: note.created_at,
-    updatedAt: note.updated_at,
-    created_at: undefined,
-    updated_at: undefined,
+  const notes = (data || []).map((n: any) => ({
+    id: n.id,
+    title: n.title,
+    createdAt: n.created_at,
+    updatedAt: n.updated_at,
   }));
 
   res.status(200).json(notes);
@@ -693,12 +714,11 @@ async function handleGetNotesForDate(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: "Failed to fetch notes for date", detail: error.message });
   }
 
-  const notes = (data || []).map((note: any) => ({
-    ...note,
-    createdAt: note.created_at,
-    updatedAt: note.updated_at,
-    created_at: undefined,
-    updated_at: undefined,
+  const notes = (data || []).map((n: any) => ({
+    id: n.id,
+    title: n.title,
+    createdAt: n.created_at,
+    updatedAt: n.updated_at,
   }));
 
   return res.status(200).json(notes);
@@ -754,6 +774,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleGetConnections(req, res);
       case 'get-all-notes':
         return await handleGetAllNotes(req, res);
+      case 'find-context-cluster':
+        return await handleFindContextCluster(req, res);
       case 'get-note':
         return await handleGetNote(req, res);
       case 'get-notes-for-date':

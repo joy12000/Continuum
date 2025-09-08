@@ -51,7 +51,9 @@ const MainLayout = () => {
       if (!clusterRes.ok) throw new Error("Failed to find context cluster.");
       
       const { contextNoteIds } = await clusterRes.json();
-      if (!contextNoteIds || contextNoteIds.length === 0) {
+      // If the cluster only contains the new note itself (or is empty),
+      // it means no other relevant notes were found to form a meaningful context.
+      if (!contextNoteIds || contextNoteIds.length <= 1) {
         setGeneratedAnswer({ data: null, isLoading: false, error: "유사한 노트를 찾지 못했습니다." });
         setAnswerOpen(true);
         return;
@@ -59,6 +61,16 @@ const MainLayout = () => {
 
       const contextNotes = await getNotesByIds(contextNoteIds);
       if (!contextNotes) throw new Error("Failed to fetch context notes.");
+
+      // Exclude the newly created note itself from the context for the AI
+      const finalContextNotes = contextNotes.filter(n => n.id !== newNoteId);
+
+      // If no other notes are left in the context, inform the user.
+      if (finalContextNotes.length === 0) {
+        setGeneratedAnswer({ data: null, isLoading: false, error: "새 노트를 제외하고 연결된 다른 노트가 없습니다." });
+        setAnswerOpen(true);
+        return;
+      }
 
       const newNoteTitlesMap: Record<string, string> = {};
       contextNotes.forEach((n: Note) => {
@@ -72,7 +84,7 @@ const MainLayout = () => {
         body: JSON.stringify({
           type: 'rag',
           input: { query: noteText },
-          context: contextNotes.map((n: Note) => ({ id: n.id, body: n.body })),
+          context: finalContextNotes.map((n: Note) => ({ id: n.id, body: n.body })),
         }),
       });
       if (!generateRes.ok || !generateRes.body) throw new Error("Failed to generate summary.");
@@ -87,7 +99,7 @@ const MainLayout = () => {
       }
       const finalAnswerData: AnswerData = {
         answerSegments: [{ sentence: fullAnswer, sourceNoteId: '' }], // Simplified for now
-        sourceNotes: contextNotes.map((n: Note) => n.id),
+        sourceNotes: finalContextNotes.map((n: Note) => n.id),
       };
       setGeneratedAnswer({ data: finalAnswerData, isLoading: false, error: null });
       setAnswerSignal(s => s + 1);
@@ -131,7 +143,7 @@ const MainLayout = () => {
         return;
       }
       try {
-        const newNote = await addNoteAndChunks({ title: undefined, body: detail.text, user_id: user.id });
+        const newNote = await addNoteAndChunks({ title: null, body: detail.text, user_id: user.id });
         setTimeout(() => {
           generateSummaryAfterSave(newNote.id, detail.text, user.id);
         }, 2000); // Delay to allow DB index to update

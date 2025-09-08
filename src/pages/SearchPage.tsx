@@ -8,6 +8,7 @@ import { GeneratedAnswer } from '../components/GeneratedAnswer';
 import { getNotesByIds } from '../lib/supabaseService';
 import { AnswerData, Note } from '../types/common';
 import { HandThumbUpIcon as ThumbUpIcon, HandThumbDownIcon as ThumbDownIcon } from '@heroicons/react/24/solid';
+import SkyBackground from '../components/SkyBackground';
 
 // Helper function to highlight search terms
 const highlight = (text: string, query: string) => {
@@ -157,7 +158,9 @@ const SearchPage = ({ session }: { session: Session | null }) => {
   }, [results, query]);
 
   return (
-    <PageLayout title="Search Notes">
+    <PageLayout title="Search Notes" transparent>
+      <SkyBackground />
+      <div className="bg-black/30 backdrop-blur-sm p-4 sm:p-6 rounded-xl">
       <SearchBar 
         q={query} 
         setQ={setQuery} 
@@ -178,6 +181,7 @@ const SearchPage = ({ session }: { session: Session | null }) => {
       <div className="mt-6">
         <SearchResultsList results={results} loading={loading} noteTitlesMap={noteTitlesMap} query={query} />
       </div>
+    </div>
     </PageLayout>
   );
 };

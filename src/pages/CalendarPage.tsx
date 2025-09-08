@@ -6,6 +6,7 @@ import type { Note } from '../types/common';
 import PageLayout from '../components/PageLayout';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import SkyBackground from '../components/SkyBackground';
 
 // 캘린더 활동 데이터 타입 정의
 type NoteActivity = {
@@ -137,7 +138,9 @@ const CalendarPage = () => {
   const pageTitle = `${year}년 ${displayDate.toLocaleString('ko-KR', { month: 'long' })}`;
 
   return (
-    <PageLayout title="캘린더">
+    <PageLayout title="캘린더" transparent>
+      <SkyBackground />
+      <div className="bg-black/30 backdrop-blur-sm p-4 sm:p-6 rounded-xl">
       <div className="flex justify-between items-center mb-6 px-2">
         <button onClick={() => handleMonthChange(-1)} className="p-2 rounded-full hover:bg-white/10 transition-colors" aria-label="Previous month"><ChevronLeft className="w-6 h-6" /></button>
         <h1 className="text-2xl font-bold text-center">{pageTitle}</h1>
@@ -196,6 +199,7 @@ const CalendarPage = () => {
           </div>
         </div>
       </div>
+    </div>
     </PageLayout>
   );
 };

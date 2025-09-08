@@ -7,6 +7,7 @@ import GenerationProgress from '@/components/GenerationProgress';
 import SourceNoteModal from '@/components/SourceNoteModal'; // Import the modal component
 import { useJobStatus } from '@/hooks/useJobStatus';
 import { supabase } from '@/lib/supabase';
+import SkyBackground from '@/components/SkyBackground';
 
 import type { InsightThread, Note } from '@lib/types';
 
@@ -203,7 +204,9 @@ const LinksPage = () => {
   };
 
   return (
-    <PageLayout title="인사이트 스레드">
+    <PageLayout title="인사이트 스레드" transparent>
+      <SkyBackground />
+      <div className="bg-black/30 backdrop-blur-sm p-4 sm:p-6 rounded-xl">
       {renderContent()}
       <SourceNoteModal 
         isOpen={isModalOpen} 
@@ -211,6 +214,7 @@ const LinksPage = () => {
         title={selectedNote?.title || '제목 없음'}
         body={selectedNote?.body || ''}
       />
+    </div>
     </PageLayout>
   );
 };

@@ -3,11 +3,13 @@ import React from 'react';
 interface PageLayoutProps {
   children: React.ReactNode;
   title?: string;
+  transparent?: boolean;
 }
 
-const PageLayout: React.FC<PageLayoutProps> = ({ children, title }) => {
+const PageLayout: React.FC<PageLayoutProps> = ({ children, title, transparent }) => {
+  const layoutClasses = `min-h-screen text-foreground font-sans ${transparent ? '' : 'bg-background'}`;
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans">
+    <div className={layoutClasses}>
       <div className="max-w-3xl mx-auto px-4 py-8">
         {title && (
           <h1 
