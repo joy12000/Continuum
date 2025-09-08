@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -15,8 +14,8 @@ export default function NewBottomNav() {
 
   return (
     <nav
-      className="pointer-events-auto fixed inset-x-0 bottom-0 z-20 mx-auto mb-4 flex h-16 w-[min(520px,92%)] items-center justify-around
-                 rounded-2xl border border-white/10 bg-card/80 backdrop-blur-lg shadow-lg"
+      className="pointer-events-auto fixed inset-x-0 bottom-0 z-20 mx-auto mb-2 flex h-12 w-[min(520px,92%)] items-center justify-around
+                 rounded-full border border-white/10 bg-black/40 backdrop-blur"
     >
       {TABS.map((tab) => (
         <Tab
@@ -45,50 +44,44 @@ function Tab({
   return (
     <button
       onClick={onClick}
-      className={`relative flex flex-col items-center justify-center w-full h-full text-sm transition-colors group ${
-        active ? 'text-primary' : 'text-muted-foreground hover:text-primary'
+      className={`flex h-9 items-center gap-2 rounded-full px-3 text-sm transition-colors ${
+        active ? 'bg-white/10 text-white' : 'text-white/70 hover:text-white'
       }`}
     >
-      <div className={`absolute top-0 h-1 w-8 rounded-b-full ${active ? 'bg-primary' : ''}`}></div>
-      <span className="inline-block w-7 h-7">{getIcon(icon, active)}</span>
-      <span className="text-xs sm:inline">{label}</span>
-      <span className="absolute bottom-full mb-2 hidden group-hover:block bg-card text-primary-foreground text-xs rounded py-1 px-2">
-        {label}
-      </span>
+      <span className="inline-block">{getIcon(icon)}</span>
+      <span className="hidden sm:inline">{label}</span>
     </button>
   );
 }
 
-function getIcon(name: 'home' | 'calendar' | 'search' | 'link', active?: boolean) {
-  const props = { width: 24, height: 24, strokeWidth: active ? 2 : 1.5 };
+function getIcon(name: 'home' | 'calendar' | 'search' | 'link') {
   switch (name) {
     case 'home':
       return (
-        <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path d="M3 11.5 12 4l9 7.5V20a2 2 0 0 1-2 2h-4v-6H9v6H5a2 2 0 0 1-2-2v-8.5Z" stroke="currentColor" strokeWidth="1.5" />
         </svg>
       );
     case 'calendar':
       return (
-        <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-          <line x1="16" y1="2" x2="16" y2="6" />
-          <line x1="8" y1="2" x2="8" y2="6" />
-          <line x1="3" y1="10" x2="21" y2="10" />
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" />
+          <path d="M16 3v4M8 3v4M3 10h18" stroke="currentColor" strokeWidth="1.5" />
         </svg>
       );
     case 'search':
       return (
-        <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <circle cx="11" cy="11" r="8" />
-          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.5"></circle>
+          <path d="M20 20l-3.2-3.2" stroke="currentColor" strokeWidth="1.5"></path>
         </svg>
       );
     case 'link':
       return (
-        <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.72" />
-          <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.72-1.72" />
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path d="M10 14l-1.5 1.5a4 4 0 1 1-5.7-5.7L4.5 8" stroke="currentColor" strokeWidth="1.5" />
+          <path d="M14 10l1.5-1.5a4 4 0 1 1 5.7 5.7L19.5 16" stroke="currentColor" strokeWidth="1.5" />
+          <path d="M8 12h8" stroke="currentColor" strokeWidth="1.5" />
         </svg>
       );
   }
