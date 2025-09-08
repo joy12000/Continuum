@@ -232,23 +232,25 @@ const NoteDetailPage = () => {
 
         <aside className="note-sidebar">
           {isEditing ? (
-            <div className="sidebar-section">
-              <h3 className="sidebar-title">태그 수정</h3>
-              <input
-                type="text"
-                value={editTags}
-                onChange={e => setEditTags(e.target.value)}
-                className="edit-tags-input"
-                placeholder="쉼표로 태그 구분"
-              />
-            </div>
-            <div className="sidebar-section">
-              <h3 className="sidebar-title">연결된 노트 관리</h3>
-              <button onClick={() => setIsLinkEditorOpen(true)} className="btn btn-outline w-full">
-                <LinkIcon size={16} />
-                <span>연결 수정</span>
-              </button>
-            </div>
+            <>
+              <div className="sidebar-section">
+                <h3 className="sidebar-title">태그 수정</h3>
+                <input
+                  type="text"
+                  value={editTags}
+                  onChange={e => setEditTags(e.target.value)}
+                  className="edit-tags-input"
+                  placeholder="쉼표로 태그 구분"
+                />
+              </div>
+              <div className="sidebar-section">
+                <h3 className="sidebar-title">연결된 노트 관리</h3>
+                <button onClick={() => setIsLinkEditorOpen(true)} className="btn btn-outline w-full">
+                  <LinkIcon size={16} />
+                  <span>연결 수정</span>
+                </button>
+              </div>
+            </>
           ) : (
             <>
               <div className="sidebar-section">
