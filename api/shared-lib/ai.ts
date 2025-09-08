@@ -141,3 +141,60 @@ Your response must be ONLY the raw JSON object.
   // Fallback
   return { title: "새로운 노트", tags: [] };
 }
+
+export async function connectNewNote(
+  newNoteText: string,
+  contextNotes: { id: string; body: string }[]
+): Promise<{ summary: string }> {
+  const contextBullets = contextNotes
+    .map((n) => `- (과거 노트) ${n.body.slice(0, 400).replace(/\n/g, ' ')}`)
+    .join('\n');
+
+  const prompt = `You are a Knowledge Synthesizer. Your mission is to find the connection between a user's new thought and their past ideas.
+You will be given a "New Note" and a "Context" of related past notes.
+
+Your task is to generate a JSON object with a single key: "summary".
+
+1.  **summary**:
+    *   Analyze the New Note in relation to the Context.
+    *   Write a 2-4 sentence narrative in Korean that explains how the New Note relates to, evolves from, or contrasts with the ideas in the Context.
+    *   Focus on creating a story of evolving thoughts. Do not just list the topics.
+    *   If the connection is weak, you can state that the new note introduces a new line of thought while briefly mentioning the existing context.
+    *   Base your summary *only* on the provided New Note and Context. Do not invent information.
+
+Context from past notes:
+---
+${contextBullets}
+---
+
+New Note:
+---
+${newNoteText}
+---
+
+Your response must be ONLY the raw JSON object, like {"summary": "..."}.
+`;
+
+  const model = genAI.getGenerativeModel({ model: MODEL });
+  const result = await model.generateContent(prompt);
+  let text = result.response.text();
+
+  // Clean the response before parsing
+  text = text.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+  const startIndex = text.indexOf('{');
+  const endIndex = text.lastIndexOf('}');
+  if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
+    text = text.substring(startIndex, endIndex + 1);
+  }
+
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed.summary === 'string') {
+      return { summary: parsed.summary };
+    }
+  } catch (e) {
+    console.error("Failed to parse AI response for connectNewNote as JSON:", text, e);
+    return { summary: text }; // Fallback to raw text
+  }
+  return { summary: "AI가 생각을 연결하는 데 실패했습니다." };
+}

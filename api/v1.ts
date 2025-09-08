@@ -8,7 +8,7 @@ import { requireUser } from './shared-lib/auth.js';
 import { getSupabaseClient } from './shared-lib/supabaseClient.js';
 import type { InsightThread, Note, NoteChunk } from './shared-lib/types.js';
 import { getInsightThreadsCache, upsertInsightThreadsCache } from './shared-lib/database.js';
-import { summarizeThread, summarizeDay, generateTitleAndTags } from './shared-lib/ai.js';
+import { summarizeThread, summarizeDay, generateTitleAndTags, connectNewNote } from './shared-lib/ai.js';
 import {
   prepareNotes,
   cluster,                 // legacy
@@ -385,13 +385,13 @@ async function handleGenerate(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'input and context are required.' });
     }
 
-    const model = getGenerativeModel();
-    const prompt = `Based on the following context, write a concise and relevant summary of the main text provided below. Only use information from the provided context. Answer in Korean.\n\nContext:\n${JSON.stringify(context)}\n\nMain Text to Summarize:\n${input.query}\n\nSummary:`
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    // Use the dedicated, structured AI function for better maintainability and prompting
+    const result = await connectNewNote(input.query, context);
 
-    return res.status(200).json({ text });
+    // The result is already a JSON object like { summary: "..." }
+    return res.status(200).json({
+      data: result,
+    });
 
   } catch (e: any) {
     const msg = e?.message || 'Generate handler failed';

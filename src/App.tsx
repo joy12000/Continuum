@@ -63,7 +63,7 @@ const MainLayout = () => {
       if (!contextNotes) throw new Error("Failed to fetch context notes.");
 
       // Exclude the newly created note itself from the context for the AI
-      const finalContextNotes = contextNotes.filter(n => n.id !== newNoteId);
+      const finalContextNotes = contextNotes.filter((n: Note) => n.id !== newNoteId);
 
       // If no other notes are left in the context, inform the user.
       if (finalContextNotes.length === 0) {
@@ -88,19 +88,17 @@ const MainLayout = () => {
         }),
       });
       if (!generateRes.ok || !generateRes.body) throw new Error("Failed to generate summary.");
+      
+      // The API now returns a structured JSON object, not a stream.
+      const result = await generateRes.json();
+      const summaryText = result?.data?.summary;      
+      if (!summaryText) throw new Error("AI response did not contain a valid summary.");
 
-      const reader = generateRes.body.getReader();
-      const decoder = new TextDecoder();
-      let fullAnswer = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        fullAnswer += decoder.decode(value, { stream: true });
-      }
       const finalAnswerData: AnswerData = {
-        answerSegments: [{ sentence: fullAnswer, sourceNoteId: '' }], // Simplified for now
+        answerSegments: [{ sentence: summaryText, sourceNoteId: '' }], // Display the whole summary as one segment
         sourceNotes: finalContextNotes.map((n: Note) => n.id),
       };
+
       setGeneratedAnswer({ data: finalAnswerData, isLoading: false, error: null });
       setAnswerSignal(s => s + 1);
       setAnswerOpen(true);
@@ -143,7 +141,7 @@ const MainLayout = () => {
         return;
       }
       try {
-        const newNote = await addNoteAndChunks({ title: null, body: detail.text, user_id: user.id });
+        const newNote = await addNoteAndChunks({ title: undefined, body: detail.text, user_id: user.id });
         setTimeout(() => {
           generateSummaryAfterSave(newNote.id, detail.text, user.id);
         }, 2000); // Delay to allow DB index to update
@@ -163,7 +161,7 @@ const MainLayout = () => {
   const showNav = !noNavPaths.includes(location.pathname) && session;
 
   return (
-    <div className="flex flex-col h-screen bg-background text-foreground">
+    <div className="flex flex-col h-screen bg-surface text-text-primary">
       <Toasts />
       <main className="flex-grow overflow-y-auto">
         <Suspense fallback={<div className="flex justify-center items-center h-full">Loading Page...</div>}>
