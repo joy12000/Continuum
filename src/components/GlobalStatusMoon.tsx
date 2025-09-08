@@ -53,9 +53,21 @@ const GlobalStatusMoon: React.FC<GlobalStatusMoonProps> = ({ status }) => {
       onPointerCancel={handlePointerUp}
     >
       <svg width="44" height="44" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-        <defs><radialGradient id="moonGlowNew" cx="50%" cy="45%" r="55%"><stop offset="0%" stopColor="currentColor" stopOpacity="0.6" /><stop offset="100%" stopColor="currentColor" stopOpacity="0" /></radialGradient><mask id="crescentMaskNew"><rect width="100%" height="100%" fill="white" /><circle cx="42" cy="26" r="22" fill="black" /></mask></defs>
-        <circle cx="32" cy="32" r="28" fill="url(#moonGlowNew)" />
-        <circle cx="32" cy="32" r="24" fill="currentColor" mask="url(#crescentMaskNew)" />
+        <defs>
+          <filter id="realisticGlow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur" />
+          </filter>
+          <radialGradient id="moonShading" cx="30%" cy="30%" r="70%">
+            <stop offset="0%" stopColor="white" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="black" stopOpacity="0.3" />
+          </radialGradient>
+        </defs>
+        <circle cx="32" cy="32" r="24" fill="currentColor" />
+        <circle cx="32" cy="32" r="24" fill="currentColor" opacity="0.5" filter="url(#realisticGlow)" />
+        <g opacity="0.2" fill="black">
+          <circle cx="25" cy="25" r="8" /><circle cx="42" cy="40" r="5" /><circle cx="45" cy="28" r="3" /><circle cx="22" cy="40" r="2.5" /><circle cx="33" cy="45" r="2" />
+        </g>
+        <circle cx="32" cy="32" r="24" fill="url(#moonShading)" />
       </svg>
     </button>
   );

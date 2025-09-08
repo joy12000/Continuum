@@ -10,7 +10,7 @@ export default function SourceNoteModal({ isOpen, title, body, onClose }: Props)
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-card border border-border rounded-2xl shadow-xl w-full max-w-2xl p-6 animate-zoomIn" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4 pb-4 border-b border-border">
-          <h2 className="text-xl font-semibold text-primary-foreground">{title || "Source Note"}</h2>
+          <h2 className="text-xl font-semibold text-primary">{title || "Source Note"}</h2>
           <button onClick={onClose} className="p-2 rounded-full hover:bg-secondary transition-colors">
             <XMarkIcon className="w-6 h-6 text-muted-foreground" />
           </button>

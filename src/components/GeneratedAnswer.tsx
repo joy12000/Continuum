@@ -27,24 +27,27 @@ export function GeneratedAnswer({ data, noteTitlesMap }: GeneratedAnswerProps) {
       <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-3">AI 답변</h3>
       
       {/* Answer Sentences with Source Anchors */}
-      <div className="text-slate-700 dark:text-slate-300 space-y-2">
-        {data.answerSegments.map((segment, index) => {
-          const sourceNumber = sourceIdToNumberMap.get(segment.sourceNoteId);
-          return (
-            <p key={index}>
-              {segment.sentence}
-              {sourceNumber && (
-                <a 
-                  href={`#source-${sourceNumber}`} 
-                  className="ml-1 text-indigo-400 font-bold no-underline hover:underline"
-                  title={`출처 ${sourceNumber}로 이동`}
-                >
-                  [{sourceNumber}]
-                </a>
-              )}
-            </p>
-          );
-        })}
+      <div className="text-slate-700 dark:text-slate-300">
+        <p>
+          {data.answerSegments.map((segment, index) => {
+            const sourceNumber = sourceIdToNumberMap.get(segment.sourceNoteId);
+            return (
+              <React.Fragment key={index}>
+                {segment.sentence}
+                {sourceNumber && (
+                  <a 
+                    href={`#source-${sourceNumber}`} 
+                    className="ml-1 text-indigo-400 font-bold no-underline hover:underline"
+                    title={`출처 ${sourceNumber}로 이동`}
+                  >
+                    [{sourceNumber}]
+                  </a>
+                )}
+                {' '}
+              </React.Fragment>
+            );
+          })}
+        </p>
       </div>
 
       {/* Reference Notes Section */}

@@ -22,7 +22,7 @@ const InsightThreadCard: React.FC<InsightThreadCardProps> = ({ thread, onNoteCli
             <li key={note.id}>
               <button 
                 onClick={(e) => { e.stopPropagation(); onNoteClick(note); }}
-                className="flex items-center gap-2 text-left text-sm text-primary-foreground hover:underline hover:text-accent transition-colors w-full truncate"
+                className="flex items-center gap-2 text-left text-sm text-primary hover:underline hover:text-accent transition-colors w-full truncate"
               >
                 <DocumentTextIcon className="w-5 h-5 flex-shrink-0" />
                 <span>{note.title || 'Untitled Note'}</span>
