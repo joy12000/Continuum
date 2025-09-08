@@ -30,16 +30,16 @@ CREATE OR REPLACE FUNCTION public.update_note_details(
 )
 RETURNS void
 LANGUAGE plpgsql
-AS $$
+AS $
 DECLARE
   link_to_add uuid;
 BEGIN
-  -- Update the note's main fields
+  -- Update the note's main fields, only if they are provided
   UPDATE public.notes
   SET
-    title = p_title,
-    body = p_body,
-    tags = p_tags
+    title = COALESCE(p_title, title),
+    body = COALESCE(p_body, body),
+    tags = COALESCE(p_tags, tags)
   WHERE id = p_note_id AND user_id = auth.uid();
 
   -- Remove specified links
@@ -59,4 +59,4 @@ BEGIN
   END IF;
 
 END;
-$$;
+$;

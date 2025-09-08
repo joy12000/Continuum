@@ -214,7 +214,7 @@ const NoteDetailPage = () => {
           </div>
 
           {/* Body */}
-          <div className="note-body">
+          <div className="note-body prose prose-invert max-w-none">
             {isEditing ? (
               <textarea
                 value={editBody}
@@ -261,14 +261,16 @@ const NoteDetailPage = () => {
                 </ul>
               </div>
 
-              {note.tags && note.tags.length > 0 && (
-                <div className="sidebar-section">
-                  <h3 className="sidebar-title">태그</h3>
+              <div className="sidebar-section">
+                <h3 className="sidebar-title">태그</h3>
+                {note.tags && note.tags.length > 0 ? (
                   <div className="tags-container">
                     {note.tags.map(tag => <span key={tag} className="tag-item"><Tag size={14} /> {tag}</span>)}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <p className="no-links-text">태그가 없습니다.</p>
+                )}
+              </div>
             </>
           )}
 
@@ -294,23 +296,27 @@ const NoteDetailPage = () => {
 
           {!isEditing && (
             <>
-              {connections && connections.length > 0 && (
-                <div className="sidebar-section">
-                  <h3 className="sidebar-title">연결된 노트</h3>
+              <div className="sidebar-section">
+                <h3 className="sidebar-title">연결된 노트</h3>
+                {connections && connections.length > 0 ? (
                   <ul className="links-list">
                     {connections.map(conn => <li key={conn.note_id}><Link to={`/notes/${conn.note_id}`} className="link-item"><LinkIcon size={14} /><span>{conn.title || '제목 없음'}</span></Link></li>)}
                   </ul>
-                </div>
-              )}
+                ) : (
+                  <p className="no-links-text">연결된 노트가 없습니다.</p>
+                )}
+              </div>
 
-              {backlinks && backlinks.length > 0 && (
-                <div className="sidebar-section">
-                  <h3 className="sidebar-title">이 노트를 언급한 노트 (백링크)</h3>
+              <div className="sidebar-section">
+                <h3 className="sidebar-title">이 노트를 언급한 노트 (백링크)</h3>
+                {backlinks && backlinks.length > 0 ? (
                   <ul className="links-list">
                     {backlinks.map(link => <li key={link.from_note_id}><Link to={`/notes/${link.from_note_id}`} className="link-item"><LinkIcon size={14} /><span>{link.title || '제목 없음'}</span></Link></li>)}
                   </ul>
-                </div>
-              )}
+                ) : (
+                  <p className="no-links-text">이 노트를 언급한 노트가 없습니다.</p>
+                )}
+              </div>
 
               <div className="sidebar-section">
                 <button onClick={() => { if(window.confirm('정말로 이 노트를 삭제하시겠습니까?')) deleteNoteMutation.mutate() }} className="delete-note-button" disabled={deleteNoteMutation.isPending}>
