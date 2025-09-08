@@ -167,5 +167,3 @@ const SearchPage = ({ session }: { session: Session | null }) => {
 };
 
 export default SearchPage;
-
-export default SearchPage;
