@@ -40,8 +40,7 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
   const editorRef = useRef<HTMLDivElement | null>(null);
   const [showQuick, setShowQuick] = useState(false);
   const [showAnswerStar, setShowAnswerStar] = useState(false);
-  const longPressTimer = useRef<number | null>(null);
-  const moonRef = useRef<HTMLButtonElement | null>(null);
+  
   const starsRef = useRef<{ x: number; y: number; r: number; tw: number }[]>([]);
 
   useEffect(() => {
@@ -137,7 +136,7 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
   useEffect(() => {
     const onSkyClick = (e: MouseEvent) => {
       const target = e.target as Node;
-      if (moonRef.current?.contains(target)) return;
+      
       if (document.getElementById("quick-panel")?.contains(target)) return;
       if (document.getElementById("save-button")?.contains(target)) return;
       editorRef.current?.focus();
@@ -201,21 +200,7 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
     el.addEventListener("animationend", () => el.remove());
   }
 
-  // Event Handlers
-  const onMoonPointerDown = () => {
-    if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
-    longPressTimer.current = window.setTimeout(() => setShowQuick(s => !s), 520);
-  };
-  const onMoonPointerUp = () => {
-    if (longPressTimer.current) {
-      window.clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-  };
-  const onMoonClick = () => {
-    if (showQuick) return;
-    navigate("/settings");
-  };
+  
   const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
     setDraft((e.target as HTMLDivElement).innerText);
   };
