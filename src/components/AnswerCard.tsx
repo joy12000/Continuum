@@ -36,7 +36,7 @@ export function AnswerCard({ kp, cites, onJump }:{ kp:string[]; cites:{ text:str
   },[cites]);
 
   return (
-    <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 mt-4">
+    <div className="bg-slate-900/60 backdrop-blur-lg border border-slate-700/50 rounded-lg p-4 mt-4">
       <div className="text-sm text-sky-300 mb-2">추출형 답 · 출처 포함</div>
       <ul className="space-y-2">
         {kp.map((s,i)=><li key={i} className="flex items-start"><span className="text-sky-400 mr-2">✦</span><span className="text-slate-200">{s}</span></li>)}
@@ -44,7 +44,7 @@ export function AnswerCard({ kp, cites, onJump }:{ kp:string[]; cites:{ text:str
       <div className="text-sm text-sky-300 mt-4 mb-2">인용/출처</div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
         {grouped.map(g=>(
-          <div key={g.noteId} className="bg-slate-700/50 border border-slate-600 rounded-lg p-3">
+          <div key={g.noteId} className="bg-slate-800/60 backdrop-blur-lg border border-slate-700/50 rounded-lg p-3">
             <div className="text-xs text-slate-400 mb-2">노트 {g.noteId.slice(0,8)} · {new Date(g.createdAt||0).toLocaleDateString()}</div>
             <ul className="space-y-1">
               {g.snippets.slice(0,3).map((s,i)=><li key={i} className="text-sm text-slate-300 truncate">- {s}</li>)}

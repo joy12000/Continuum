@@ -27,7 +27,7 @@ export function SearchBar({
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onFocus={onFocus}
-          placeholder={isModelReady ? "Ask your past self..." : modelStatus}
+          placeholder={isModelReady ? "과거의 나에게 무엇이든 물어보세요..." : modelStatus}
           className={`w-full p-3 pl-10 bg-surface-2 text-text-primary rounded-lg shadow-sm focus:ring-2 focus:ring-accent focus:outline-none transition disabled:opacity-50 ${className}`}
           disabled={!isModelReady}
         />

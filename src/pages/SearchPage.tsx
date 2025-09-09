@@ -37,7 +37,7 @@ const SearchResultsList = ({ results, loading, noteTitlesMap, query, onNoteClick
     <ul className="space-y-4">
       {results.map(result => (
         <li key={`${result.note_id}_${result.chunk_index}`}>
-          <button onClick={() => onNoteClick(result.note_id)} className="block w-full text-left border border-border bg-card rounded-lg p-4 transition-all duration-300 hover:bg-secondary hover:shadow-md">
+          <button onClick={() => onNoteClick(result.note_id)} className="block w-full text-left border border-slate-700/50 bg-slate-900/60 backdrop-blur-lg rounded-lg p-4 transition-all duration-300 hover:bg-slate-800/70 hover:shadow-md">
             <div className="flex justify-between items-start">
               <div className="flex-grow">
                 <h3 className="text-lg font-semibold text-primary">{noteTitlesMap[result.note_id] || '제목 없는 노트'}</h3>
@@ -164,7 +164,7 @@ const SearchPage = ({ session }: { session: Session | null }) => {
           </div>
           <div className="lg:col-span-1">
             <h2 className="text-xl font-semibold mb-4">생성된 답변</h2>
-            <div className="bg-card border border-border rounded-lg p-4">
+            <div className="bg-slate-900/60 backdrop-blur-lg border border-slate-700/50 rounded-lg p-4">
               {generatedAnswer.isLoading && <div className="p-4 text-center text-muted-foreground">답변 생성 중...</div>}
               {generatedAnswer.error && <div className="p-4 text-center text-destructive">오류: {generatedAnswer.error}</div>}
               {generatedAnswer.data && <GeneratedAnswer data={generatedAnswer.data} noteTitlesMap={noteTitlesMap} />} 

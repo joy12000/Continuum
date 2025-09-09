@@ -139,7 +139,7 @@ const LinksPage = () => {
 
     if (!threads || threads.length === 0) {
       return (
-        <div className="text-center p-8 bg-card border border-border rounded-lg shadow-lg">
+        <div className="text-center p-8 bg-slate-900/60 backdrop-blur-lg border border-slate-700/50 rounded-lg shadow-lg">
           <BeakerIcon className="w-16 h-16 mx-auto text-accent mb-4" />
           <h3 className="text-xl font-bold mb-4">아직 연결된 생각 없음</h3>
           <p className="text-muted-foreground mb-6">노트를 분석하여 새로운 인사이트를 발견하세요.</p>
