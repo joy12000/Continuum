@@ -40,7 +40,7 @@ export default function AnswerCardsModal({
 
   return (
     <div className="fixed inset-0 z-[90]" role="dialog" aria-modal="true" onClick={onClose}>
-      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]" />
+      <div className="absolute inset-0 bg-slate-900/80" />
       <div
         ref={cardRef}
         className="absolute left-1/2 -translate-x-1/2 w-[min(920px,94vw)] top-[max(56px,calc(env(safe-area-inset-top,0px)+56px))] bg-white rounded-2xl shadow-2xl p-0 overflow-hidden"
