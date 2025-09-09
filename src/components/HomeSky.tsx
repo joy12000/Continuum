@@ -174,6 +174,18 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
     }
   }, [draft]);
 
+  // Listen for long-press event from the global moon to toggle quick settings
+  useEffect(() => {
+    const handleOpenQuickSettings = () => {
+      setShowQuick(s => !s);
+    };
+
+    window.addEventListener('global-moon:long-press-home', handleOpenQuickSettings);
+    return () => {
+      window.removeEventListener('global-moon:long-press-home', handleOpenQuickSettings);
+    };
+  }, []);
+
   // Shooting star animation function
   function spawnClassicMeteor() {
     const host = containerRef.current;

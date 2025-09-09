@@ -1,5 +1,5 @@
-import React, { useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 export type NotificationStatus = 'idle' | 'loading' | 'success' | 'error';
 
@@ -9,12 +9,18 @@ interface GlobalStatusMoonProps {
 
 const GlobalStatusMoon: React.FC<GlobalStatusMoonProps> = ({ status }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const longPressTimer = useRef<number | null>(null);
 
   const handlePointerDown = () => {
     if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
     longPressTimer.current = window.setTimeout(() => {
-      window.dispatchEvent(new CustomEvent('global-moon:long-press'));
+      // Dispatch different events based on the page
+      if (location.pathname === '/') {
+        window.dispatchEvent(new CustomEvent('global-moon:long-press-home'));
+      } else {
+        window.dispatchEvent(new CustomEvent('global-moon:long-press'));
+      }
       longPressTimer.current = null; // Prevent click after long press
     }, 520);
   };
