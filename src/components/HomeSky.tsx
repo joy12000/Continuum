@@ -229,12 +229,7 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
         </button>
       </div>
 
-      <div className="absolute right-4 top-4 z-30 flex items-center gap-2">
-        
-        <button ref={moonRef} aria-label="Settings" className="rounded-full p-2 hover:scale-105 transition-transform" onClick={onMoonClick} onPointerDown={onMoonPointerDown} onPointerUp={onMoonPointerUp} onPointerCancel={onMoonPointerUp}>
-          <CrescentMoonSVG />
-        </button>
-      </div>
+      
 
       <div
         ref={editorRef}

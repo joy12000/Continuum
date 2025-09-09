@@ -1,47 +1,42 @@
 <svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <!-- Warm radial gradient for the moon body -->
-    <radialGradient id="moonGradient" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
-      <stop offset="0%" style="stop-color:#FFFDE8; stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#FFF3C4; stop-opacity:1" />
+    <!-- Base gradient for the moon -->
+    <radialGradient id="moonBaseGradient" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFFBEA" />
+      <stop offset="80%" stop-color="#FFF3C4" />
+      <stop offset="100%" stop-color="#FBEAAB" />
     </radialGradient>
 
-    <!-- Filter for the warm, gentle glow -->
-    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
-      <feMerge>
-        <feMergeNode in="coloredBlur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
+    <!-- A secondary gradient for texture layer -->
+    <radialGradient id="textureGradient" cx="30%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.6" />
+      <stop offset="100%" stop-color="#FFFDE8" stop-opacity="0" />
+    </radialGradient>
 
-    <!-- Advanced texture filter -->
-    <filter id="moonTexture" x="-20%" y="-20%" width="140%" height="140%">
-      <!-- Generate a turbulent noise pattern -->
-      <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="4" seed="15" result="turbulence"/>
-      
-      <!-- Use the noise to displace the moon's surface for a bumpy effect -->
-      <feDisplacementMap in="SourceGraphic" in2="turbulence" scale="2.5" xChannelSelector="R" yChannelSelector="G" result="displaced"/>
-      
-      <!-- Add lighting to the bumpy surface to create highlights and shadows -->
-      <feSpecularLighting in="displaced" surfaceScale="3" specularConstant="1.2" specularExponent="30" lighting-color="#FFFFFF" result="specular">
-        <fePointLight x="20" y="20" z="100" />
-      </feSpecularLighting>
-      
-      <!-- Composite the lighting effect with the original graphic -->
-      <feComposite in="specular" in2="SourceGraphic" operator="in" result="lit"/>
-      
-      <!-- Blend the lit texture with the original moon color -->
-      <feBlend in="SourceGraphic" in2="lit" mode="screen" />
+    <!-- Filter for the outer glow -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
     </filter>
   </defs>
 
-  <!-- Group to apply the glow to both the moon and its texture -->
   <g filter="url(#glow)">
-    <!-- The main moon body with the base gradient -->
-    <circle cx="50" cy="50" r="35" fill="url(#moonGradient)" />
-    
-    <!-- Overlay the texture on top of the moon body -->
-    <circle cx="50" cy="50" r="35" fill="url(#moonGradient)" filter="url(#moonTexture)" opacity="0.7" />
+    <!-- Main moon body -->
+    <circle cx="50" cy="50" r="35" fill="url(#moonBaseGradient)" />
+
+    <!-- Large, soft texture overlay -->
+    <circle cx="50" cy="50" r="35" fill="url(#textureGradient)" opacity="0.5" />
+
+    <!-- Artistic craters and seas (using paths for irregular shapes) -->
+    <path d="M 40 65 A 15 20 0 0 0 60 70 A 18 15 0 0 1 40 65 Z" fill="#FBEAAB" opacity="0.4" />
+    <path d="M 65 30 A 12 18 0 0 1 70 50 A 15 15 0 0 0 65 30 Z" fill="#FBEAAB" opacity="0.3" />
+
+    <!-- Small, distinct craters -->
+    <circle cx="38" cy="35" r="4" fill="#FFFFFF" opacity="0.3" />
+    <circle cx="68" cy="58" r="2.5" fill="#FFFFFF" opacity="0.25" />
+    <circle cx="55" cy="65" r="2" fill="#FFFFFF" opacity="0.3" />
   </g>
 </svg>
