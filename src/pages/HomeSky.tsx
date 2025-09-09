@@ -107,7 +107,17 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
     <div ref={containerRef} className="relative h-dvh w-full overflow-hidden text-white">
       <Toasts />
       <SkyCanvasAnimation prefs={prefs} />
-      <Moon sizeVw={8.5} onClick={() => navigate("/settings")} />
+      {/* 상단 비네트: 여백 축소 & 배경 밴딩 억제 */}
+      <div
+        className="pointer-events-none absolute inset-0 z-10"
+        style={{
+          background:
+            "radial-gradient(120% 70% at 75% 0%, rgba(5,18,40,0.42), rgba(5,18,40,0) 55%)",
+        }}
+      />
+
+      {/* 달 */}
+      <Moon onClick={() => navigate("/settings")} />
 
       <div className="absolute top-3 left-3 z-30">
         <button className="sky-constellation" onClick={handleSave} aria-label="저장">
