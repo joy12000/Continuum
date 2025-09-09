@@ -230,18 +230,7 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
       </div>
 
       <div className="absolute right-4 top-4 z-30 flex items-center gap-2">
-        {showAnswerStar && (
-          <button
-            className="p-2 rounded-full hover:scale-105 transition-transform animate-pulse"
-            onClick={() => {
-              onOpenAnswer?.();
-              setShowAnswerStar(false);
-            }}
-            aria-label="답변 보기"
-          >
-            <AnswerStarSVG />
-          </button>
-        )}
+        
         <button ref={moonRef} aria-label="Settings" className="rounded-full p-2 hover:scale-105 transition-transform" onClick={onMoonClick} onPointerDown={onMoonPointerDown} onPointerUp={onMoonPointerUp} onPointerCancel={onMoonPointerUp}>
           <CrescentMoonSVG />
         </button>
