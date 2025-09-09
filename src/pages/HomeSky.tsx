@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Toasts } from "../components/Toasts";
 import { toast } from "../lib/toast";
 import SkyCanvasAnimation from "../components/SkyCanvasAnimation";
+import Moon from "../components/Moon";
 
 // Type definitions
 type QuickPrefs = {
@@ -106,6 +107,7 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
     <div ref={containerRef} className="relative h-dvh w-full overflow-hidden text-white">
       <Toasts />
       <SkyCanvasAnimation prefs={prefs} />
+      <Moon sizeVw={8.5} onClick={() => navigate("/settings")} />
 
       <div className="absolute top-3 left-3 z-30">
         <button className="sky-constellation" onClick={handleSave} aria-label="저장">

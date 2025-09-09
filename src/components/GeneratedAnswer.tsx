@@ -7,12 +7,11 @@ interface GeneratedAnswerProps {
 }
 
 /**
- * Renders the AI-generated answer with source highlighting and a reference section.
- * Each sentence includes a clickable anchor `[number]` that links to the source note.
+ * Renders the AI-generated answer with a design that complements the sky/space theme.
+ * Features a glassmorphism background, improved text visibility, and clear source references.
  * @param {GeneratedAnswerProps} props - The props containing the answer data.
  */
 export function GeneratedAnswer({ data, noteTitlesMap }: GeneratedAnswerProps) {
-  // Create a mapping from sourceNoteId to a display number (e.g., "note123" -> 1)
   const sourceIdToNumberMap = new Map<string, number>();
   let currentSourceNumber = 1;
 
@@ -23,11 +22,10 @@ export function GeneratedAnswer({ data, noteTitlesMap }: GeneratedAnswerProps) {
   });
 
   return (
-    <div className="bg-transparent p-4 rounded-lg animate-fadeIn">
-      <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-3">AI 답변</h3>
+    <div className="bg-sky-900/30 dark:bg-sky-950/40 backdrop-blur-lg border border-white/10 rounded-2xl p-5 shadow-lg animate-fadeIn">
+      <h3 className="text-xl font-bold text-white/90 mb-4 text-shadow-[0_1px_3px_rgba(0,0,0,0.4)]">AI 요약</h3>
       
-      {/* Answer Sentences with Source Anchors */}
-      <div className="text-slate-700 dark:text-slate-200">
+      <div className="text-sky-50/90 text-base leading-relaxed space-y-3">
         <p>
           {data.answerSegments.map((segment, index) => {
             const sourceNumber = sourceIdToNumberMap.get(segment.sourceNoteId);
@@ -36,8 +34,8 @@ export function GeneratedAnswer({ data, noteTitlesMap }: GeneratedAnswerProps) {
                 {segment.sentence}
                 {sourceNumber && (
                   <a 
-                    href={`#source-${sourceNumber}`} 
-                    className="ml-1 text-indigo-400 font-bold no-underline hover:underline"
+                    href={`#source-${sourceNumber}`}
+                    className="ml-1.5 text-cyan-300 font-semibold no-underline hover:text-cyan-100 hover:underline transition-colors duration-200"
                     title={`출처 ${sourceNumber}로 이동`}
                   >
                     [{sourceNumber}]
@@ -50,25 +48,24 @@ export function GeneratedAnswer({ data, noteTitlesMap }: GeneratedAnswerProps) {
         </p>
       </div>
 
-      {/* Reference Notes Section */}
       {data.sourceNotes.length > 0 && (
-        <div className="mt-6 border-t border-slate-200 dark:border-slate-700 pt-4">
-          <h4 className="text-md font-semibold text-slate-600 dark:text-slate-200 mb-2">참고 자료</h4>
-          <ul className="space-y-3">
+        <div className="mt-6 border-t border-white/10 pt-4">
+          <h4 className="text-lg font-semibold text-white/80 mb-3">참고 자료</h4>
+          <ul className="space-y-2">
             {data.sourceNotes.map((noteId) => {
               const sourceNumber = sourceIdToNumberMap.get(noteId);
-              const noteTitle = noteTitlesMap[noteId] || `노트 내용 (ID: ${noteId.substring(0, 8)}...)`; 
+              const noteTitle = noteTitlesMap[noteId] || `노트 (ID: ${noteId.substring(0, 8)}...)`;
 
               return (
                 <li 
                   key={noteId} 
                   id={`source-${sourceNumber}`}
-                  className="text-sm text-slate-500 dark:text-slate-300 p-2 bg-slate-100 dark:bg-slate-700/50 rounded-md"
+                  className="text-sm text-sky-100/80 p-2.5 bg-black/20 dark:bg-white/5 rounded-lg flex items-center transition-all duration-200 hover:bg-black/30 hover:text-sky-50"
                 >
-                  <span className="font-bold text-indigo-500 dark:text-indigo-400 mr-2">
-                    [{sourceNumber}]
+                  <span className="flex-shrink-0 h-5 w-5 bg-cyan-400/20 text-cyan-200 font-bold text-xs flex items-center justify-center rounded-full mr-3">
+                    {sourceNumber}
                   </span>
-                  {noteTitle}
+                  <span className="truncate">{noteTitle}</span>
                 </li>
               );
             })}
