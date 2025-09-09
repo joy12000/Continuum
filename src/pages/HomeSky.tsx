@@ -113,7 +113,7 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
         </button>
       </div>
 
-      <div className="absolute right-4 top-4 z-30 flex items-center gap-2">
+      <div className="absolute right-16 md:right-20 top-1 md:top-2 z-30 flex items-center gap-2">
         {answerSignal && answerSignal > 0 && (
           <button
             className="p-2 rounded-full hover:scale-105 transition-transform animate-pulse"

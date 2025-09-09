@@ -7,11 +7,12 @@ import type { Note } from "../types/common";
 import ConfirmModal from "./ConfirmModal";
 import { toast } from "../lib/toast";
 import { DedupSuggestions } from "./DedupSuggestions";
-import { Home } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { ModelStatus } from "./ModelStatus";
 import { supabase } from "../lib/supabase";
 import { deleteAllUserData, bulkAddNotes, listNotes } from "../lib/supabaseService";
 import { SettingsCard } from "./SettingsCard";
+import SkyCanvasAnimation from "./SkyCanvasAnimation";
 
 import { usePWAInstall } from "../hooks/usePWAInstall";
 
@@ -227,114 +228,117 @@ export function Settings({ engine, setEngine, onNavigateHome, onNavigateToDiagno
   };
 
   return (
-    <div className="p-4 bg-slate-900 text-slate-100 font-sans min-h-screen">
-      <header className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">설정</h1>
-        <button onClick={onNavigateHome} className="p-2 rounded-full hover:bg-slate-800">
-          <Home size={24} />
-        </button>
-      </header>
-
-      <div className="space-y-6">
-        <SettingsCard title="임베딩 모드">
-          <select 
-            value={engine} 
-            onChange={(e) => setEngine(e.target.value as Engine)}
-            className="select select-bordered w-full bg-slate-700 text-slate-100"
-          >
-            <option value="auto">자동 (On-device)</option>
-            <option value="remote">원격 API</option>
-          </select>
-          <p className="text-sm text-slate-400 mt-2">
-            '자동'은 기기 내에서 임베딩을 처리하여 빠르고 프라이버시가 보호됩니다. '원격 API'는 더 강력한 모델을 사용하지만 인터넷 연결이 필요합니다.
-          </p>
-          <div className="mt-2">
-            <ModelStatus status={modelStatus} />
-          </div>
-        </SettingsCard>
-
-        <SettingsCard title="데이터 관리">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <button onClick={handleExportNotes} className="btn btn-primary flex-1">
-              모든 노트 내보내기 (JSON)
-            </button>
-            <input type="file" accept=".json" onChange={handleImportNotes} className="hidden" id="import-notes-file-input" />
-            <label htmlFor="import-notes-file-input" className="btn btn-secondary flex-1 cursor-pointer">
-              노트 가져오기 (JSON)
-            </label>
-          </div>
-        </SettingsCard>
-
-        <SettingsCard title="스냅샷 관리">
-          <button onClick={handleCreateSnapshot} disabled={loading} className="btn btn-primary mb-4 w-full">
-            {loading ? '스냅샷 생성 중...' : '현재 상태 스냅샷 생성'}
+    <div className="relative p-4 bg-slate-900 text-slate-100 font-sans min-h-screen isolate">
+      <SkyCanvasAnimation />
+      <div className="relative z-10">
+        <header className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold">설정</h1>
+          <button onClick={onNavigateHome} className="p-2 rounded-full hover:bg-slate-800">
+            <ArrowLeft size={24} />
           </button>
-          {error && <div className="text-red-500 mb-4">{error}</div>}
-          {snapshots.length === 0 ? (
-            <p className="text-slate-400">저장된 스냅샷이 없습니다.</p>
-          ) : (
-            <ul className="space-y-2">
-              {snapshots.map(snapshot => (
-                <li key={snapshot.id} className="flex justify-between items-center p-2 bg-slate-700/50 rounded-md">
-                  <span>{new Date(snapshot.createdAt).toLocaleString()} ({snapshot.noteCount} 노트)</span>
-                  <button onClick={() => handleRestoreClick(snapshot)} className="btn btn-sm btn-secondary">복원</button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </SettingsCard>
+        </header>
 
-        <SettingsCard title="중복 노트 관리">
-          <DedupSuggestions notes={notes} engine={engine} onMerge={handleMerge} />
-        </SettingsCard>
-
-        {canInstall && (
-          <SettingsCard title="앱 설치">
-            <button onClick={triggerInstall} className="btn btn-primary w-full">
-              홈 화면에 앱 추가
-            </button>
-            <p className="text-sm text-slate-400 mt-2">
-              이 웹 앱을 기기에 설치하여 네이티브 앱처럼 사용할 수 있습니다.
-            </p>
-          </SettingsCard>
-        )}
-
-        <SettingsCard title="모양">
-          <div className="flex items-center justify-between">
-            <span>테마</span>
-            <select className="select select-bordered bg-slate-700 text-slate-100">
-              <option>시스템</option>
-              <option>라이트</option>
-              <option>다크</option>
+        <div className="space-y-6">
+          <SettingsCard title="임베딩 모드">
+            <select 
+              value={engine} 
+              onChange={(e) => setEngine(e.target.value as Engine)}
+              className="select select-bordered w-full bg-slate-700 text-slate-100"
+            >
+              <option value="auto">자동 (On-device)</option>
+              <option value="remote">원격 API</option>
             </select>
-          </div>
-        </SettingsCard>
-
-        <SettingsCard title="개발자">
-          <button onClick={onNavigateToDiagnostics} className="w-full text-left p-2 text-sky-400 hover:underline">
-            개발자 도구
-          </button>
-        </SettingsCard>
-
-        <SettingsCard title="위험 구역">
-            <button onClick={handleClearAllData} className="btn btn-error w-full">
-                모든 데이터 지우기
-            </button>
             <p className="text-sm text-slate-400 mt-2">
-                이 작업은 되돌릴 수 없습니다. 모든 노트, 스냅샷 및 기타 데이터를 영구적으로 삭제합니다.
+              '자동'은 기기 내에서 임베딩을 처리하여 빠르고 프라이버시가 보호됩니다. '원격 API'는 더 강력한 모델을 사용하지만 인터넷 연결이 필요합니다.
             </p>
-        </SettingsCard>
-      </div>
+            <div className="mt-2">
+              <ModelStatus status={modelStatus} />
+            </div>
+          </SettingsCard>
 
-      {modalState.isOpen && (
-        <ConfirmModal
-          title="스냅샷 복원 확인"
-          onConfirm={handleConfirmRestore}
-          onClose={handleCancelRestore}
-        >
-          정말로 이 스냅샷을 복원하시겠습니까? 현재 모든 데이터가 스냅샷 시점의 데이터로 대체됩니다. 이 작업은 되돌릴 수 없습니다.
-        </ConfirmModal>
-      )}
+          <SettingsCard title="데이터 관리">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button onClick={handleExportNotes} className="btn btn-primary flex-1">
+                모든 노트 내보내기 (JSON)
+              </button>
+              <input type="file" accept=".json" onChange={handleImportNotes} className="hidden" id="import-notes-file-input" />
+              <label htmlFor="import-notes-file-input" className="btn btn-secondary flex-1 cursor-pointer">
+                노트 가져오기 (JSON)
+              </label>
+            </div>
+          </SettingsCard>
+
+          <SettingsCard title="스냅샷 관리">
+            <button onClick={handleCreateSnapshot} disabled={loading} className="btn btn-primary mb-4 w-full">
+              {loading ? '스냅샷 생성 중...' : '현재 상태 스냅샷 생성'}
+            </button>
+            {error && <div className="text-red-500 mb-4">{error}</div>}
+            {snapshots.length === 0 ? (
+              <p className="text-slate-400">저장된 스냅샷이 없습니다.</p>
+            ) : (
+              <ul className="space-y-2">
+                {snapshots.map(snapshot => (
+                  <li key={snapshot.id} className="flex justify-between items-center p-2 bg-slate-700/50 rounded-md">
+                    <span>{new Date(snapshot.createdAt).toLocaleString()} ({snapshot.noteCount} 노트)</span>
+                    <button onClick={() => handleRestoreClick(snapshot)} className="btn btn-sm btn-secondary">복원</button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </SettingsCard>
+
+          <SettingsCard title="중복 노트 관리">
+            <DedupSuggestions notes={notes} engine={engine} onMerge={handleMerge} />
+          </SettingsCard>
+
+          {canInstall && (
+            <SettingsCard title="앱 설치">
+              <button onClick={triggerInstall} className="btn btn-primary w-full">
+                홈 화면에 앱 추가
+              </button>
+              <p className="text-sm text-slate-400 mt-2">
+                이 웹 앱을 기기에 설치하여 네이티브 앱처럼 사용할 수 있습니다.
+              </p>
+            </SettingsCard>
+          )}
+
+          <SettingsCard title="모양">
+            <div className="flex items-center justify-between">
+              <span>테마</span>
+              <select className="select select-bordered bg-slate-700 text-slate-100">
+                <option>시스템</option>
+                <option>라이트</option>
+                <option>다크</option>
+              </select>
+            </div>
+          </SettingsCard>
+
+          <SettingsCard title="개발자">
+            <button onClick={onNavigateToDiagnostics} className="w-full text-left p-2 text-sky-400 hover:underline">
+              개발자 도구
+            </button>
+          </SettingsCard>
+
+          <SettingsCard title="위험 구역">
+              <button onClick={handleClearAllData} className="btn btn-error w-full">
+                  모든 데이터 지우기
+              </button>
+              <p className="text-sm text-slate-400 mt-2">
+                  이 작업은 되돌릴 수 없습니다. 모든 노트, 스냅샷 및 기타 데이터를 영구적으로 삭제합니다.
+              </p>
+          </SettingsCard>
+        </div>
+
+        {modalState.isOpen && (
+          <ConfirmModal
+            title="스냅샷 복원 확인"
+            onConfirm={handleConfirmRestore}
+            onClose={handleCancelRestore}
+          >
+            정말로 이 스냅샷을 복원하시겠습니까? 현재 모든 데이터가 스냅샷 시점의 데이터로 대체됩니다. 이 작업은 되돌릴 수 없습니다.
+          </ConfirmModal>
+        )}
+      </div>
     </div>
   );
 }
