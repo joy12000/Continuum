@@ -42,7 +42,7 @@ const SearchResultsList = ({ results, loading, noteTitlesMap, query, onNoteClick
               <div className="flex-grow">
                 <h3 className="text-lg font-semibold text-primary">{noteTitlesMap[result.note_id] || '제목 없는 노트'}</h3>
                 <div 
-                  className="text-sm text-muted-foreground mt-2 snippet"
+                  className="text-sm text-slate-300 mt-2 snippet"
                   dangerouslySetInnerHTML={{ __html: highlight(result.content, query) }}
                 />
               </div>
@@ -155,7 +155,7 @@ const SearchPage = ({ session }: { session: Session | null }) => {
           suggestionError={null}
           isModelReady={true}
           modelStatus="Ready"
-          className="bg-card border-border text-primary placeholder-muted-foreground focus:ring-ring focus:border-ring"
+          className="bg-slate-900/60 backdrop-blur-lg border border-slate-700/50 text-primary placeholder-muted-foreground focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/80"
         />
         <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">

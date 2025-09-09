@@ -188,7 +188,7 @@ const LinksPage = () => {
             </div>
             <button
               onClick={handleGenerateClick}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-muted transition-colors"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-accent-foreground bg-accent/80 rounded-lg hover:bg-accent disabled:bg-muted transition-colors"
             >
               <CpuChipIcon className="w-5 h-5" />
               다시 분석

@@ -23,11 +23,11 @@ export function GeneratedAnswer({ data, noteTitlesMap }: GeneratedAnswerProps) {
   });
 
   return (
-    <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-md animate-fadeIn">
-      <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-3">AI 답변</h3>
+    <div className="bg-transparent p-4 rounded-lg animate-fadeIn">
+      <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-3">AI 답변</h3>
       
       {/* Answer Sentences with Source Anchors */}
-      <div className="text-slate-700 dark:text-slate-300">
+      <div className="text-slate-700 dark:text-slate-200">
         <p>
           {data.answerSegments.map((segment, index) => {
             const sourceNumber = sourceIdToNumberMap.get(segment.sourceNoteId);
@@ -53,7 +53,7 @@ export function GeneratedAnswer({ data, noteTitlesMap }: GeneratedAnswerProps) {
       {/* Reference Notes Section */}
       {data.sourceNotes.length > 0 && (
         <div className="mt-6 border-t border-slate-200 dark:border-slate-700 pt-4">
-          <h4 className="text-md font-semibold text-slate-600 dark:text-slate-300 mb-2">참고 자료</h4>
+          <h4 className="text-md font-semibold text-slate-600 dark:text-slate-200 mb-2">참고 자료</h4>
           <ul className="space-y-3">
             {data.sourceNotes.map((noteId) => {
               const sourceNumber = sourceIdToNumberMap.get(noteId);
@@ -63,7 +63,7 @@ export function GeneratedAnswer({ data, noteTitlesMap }: GeneratedAnswerProps) {
                 <li 
                   key={noteId} 
                   id={`source-${sourceNumber}`}
-                  className="text-sm text-slate-500 dark:text-slate-400 p-2 bg-slate-100 dark:bg-slate-700/50 rounded-md"
+                  className="text-sm text-slate-500 dark:text-slate-300 p-2 bg-slate-100 dark:bg-slate-700/50 rounded-md"
                 >
                   <span className="font-bold text-indigo-500 dark:text-indigo-400 mr-2">
                     [{sourceNumber}]
