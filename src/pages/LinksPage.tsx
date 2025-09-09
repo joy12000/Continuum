@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import PageLayout from '@/components/PageLayout';
 import InsightThreadCard from '@/components/InsightThreadCard';
 import GenerationProgress from '@/components/GenerationProgress';
-import SourceNoteModal from '@/components/SourceNoteModal';
+import { NoteDetailModal } from '@/components/NoteDetailModal';
 import { useJobStatus } from '@/hooks/useJobStatus';
 import { supabase } from '@/lib/supabase';
 import type { InsightThread, Note } from '@lib/types';
@@ -70,11 +70,11 @@ const LinksPage = () => {
   const queryClient = useQueryClient();
   const [jobId, setJobId] = useState<string | null>(localStorage.getItem('continuum_job_id'));
   const [isModalOpen, setModalOpen] = useState(false);
-  const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [excludeSingletons, setExcludeSingletons] = useState<boolean>(true);
 
   const handleNoteClick = (note: Note) => {
-    setSelectedNote(note);
+    setSelectedNoteId(note.id);
     setModalOpen(true);
   };
 
@@ -208,12 +208,11 @@ const LinksPage = () => {
       <div className="p-4 sm:p-6">
         {renderContent()}
       </div>
-      <SourceNoteModal 
+      {selectedNoteId && <NoteDetailModal 
         isOpen={isModalOpen} 
         onClose={() => setModalOpen(false)} 
-        title={selectedNote?.title || '제목 없는 노트'}
-        body={selectedNote?.body || ''}
-      />
+        noteId={selectedNoteId}
+      />}
     </PageLayout>
   );
 };

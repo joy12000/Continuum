@@ -7,6 +7,8 @@ import PageLayout from '../components/PageLayout';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeftIcon, ChevronRightIcon, CalendarIcon } from '@heroicons/react/24/outline';
 
+import { NoteDetailModal } from '../components/NoteDetailModal';
+
 // 캘린더 활동 데이터 타입 정의
 type NoteActivity = {
   activity_date: string; // 'YYYY-MM-DD'
@@ -87,6 +89,13 @@ const fetchNoteActivity = async (startDate: string, endDate: string): Promise<No
 const CalendarPage = () => {
   const [selectedDate, setSelectedDate] = useState<string>(ymd(new Date()));
   const [displayDate, setDisplayDate] = useState(new Date());
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+
+  const handleNoteClick = (noteId: string) => {
+    setSelectedNoteId(noteId);
+    setIsModalOpen(true);
+  };
 
   const year = displayDate.getFullYear();
   const month = displayDate.getMonth(); // 0-indexed
@@ -186,11 +195,11 @@ const CalendarPage = () => {
                 <ul className="space-y-3">
                   {notesForSelectedDay.map(note => (
                     <li key={note.id}>
-                      <Link to={`/notes/${note.id}`} className="block p-4 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors duration-200">
+                      <button onClick={() => handleNoteClick(note.id)} className="block w-full text-left p-4 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors duration-200">
                         <h3 className="font-semibold text-primary truncate">{note.title || '제목 없는 노트'}</h3>
                         <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{note.body}</p>
                         <div className="text-xs text-muted-foreground/80 mt-2 text-right">{new Date(note.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</div>
-                      </Link>
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -201,6 +210,7 @@ const CalendarPage = () => {
           </div>
         </div>
       </div>
+      {selectedNoteId && <NoteDetailModal noteId={selectedNoteId} isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />}
     </PageLayout>
   );
 };

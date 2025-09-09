@@ -8,6 +8,7 @@ import { GeneratedAnswer } from '../components/GeneratedAnswer';
 import { getNotesByIds } from '../lib/supabaseService';
 import { AnswerData, Note } from '../types/common';
 import { HandThumbUpIcon as ThumbUpIcon, HandThumbDownIcon as ThumbDownIcon } from '@heroicons/react/24/outline';
+import { NoteDetailModal } from '../components/NoteDetailModal';
 
 // Enhanced highlight function
 const highlight = (text: string, query: string) => {
@@ -17,7 +18,7 @@ const highlight = (text: string, query: string) => {
 };
 
 // Component to render the search results
-const SearchResultsList = ({ results, loading, noteTitlesMap, query }: { results: SearchResult[], loading: boolean, noteTitlesMap: Record<string, string>, query: string }) => {
+const SearchResultsList = ({ results, loading, noteTitlesMap, query, onNoteClick }: { results: SearchResult[], loading: boolean, noteTitlesMap: Record<string, string>, query: string, onNoteClick: (noteId: string) => void }) => {
   if (loading) {
     return <div className="p-4 text-muted-foreground text-center">검색 중...</div>;
   }
@@ -35,7 +36,7 @@ const SearchResultsList = ({ results, loading, noteTitlesMap, query }: { results
     <ul className="space-y-4">
       {results.map(result => (
         <li key={`${result.note_id}_${result.chunk_index}`}>
-          <Link to={`/notes/${result.note_id}`} className="block border border-border bg-card rounded-lg p-4 transition-all duration-300 hover:bg-secondary hover:shadow-md">
+          <button onClick={() => onNoteClick(result.note_id)} className="block w-full text-left border border-border bg-card rounded-lg p-4 transition-all duration-300 hover:bg-secondary hover:shadow-md">
             <div className="flex justify-between items-start">
               <div className="flex-grow">
                 <h3 className="text-lg font-semibold text-primary">{noteTitlesMap[result.note_id] || '제목 없는 노트'}</h3>
@@ -45,16 +46,16 @@ const SearchResultsList = ({ results, loading, noteTitlesMap, query }: { results
                 />
               </div>
               <div className="flex flex-col space-y-2 ml-4">
-                <button onClick={(e) => { e.preventDefault(); handleFeedback(result, 'like'); }} className="text-muted-foreground hover:text-green-500 transition-colors p-1 rounded-full hover:bg-secondary">
+                <button onClick={(e) => { e.stopPropagation(); handleFeedback(result, 'like'); }} className="text-muted-foreground hover:text-green-500 transition-colors p-1 rounded-full hover:bg-secondary">
                   <ThumbUpIcon className="h-6 w-6" />
                 </button>
-                <button onClick={(e) => { e.preventDefault(); handleFeedback(result, 'dislike'); }} className="text-muted-foreground hover:text-red-500 transition-colors p-1 rounded-full hover:bg-secondary">
+                <button onClick={(e) => { e.stopPropagation(); handleFeedback(result, 'dislike'); }} className="text-muted-foreground hover:text-red-500 transition-colors p-1 rounded-full hover:bg-secondary">
                   <ThumbDownIcon className="h-6 w-6" />
                 </button>
               </div>
             </div>
             <div className="text-xs text-muted-foreground/80 mt-2">유사도: {result.similarity.toFixed(3)}</div>
-          </Link>
+          </button>
         </li>
       ))}
     </ul>
@@ -71,6 +72,13 @@ const SearchPage = ({ session }: { session: Session | null }) => {
     isLoading: false,
     error: null,
   });
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+
+  const handleNoteClick = (noteId: string) => {
+    setSelectedNoteId(noteId);
+    setIsModalOpen(true);
+  };
 
   const [noteTitlesMap, setNoteTitlesMap] = useState<Record<string, string>>({});
 
@@ -150,7 +158,7 @@ const SearchPage = ({ session }: { session: Session | null }) => {
         <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             <h2 className="text-xl font-semibold mb-4">검색 결과</h2>
-            <SearchResultsList results={results} loading={loading} noteTitlesMap={noteTitlesMap} query={query} />
+            <SearchResultsList results={results} loading={loading} noteTitlesMap={noteTitlesMap} query={query} onNoteClick={handleNoteClick} />
           </div>
           <div className="lg:col-span-1">
             <h2 className="text-xl font-semibold mb-4">생성된 답변</h2>
@@ -162,6 +170,7 @@ const SearchPage = ({ session }: { session: Session | null }) => {
           </div>
         </div>
       </div>
+      {selectedNoteId && <NoteDetailModal noteId={selectedNoteId} isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />}
     </PageLayout>
   );
 };
