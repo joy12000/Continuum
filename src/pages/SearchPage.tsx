@@ -21,11 +21,11 @@ const highlight = (text: string, query: string) => {
 // Component to render the search results
 const SearchResultsList = ({ results, loading, noteTitlesMap, query, onNoteClick }: { results: SearchResult[], loading: boolean, noteTitlesMap: Record<string, string>, query: string, onNoteClick: (noteId: string) => void }) => {
   if (loading) {
-    return <div className="p-4 text-muted-foreground text-center">검색 중...</div>;
+    return <div className="p-4 text-muted-foreground text-center bg-slate-900/60 backdrop-blur-lg border border-slate-700/50 rounded-lg shadow-lg">검색 중...</div>;
   }
 
   if (results.length === 0) {
-    return <div className="p-4 text-muted-foreground text-center">검색 결과가 없습니다.</div>;
+    return <div className="p-4 text-muted-foreground text-center bg-slate-900/60 backdrop-blur-lg border border-slate-700/50 rounded-lg shadow-lg">검색 결과가 없습니다.</div>;
   }
 
   const handleFeedback = (result: SearchResult, feedback: 'like' | 'dislike') => {

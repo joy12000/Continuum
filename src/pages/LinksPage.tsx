@@ -128,11 +128,11 @@ const LinksPage = () => {
     }
 
     if (isLoadingInitial) {
-      return <div className="flex items-center justify-center h-full text-muted-foreground">캐시된 데이터 확인 중...</div>;
+      return <div className="flex items-center justify-center h-full text-muted-foreground bg-slate-900/60 backdrop-blur-lg border border-slate-700/50 rounded-lg p-8">캐시된 데이터 확인 중...</div>;
     }
 
     if (queryError) {
-      return <div className="flex items-center justify-center h-full text-destructive">오류: {queryError.message}</div>;
+      return <div className="flex items-center justify-center h-full text-destructive bg-slate-900/60 backdrop-blur-lg border border-slate-700/50 rounded-lg p-8">오류: {queryError.message}</div>;
     }
 
     const threads = cachedData?.threads;
