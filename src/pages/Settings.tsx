@@ -6,6 +6,7 @@ import { toast } from 'react-hot-toast';
 import { ArrowLeftIcon, ArrowLeftOnRectangleIcon, CodeBracketIcon, ExclamationTriangleIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { SettingsCard } from '../components/SettingsCard';
 import SkyBackground from '../components/SkyBackground';
+import Moon from '../components/Moon';
 
 const Settings: React.FC = () => {
   const navigate = useNavigate();
