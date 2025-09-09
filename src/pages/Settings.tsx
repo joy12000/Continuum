@@ -38,6 +38,7 @@ const Settings: React.FC = () => {
   return (
     <div className="relative min-h-screen w-full text-white">
       <SkyBackground />
+      <Moon onClick={() => navigate('/settings')} />
       <div className="relative z-10 p-4 sm:p-6 max-w-4xl mx-auto">
         <header className="flex items-center justify-between mb-8">
           <button 
