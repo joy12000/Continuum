@@ -62,13 +62,13 @@ const GlobalStatusMoon: React.FC<GlobalStatusMoonProps> = ({ status }) => {
   return (
     <button
       aria-label="Status and Settings"
-      className={`fixed top-2 right-2 z-50 p-2 rounded-full transition-[color,box-shadow,transform] duration-300 ease-in-out focus:outline-none hover:scale-105 active:scale-95 ${getStatusClasses()}`}
+      className={`fixed top-1 right-1 md:top-2 md:right-2 z-50 p-2 rounded-full transition-[color,box-shadow,transform] duration-300 ease-in-out focus:outline-none hover:scale-105 active:scale-95 ${getStatusClasses()}`}
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerLeave}
       onPointerCancel={handlePointerLeave}
     >
-      <img src="/icons/moon-icon.svg" alt="Status Moon" className="w-22 h-22" />
+      <img src="/icons/moon-icon.svg" alt="Status Moon" className="w-12 h-12 md:w-16 md:h-16" />
     </button>
   );
 };
