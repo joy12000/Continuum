@@ -9,6 +9,7 @@ import { useJobStatus } from '@/hooks/useJobStatus';
 import { supabase } from '@/lib/supabase';
 import type { InsightThread, Note } from '@lib/types';
 import { BeakerIcon, CpuChipIcon } from '@heroicons/react/24/outline';
+import SkyCanvasAnimation from '@/components/SkyCanvasAnimation';
 
 // --- Type Definitions ---
 interface CachedThreadsResponse {
@@ -205,7 +206,8 @@ const LinksPage = () => {
 
   return (
     <PageLayout title="인사이트 스레드">
-      <div className="p-4 sm:p-6">
+      <SkyCanvasAnimation />
+      <div className="relative z-10">
         {renderContent()}
       </div>
       {selectedNoteId && <NoteDetailModal 

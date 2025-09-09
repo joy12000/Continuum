@@ -8,10 +8,10 @@ type QuickPrefs = {
 const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
 
 interface SkyCanvasAnimationProps {
-  prefs: QuickPrefs;
+  prefs?: QuickPrefs;
 }
 
-const SkyCanvasAnimation: React.FC<SkyCanvasAnimationProps> = ({ prefs }) => {
+const SkyCanvasAnimation: React.FC<SkyCanvasAnimationProps> = ({ prefs = { starDensity: 1.0, starBrightness: 1.0 } }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rafRef = useRef<number | null>(null);
   const starsRef = useRef<{ x: number; y: number; r: number; tw: number }[]>([]);

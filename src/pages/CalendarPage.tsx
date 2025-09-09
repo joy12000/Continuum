@@ -8,6 +8,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ChevronLeftIcon, ChevronRightIcon, CalendarIcon } from '@heroicons/react/24/outline';
 
 import { NoteDetailModal } from '../components/NoteDetailModal';
+import SkyCanvasAnimation from '../components/SkyCanvasAnimation';
 
 // 캘린더 활동 데이터 타입 정의
 type NoteActivity = {
@@ -149,7 +150,8 @@ const CalendarPage = () => {
 
   return (
     <PageLayout title="캘린더">
-      <div className="p-4 sm:p-6">
+      <SkyCanvasAnimation />
+      <div className="relative z-10">
         <div className="flex justify-between items-center mb-6">
           <button onClick={() => handleMonthChange(-1)} className="p-2 rounded-full hover:bg-secondary transition-colors" aria-label="이전 달"><ChevronLeftIcon className="w-6 h-6" /></button>
           <div className="flex items-center gap-4">

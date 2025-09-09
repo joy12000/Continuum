@@ -9,6 +9,7 @@ import { getNotesByIds } from '../lib/supabaseService';
 import { AnswerData, Note } from '../types/common';
 import { HandThumbUpIcon as ThumbUpIcon, HandThumbDownIcon as ThumbDownIcon } from '@heroicons/react/24/outline';
 import { NoteDetailModal } from '../components/NoteDetailModal';
+import SkyCanvasAnimation from '../components/SkyCanvasAnimation';
 
 // Enhanced highlight function
 const highlight = (text: string, query: string) => {
@@ -143,7 +144,8 @@ const SearchPage = ({ session }: { session: Session | null }) => {
 
   return (
     <PageLayout title="노트 검색">
-      <div className="p-4 sm:p-6">
+      <SkyCanvasAnimation />
+      <div className="relative z-10">
         <SearchBar 
           q={query} 
           setQ={setQuery} 
