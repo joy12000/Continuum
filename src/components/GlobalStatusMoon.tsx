@@ -13,16 +13,13 @@ const GlobalStatusMoon: React.FC<GlobalStatusMoonProps> = ({ status }) => {
   const longPressTimer = useRef<number | null>(null);
 
   const handlePointerDown = () => {
-    console.log('GlobalStatusMoon: Pointer down.'); // Log pointer down event
     if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
     longPressTimer.current = window.setTimeout(() => {
-      console.log('GlobalStatusMoon: Long press detected on path:', location.pathname); // Log long press and path
-      // Dispatch different events based on the page
-      if (location.pathname === '/') {
-        console.log('GlobalStatusMoon: Dispatching event: global-moon:long-press-home'); // Log which event is dispatched
-        window.dispatchEvent(new CustomEvent('global-moon:long-press-home'));
+      // On the home page, directly call the globally exposed function
+      if (location.pathname === '/' && typeof (window as any).toggleQuickSettings === 'function') {
+        (window as any).toggleQuickSettings();
       } else {
-        console.log('GlobalStatusMoon: Dispatching event: global-moon:long-press'); // Log which event is dispatched
+        // On other pages, dispatch the event for diagnostics
         window.dispatchEvent(new CustomEvent('global-moon:long-press'));
       }
       longPressTimer.current = null; // Prevent click after long press

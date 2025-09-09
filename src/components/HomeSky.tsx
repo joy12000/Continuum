@@ -175,16 +175,15 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
 
   // Listen for long-press event from the global moon to toggle quick settings
   useEffect(() => {
-    console.log('HomeSky: Attaching long-press event listener.'); // Log listener attachment
     const handleOpenQuickSettings = () => {
-      console.log('HomeSky: Received long-press event! Toggling quick settings.'); // Log event reception
       setShowQuick(s => !s);
     };
 
-    window.addEventListener('global-moon:long-press-home', handleOpenQuickSettings);
+    // Expose the toggle function globally for the moon button to call
+    (window as any).toggleQuickSettings = handleOpenQuickSettings;
+
     return () => {
-      console.log('HomeSky: Cleaning up long-press event listener.'); // Log cleanup
-      window.removeEventListener('global-moon:long-press-home', handleOpenQuickSettings);
+      (window as any).toggleQuickSettings = undefined;
     };
   }, []);
 
