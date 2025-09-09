@@ -18,18 +18,18 @@ interface CachedThreadsResponse {
 
 // --- Time Formatting Helper ---
 const formatTimeAgo = (dateString: string | null): string => {
-  if (!dateString) return 'N/A';
+  if (!dateString) return '해당 없음';
   const date = new Date(dateString);
   const now = new Date();
   const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-  if (seconds < 60) return `${seconds} seconds ago`;
+  if (seconds < 60) return `${seconds}초 전`;
   const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes} minutes ago`;
+  if (minutes < 60) return `${minutes}분 전`;
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} hours ago`;
+  if (hours < 24) return `${hours}시간 전`;
   const days = Math.floor(hours / 24);
-  return `${days} days ago`;
+  return `${days}일 전`;
 };
 
 // --- API Call Functions ---
@@ -43,7 +43,7 @@ const fetchCachedThreads = async (): Promise<CachedThreadsResponse> => {
     if (response.status === 204 || response.headers.get('content-length') === '0') {
       return { threads: [], lastUpdatedAt: null };
     }
-    throw new Error(`HTTP error! status: ${response.status}`);
+    throw new Error(`HTTP 오류! 상태: ${response.status}`);
   }
   return response.json();
 };
@@ -60,8 +60,8 @@ const startGenerationJob = async (excludeSingletons: boolean): Promise<{ jobId: 
         body: JSON.stringify({ excludeSingletons })
     });
     if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: "An unknown error occurred." }));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        const errorData = await response.json().catch(() => ({ message: "알 수 없는 오류가 발생했습니다." }));
+        throw new Error(errorData.message || `HTTP 오류! 상태: ${response.status}`);
     }
     return response.json();
 };
@@ -85,7 +85,7 @@ const LinksPage = () => {
 
   const handleJobSuccess = () => {
     console.log("Job completed successfully!");
-    alert("Insight thread analysis complete!");
+    alert("인사이트 스레드 분석 완료!");
     localStorage.removeItem('continuum_job_id');
     setJobId(null);
     queryClient.invalidateQueries({ queryKey: ['cachedThreads'] });
@@ -93,7 +93,7 @@ const LinksPage = () => {
 
   const handleJobError = (error: string) => {
     console.error("Job failed:", error);
-    alert(`An error occurred: ${error}`);
+    alert(`오류가 발생했습니다: ${error}`);
     localStorage.removeItem('continuum_job_id');
     setJobId(null);
   };
@@ -110,7 +110,7 @@ const LinksPage = () => {
       localStorage.setItem('continuum_job_id', data.jobId);
       setJobId(data.jobId);
     } catch (error: any) {
-      alert(`Failed to start analysis: ${error.message}`);
+      alert(`분석 시작 실패: ${error.message}`);
     }
   };
   
@@ -127,11 +127,11 @@ const LinksPage = () => {
     }
 
     if (isLoadingInitial) {
-      return <div className="flex items-center justify-center h-full text-muted-foreground">Checking for cached data...</div>;
+      return <div className="flex items-center justify-center h-full text-muted-foreground">캐시된 데이터 확인 중...</div>;
     }
 
     if (queryError) {
-      return <div className="flex items-center justify-center h-full text-destructive">Error: {queryError.message}</div>;
+      return <div className="flex items-center justify-center h-full text-destructive">오류: {queryError.message}</div>;
     }
 
     const threads = cachedData?.threads;
@@ -140,14 +140,14 @@ const LinksPage = () => {
       return (
         <div className="text-center p-8 bg-card border border-border rounded-lg shadow-lg">
           <BeakerIcon className="w-16 h-16 mx-auto text-accent mb-4" />
-          <h3 className="text-xl font-bold mb-4">No connected thoughts yet</h3>
-          <p className="text-muted-foreground mb-6">Analyze your notes to discover new insights.</p>
+          <h3 className="text-xl font-bold mb-4">아직 연결된 생각 없음</h3>
+          <p className="text-muted-foreground mb-6">노트를 분석하여 새로운 인사이트를 발견하세요.</p>
           <div className="flex flex-col items-center gap-4">
             <button
                 onClick={handleGenerateClick}
                 className="px-6 py-3 font-bold text-white bg-accent rounded-lg hover:bg-accent/80 transition-colors disabled:bg-muted"
             >
-                Connect My Thoughts
+                생각 연결하기
             </button>
             <div className="flex items-center">
                 <input
@@ -158,7 +158,7 @@ const LinksPage = () => {
                     className="h-4 w-4 rounded border-border text-accent focus:ring-accent"
                 />
                 <label htmlFor="exclude-singletons-initial" className="ml-2 text-sm text-muted-foreground">
-                    Exclude threads with a single note
+                    단일 노트 스레드 제외
                 </label>
             </div>
           </div>
@@ -170,7 +170,7 @@ const LinksPage = () => {
       <div>
         <div className="flex justify-between items-center mb-6">
           <span className="text-sm text-muted-foreground">
-            Last analyzed: {formatTimeAgo(cachedData.lastUpdatedAt)}
+            마지막 분석: {formatTimeAgo(cachedData.lastUpdatedAt)}
           </span>
           <div className="flex items-center gap-4">
             <div className="flex items-center">
@@ -182,7 +182,7 @@ const LinksPage = () => {
                 className="h-4 w-4 rounded border-border text-accent focus:ring-accent"
               />
               <label htmlFor="exclude-singletons" className="ml-2 text-sm text-muted-foreground">
-                Exclude single notes
+                단일 노트 제외
               </label>
             </div>
             <button
@@ -190,7 +190,7 @@ const LinksPage = () => {
               className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-muted transition-colors"
             >
               <CpuChipIcon className="w-5 h-5" />
-              Analyze Again
+              다시 분석
             </button>
           </div>
         </div>
@@ -204,14 +204,14 @@ const LinksPage = () => {
   };
 
   return (
-    <PageLayout title="Insight Threads">
+    <PageLayout title="인사이트 스레드">
       <div className="p-4 sm:p-6">
         {renderContent()}
       </div>
       <SourceNoteModal 
         isOpen={isModalOpen} 
         onClose={() => setModalOpen(false)} 
-        title={selectedNote?.title || 'Untitled Note'}
+        title={selectedNote?.title || '제목 없는 노트'}
         body={selectedNote?.body || ''}
       />
     </PageLayout>
