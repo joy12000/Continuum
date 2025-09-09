@@ -7,7 +7,7 @@ interface PageLayoutProps {
 }
 
 const PageLayout: React.FC<PageLayoutProps> = ({ children, title, transparent }) => {
-  const layoutClasses = `min-h-screen text-foreground font-sans ${transparent ? '' : 'bg-background'}`;
+  const layoutClasses = `h-screen overflow-y-auto text-foreground font-sans ${transparent ? '' : 'bg-background'}`;
   return (
     <div className={layoutClasses}>
       <div className="max-w-3xl mx-auto px-4 py-8">

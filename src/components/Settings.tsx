@@ -13,6 +13,8 @@ import { supabase } from "../lib/supabase";
 import { deleteAllUserData, bulkAddNotes, listNotes } from "../lib/supabaseService";
 import { SettingsCard } from "./SettingsCard";
 
+import { usePWAInstall } from "../hooks/usePWAInstall";
+
 type Engine = "auto" | "remote";
 
 export function Settings({ engine, setEngine, onNavigateHome, onNavigateToDiagnostics, modelStatus }: { engine: Engine, setEngine: (e: Engine) => void, onNavigateHome: () => void, onNavigateToDiagnostics: () => void, modelStatus: string }) {
@@ -21,6 +23,7 @@ export function Settings({ engine, setEngine, onNavigateHome, onNavigateToDiagno
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [modalState, setModalState] = useState<{ isOpen: boolean; snapshot: Snapshot | null }>({ isOpen: false, snapshot: null });
+  const { canInstall, triggerInstall } = usePWAInstall();
 
   useEffect(() => {
     localStorage.setItem("semanticEngine", engine);
@@ -284,6 +287,17 @@ export function Settings({ engine, setEngine, onNavigateHome, onNavigateToDiagno
         <SettingsCard title="중복 노트 관리">
           <DedupSuggestions notes={notes} engine={engine} onMerge={handleMerge} />
         </SettingsCard>
+
+        {canInstall && (
+          <SettingsCard title="앱 설치">
+            <button onClick={triggerInstall} className="btn btn-primary w-full">
+              홈 화면에 앱 추가
+            </button>
+            <p className="text-sm text-slate-400 mt-2">
+              이 웹 앱을 기기에 설치하여 네이티브 앱처럼 사용할 수 있습니다.
+            </p>
+          </SettingsCard>
+        )}
 
         <SettingsCard title="모양">
           <div className="flex items-center justify-between">
