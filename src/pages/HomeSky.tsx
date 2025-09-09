@@ -44,27 +44,6 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
     }
   }, [answerSignal]);
 
-  // Focus handling
-  useEffect(() => {
-    // Listen for long-press event from the global moon component
-    const handleToggleQuickPanel = () => {
-      setShowQuick(s => !s);
-    };
-    window.addEventListener('global-moon:long-press', handleToggleQuickPanel);
-
-    const onSkyClick = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (document.getElementById("quick-panel")?.contains(target)) return;
-      if (document.getElementById("save-button")?.contains(target)) return;
-      editorRef.current?.focus();
-    };
-    window.addEventListener("click", onSkyClick);
-    return () => {
-      window.removeEventListener("click", onSkyClick);
-      window.removeEventListener('global-moon:long-press', handleToggleQuickPanel);
-    };
-  }, []);
-
   // Save prefs to localStorage
   useEffect(() => {
     localStorage.setItem("sky.prefs", JSON.stringify(prefs));
@@ -108,10 +87,10 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
     el.addEventListener("animationend", () => el.remove());
   }
 
-  // Event Handlers
   const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
     setDraft((e.target as HTMLDivElement).innerText);
   };
+
   const handleSave = () => {
     if (!draft || !draft.trim()) return;
     const payload = { text: draft, createdAt: Date.now() };
