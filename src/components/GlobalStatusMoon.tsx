@@ -45,17 +45,17 @@ const GlobalStatusMoon: React.FC<GlobalStatusMoonProps> = ({ status }) => {
   const getStatusClasses = () => {
     switch (status) {
       case 'loading':
-        // A "breathing glow" effect by combining color and a pulsing shadow.
-        return 'animate-pulse text-sky-300 shadow-sky-300/50 shadow-[0_0_15px]';
+        // A "breathing glow" effect using drop-shadow filter.
+        return 'animate-pulse [filter:drop-shadow(0_0_8px_theme(colors.sky.300/0.7))]';
       case 'success':
         // A static glow to indicate success.
-        return 'text-green-400 shadow-green-400/50 shadow-[0_0_15px]';
+        return '[filter:drop-shadow(0_0_8px_theme(colors.green.400/0.7))]';
       case 'error':
         // A static glow to indicate an error.
-        return 'text-red-500 shadow-red-500/50 shadow-[0_0_15px]';
+        return '[filter:drop-shadow(0_0_8px_theme(colors.red.500/0.7))]';
       default:
         // No glow in idle state.
-        return 'text-white shadow-transparent';
+        return '';
     }
   };
 

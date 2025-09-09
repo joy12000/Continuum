@@ -16,7 +16,7 @@
 }
 
 .ccell {
-  @apply relative h-24 rounded-md text-left p-2 transition-colors duration-200;
+  @apply relative h-20 rounded-md text-left p-2 transition-colors duration-200;
   @apply hover:bg-white/5;
 }
 
