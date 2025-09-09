@@ -61,35 +61,7 @@ const GlobalStatusMoon: React.FC<GlobalStatusMoonProps> = ({ status }) => {
       onPointerLeave={handlePointerLeave}
       onPointerCancel={handlePointerLeave}
     >
-      <svg width="88" height="88" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          {/* A more subtle, wider glow */}
-          <filter id="realisticGlow" x="-75%" y="-75%" width="250%" height="250%">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="3.5" result="blur" />
-          </filter>
-          {/* A base texture using turbulence to create a more realistic surface */}
-          <filter id="moonTexture">
-            <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="5" seed="10" stitchTiles="stitch" result="noise"/>
-            <feDisplacementMap in="SourceGraphic" in2="noise" scale="3" xChannelSelector="R" yChannelSelector="G" result="bumpy"/>
-            <feSpecularLighting in="bumpy" surfaceScale="2" specularConstant="1" specularExponent="20" lighting-color="#dddddd" result="specular">
-              <fePointLight x="10" y="10" z="40" />
-            </feSpecularLighting>
-            <feComposite in="specular" in2="SourceGraphic" operator="in" result="lit"/>
-            <feBlend in="SourceGraphic" in2="lit" mode="screen"/>
-          </filter>
-          {/* A gradient for overall shading (light source from top-left) */}
-          <radialGradient id="moonShading" cx="25%" cy="25%" r="75%">
-            <stop offset="0%" stopColor="white" stopOpacity="0.25" />
-            <stop offset="100%" stopColor="black" stopOpacity="0.25" />
-          </radialGradient>
-        </defs>
-        <circle cx="32" cy="32" r="24" fill="currentColor" opacity="0.5" filter="url(#realisticGlow)" />
-        <g>
-          <circle cx="32" cy="32" r="24" fill="currentColor" />
-          <circle cx="32" cy="32" r="24" fill="currentColor" filter="url(#moonTexture)" opacity="0.5" />
-          <circle cx="32" cy="32" r="24" fill="url(#moonShading)" />
-        </g>
-      </svg>
+      <img src="/icons/moon-icon.svg" alt="Status Moon" className="w-22 h-22" />
     </button>
   );
 };
