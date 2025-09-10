@@ -18,12 +18,12 @@ export default defineConfig({
       filename: "sw.ts",
       exclude: [/\.wasm$/],
       injectManifest: {
-        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024, // 3MB로 설정
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff2,ttf,otf}"], // .wasm 제외
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB로 설정
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff2,ttf,otf,mp4}"], // .wasm 제외
         globIgnores: ["**/*.wasm", "**/*.map"], // .wasm 파일 및 .map 파일 제외
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff2,ttf,otf}"],
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff2,ttf,otf,mp4}"],
         skipWaiting: false,
         clientsClaim: true,
       },
