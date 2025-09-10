@@ -55,7 +55,15 @@ const LoginPage = () => {
     <div className="flex items-center justify-center h-screen bg-background">
       <div className="w-full max-w-sm p-8 space-y-6 bg-card rounded-2xl shadow-lg border border-slate-700/50">
         <div className="text-center">
-          <img src="/assets/moon.png" alt="Continuum Logo" className="w-24 h-24 mx-auto mb-4 rounded-full shadow-[0_0_16px_rgba(255,255,220,0.35)]" />
+          <video 
+            src="/aiiconmotion.mp4" 
+            autoPlay 
+            loop 
+            muted 
+            playsInline 
+            className="w-24 h-24 mx-auto mb-4 rounded-full shadow-[0_0_16px_rgba(255,255,220,0.35)]"
+            aria-label="Continuum Logo"
+          ></video>
           <h1 className="text-3xl font-bold text-primary-foreground">Continuum</h1>
           <p className="text-muted-foreground">로그인하여 계속하세요</p>
         </div>
