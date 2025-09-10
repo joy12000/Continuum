@@ -90,7 +90,7 @@ function absorbSingletons(
 
 // --- THREAD GENERATION (async job) ---
 
-async function runThreadGeneration(jobId: string, userId: string, token: string) {
+async function runThreadGeneration(jobId: string, userId: string, token: string, excludeSingletons: boolean) {
   const supabase = getSupabaseClient(token);
   const updateJobStatus = async (status: string) => {
     const { error } = await supabase
@@ -186,9 +186,17 @@ async function runThreadGeneration(jobId: string, userId: string, token: string)
     }
     // === /Cluster method selection ===================================
 
+    let finalClusters = clusters;
+    console.log(`[runThreadGeneration] excludeSingletons: ${excludeSingletons}`); // Log the input parameter
+    console.log(`[runThreadGeneration] Clusters before filtering (${clusters.length} clusters):`, clusters.map(c => c.length)); // Log cluster sizes before filter
+    if (excludeSingletons) {
+      finalClusters = clusters.filter(c => c.length > 1);
+      console.log(`[runThreadGeneration] Clusters after filtering (${finalClusters.length} clusters):`, finalClusters.map(c => c.length)); // Log cluster sizes after filter
+    }
+
     // Build response threads (LLM summaries with safe numeric fields)
     const out: InsightThread[] = [];
-    for (const idxs of clusters) {
+    for (const idxs of finalClusters) {
       const groupNotes = idxs.map((i) => prepared[i].note);
       if (!groupNotes.length) continue;
 
@@ -462,6 +470,9 @@ async function handleGenerateThread(req: VercelRequest, res: VercelResponse) {
   const { supabase, userId, token } = auth;
 
   if (req.method === "POST") {
+    const excludeSingletons =
+      String(req.body?.excludeSingletons ?? 'false').toLowerCase() === 'true';
+
     const { data: job, error: jobError } = await supabase
       .from('thread_generation_jobs')
       .insert({ user_id: userId, status: 'pending' })
@@ -473,8 +484,8 @@ async function handleGenerateThread(req: VercelRequest, res: VercelResponse) {
     }
 
     // fire and forget
-    runThreadGeneration(job.id, userId, token).catch(console.error);
-    return res.status(202).json({ jobId: job.id });
+    runThreadGeneration(job.id, userId, token, excludeSingletons).catch(console.error);
+    return res.status(202).json({ jobId: job.id, excludeSingletons });
 
   } else if (req.method === "GET") {
     const { jobId } = req.query;
