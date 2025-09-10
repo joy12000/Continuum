@@ -218,6 +218,10 @@ const MainLayout = () => {
         // WARNING: This is not recommended for production.
         // The memberHash should be generated on the server-side.
         bootOption.memberHash = await generateMemberHash(session.user.id);
+        bootOption.profile = {
+          name: session.user.user_metadata.full_name,
+          email: session.user.email,
+        };
       }
       ChannelService.boot(bootOption);
       ChannelService.track('pageView');

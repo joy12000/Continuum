@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import ConfirmModal from '../components/ConfirmModal';
@@ -14,6 +14,21 @@ const Settings: React.FC = () => {
   const navigate = useNavigate();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [confirmText, setConfirmText] = useState("");
+  const [name, setName] = useState("");
+  const [gender, setGender] = useState("");
+  const [age, setAge] = useState("");
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setName(user.user_metadata.full_name || "");
+        setGender(user.user_metadata.gender || "");
+        setAge(user.user_metadata.age || "");
+      }
+    };
+    fetchProfile();
+  }, []);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -35,6 +50,24 @@ const Settings: React.FC = () => {
       navigate('/');
     } catch (error: any) {
       toast.error(`노트 삭제 실패: ${error.message}`);
+    }
+  };
+
+  const handleProfileUpdate = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { error } = await supabase.auth.updateUser({
+        data: {
+          full_name: name,
+          gender,
+          age,
+        }
+      });
+      if (error) {
+        toast.error("프로필 업데이트에 실패했습니다.");
+      } else {
+        toast.success("프로필이 업데이트되었습니다.");
+      }
     }
   };
 
@@ -66,6 +99,26 @@ const Settings: React.FC = () => {
               <span>로그아웃</span>
               <ArrowLeftOnRectangleIcon className="w-6 h-6" />
             </button>
+          </SettingsCard>
+
+          <SettingsCard title="프로필">
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm text-gray-400">이름</label>
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full p-2 bg-gray-900 border border-gray-700 rounded-md focus:ring-sky-500 focus:border-sky-500 transition-colors text-white" />
+              </div>
+              <div>
+                <label className="text-sm text-gray-400">성별</label>
+                <input type="text" value={gender} onChange={(e) => setGender(e.target.value)} className="w-full p-2 bg-gray-900 border border-gray-700 rounded-md focus:ring-sky-500 focus:border-sky-500 transition-colors text-white" />
+              </div>
+              <div>
+                <label className="text-sm text-gray-400">나이</label>
+                <input type="number" value={age} onChange={(e) => setAge(e.target.value)} className="w-full p-2 bg-gray-900 border border-gray-700 rounded-md focus:ring-sky-500 focus:border-sky-500 transition-colors text-white" />
+              </div>
+              <button onClick={handleProfileUpdate} className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                프로필 저장
+              </button>
+            </div>
           </SettingsCard>
 
           <SettingsCard title="위험 구역" titleClassName="text-red-400">
