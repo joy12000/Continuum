@@ -6,7 +6,7 @@ import { toast } from 'react-hot-toast';
 import { ArrowLeftIcon, ArrowLeftOnRectangleIcon, CodeBracketIcon, ExclamationTriangleIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { SettingsCard } from '../components/SettingsCard';
 import SkyCanvasAnimation from '../components/SkyCanvasAnimation';
-import Moon from '../components/Moon';
+import PageLayout from '../components/PageLayout';
 
 type QuickPrefs = {
   starDensity: number;
@@ -55,23 +55,9 @@ const Settings: React.FC = () => {
   };
 
   return (
-    <div className="relative min-h-screen w-full text-white">
+    <PageLayout title="설정" transparent>
       <SkyCanvasAnimation prefs={prefs} />
-      <Moon onClick={() => navigate('/settings')} />
-      <div className="relative z-10 p-4 sm:p-6 max-w-4xl mx-auto">
-        <header className="flex items-center justify-between mb-8">
-          <button 
-            onClick={() => navigate(-1)} 
-            className="flex items-center gap-2 text-sky-200 hover:text-white transition-colors"
-            aria-label="뒤로 가기"
-          >
-            <ArrowLeftIcon className="w-6 h-6" />
-            <span className="text-lg">뒤로</span>
-          </button>
-          <h1 className="text-3xl font-bold text-center text-white text-shadow-glow">설정</h1>
-          <div className="w-16"></div> {/* Spacer for centering title */}
-        </header>
-
+      <div className="relative z-10">
         <div className="space-y-8">
           <SettingsCard title="개발자">
             <button onClick={() => navigate('/developer')} className="w-full flex items-center justify-between p-4 bg-black/20 rounded-lg hover:bg-black/30 transition-colors">
@@ -128,7 +114,7 @@ const Settings: React.FC = () => {
           />
         </ConfirmModal>
       )}
-    </div>
+    </PageLayout>
   );
 };
 
