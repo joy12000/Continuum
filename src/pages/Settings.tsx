@@ -81,11 +81,11 @@ const Settings: React.FC = () => {
               <h3 className="text-lg font-semibold text-sky-300 mb-4">내 정보</h3>
               <div className="flex flex-col space-y-2">
                 <label htmlFor="profile-name" className="text-sm text-gray-400">이름</label>
-                <input id="profile-name" type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full p-2 bg-gray-900 border border-gray-700 rounded-lg focus:ring-sky-500 focus:border-sky-500 transition-colors text-white" />
+                <input id="profile-name" type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full p-2 bg-gray-900 border border-gray-700 rounded-xl focus:ring-sky-500 focus:border-sky-500 transition-colors text-white" />
               </div>
               <div className="flex flex-col space-y-2">
                 <label htmlFor="profile-gender" className="text-sm text-gray-400">성별</label>
-                <select id="profile-gender" value={gender} onChange={(e) => setGender(e.target.value)} className="w-full p-2 bg-gray-900 border border-gray-700 rounded-lg focus:ring-sky-500 focus:border-sky-500 transition-colors text-white">
+                <select id="profile-gender" value={gender} onChange={(e) => setGender(e.target.value)} className="w-full p-2 bg-gray-900 border border-gray-700 rounded-xl focus:ring-sky-500 focus:border-sky-500 transition-colors text-white">
                   <option value="">선택 안 함</option>
                   <option value="male">남성</option>
                   <option value="female">여성</option>
@@ -93,7 +93,7 @@ const Settings: React.FC = () => {
               </div>
               <div className="flex flex-col space-y-2">
                 <label htmlFor="profile-age" className="text-sm text-gray-400">나이</label>
-                <select id="profile-age" value={age} onChange={(e) => setAge(e.target.value)} className="w-full p-2 bg-gray-900 border border-gray-700 rounded-lg focus:ring-sky-500 focus:border-sky-500 transition-colors text-white">
+                <select id="profile-age" value={age} onChange={(e) => setAge(e.target.value)} className="w-full p-2 bg-gray-900 border border-gray-700 rounded-xl focus:ring-sky-500 focus:border-sky-500 transition-colors text-white">
                   <option value="">선택 안 함</option>
                   <option value="10s">10대</option>
                   <option value="20s">20대</option>
