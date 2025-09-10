@@ -274,17 +274,17 @@ const MainLayout = () => {
             <Routes location={location} key={location.pathname}>
               {session ? (
                 <>
-                  <Route path="/" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><HomeSky onOpenAnswer={() => setAnswerOpen(true)} answerSignal={answerSignal} /></motion.div>} />
-                  <Route path="/settings" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><Settings /></motion.div>} />
-                  <Route path="/calendar" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><CalendarPage session={session} /></motion.div>} />
-                  <Route path="/search" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><SearchPage session={session} /></motion.div>} />
-                  <Route path="/threads" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><LinksPage session={session} /></motion.div>} />
-                  <Route path="/notes/:noteId" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><NoteDetailPage /></motion.div>} />
-                  <Route path="/developer" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><DeveloperPage /></motion.div>} />
-                  <Route path="/diagnostics" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><Diagnostics onBack={() => window.history.back()} /></motion.div>} />
+                  <Route path="/" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}><HomeSky onOpenAnswer={() => setAnswerOpen(true)} answerSignal={answerSignal} /></motion.div>} />
+                  <Route path="/settings" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}><Settings /></motion.div>} />
+                  <Route path="/calendar" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}><CalendarPage session={session} /></motion.div>} />
+                  <Route path="/search" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}><SearchPage session={session} /></motion.div>} />
+                  <Route path="/threads" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}><LinksPage session={session} /></motion.div>} />
+                  <Route path="/notes/:noteId" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}><NoteDetailPage /></motion.div>} />
+                  <Route path="/developer" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}><DeveloperPage /></motion.div>} />
+                  <Route path="/diagnostics" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}><Diagnostics onBack={() => window.history.back()} /></motion.div>} />
                 </>
               ) : (
-                <Route path="*" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><LoginPage /></motion.div>} />
+                <Route path="*" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}><LoginPage /></motion.div>} />
               )}
             </Routes>
           </AnimatePresence>

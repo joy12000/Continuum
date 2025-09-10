@@ -16,12 +16,12 @@
 }
 
 .ccell {
-  @apply relative h-20 rounded-md text-left p-2 transition-colors duration-200;
+  @apply relative h-20 rounded-md p-2 transition-colors duration-200;
   @apply hover:bg-white/5;
 }
 
 .ccell .date {
-  @apply text-sm font-medium;
+  @apply text-sm font-medium flex items-center justify-center h-full;
 }
 
 .ccell.dim .date {
