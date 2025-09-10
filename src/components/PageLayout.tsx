@@ -10,7 +10,7 @@ interface PageLayoutProps {
 
 const PageLayout: React.FC<PageLayoutProps> = ({ children, title, transparent }) => {
   const navigate = useNavigate();
-  const layoutClasses = `relative h-screen overflow-y-auto text-foreground font-sans ${transparent ? '' : 'bg-background'}`;
+  const layoutClasses = `relative h-screen overflow-y-auto overflow-x-hidden text-foreground font-sans ${transparent ? '' : 'bg-background'}`;;
   return (
     <div className={layoutClasses}>
       <Moon onClick={() => navigate('/settings')} />
