@@ -205,7 +205,7 @@ const LinksPage = ({ session }: { session: Session | null }) => {
   };
 
   return (
-    <PageLayout title="인사이트 스레드" transparent fullWidth className="bg-links-background" hideMoon>
+    <PageLayout title="인사이트 스레드" transparent fullWidth className="bg-links-background" hideMoon hideBackButton={true}>
       <div className="relative z-10">
         {renderContent()}
       </div>

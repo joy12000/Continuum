@@ -151,7 +151,7 @@ const CalendarPage = ({ session }: { session: Session | null }) => {
   const pageTitle = `${year} ${displayDate.toLocaleString('ko-KR', { month: 'long' })}`;
 
   return (
-    <PageLayout title="캘린더">
+    <PageLayout title="캘린더" hideBackButton={true}>
       <SkyCanvasAnimation />
       <div className="relative z-10">
         <div className="flex justify-between items-center mb-6">

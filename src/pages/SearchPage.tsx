@@ -103,7 +103,7 @@ const SearchPage = ({ session }: { session: Session | null }) => {
   );
 
   return (
-    <PageLayout title="노트 검색">
+    <PageLayout title="노트 검색" hideBackButton={true}>
       <SkyCanvasAnimation />
       <div className="relative z-10">
         <SearchBar 

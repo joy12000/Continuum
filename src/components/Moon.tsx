@@ -8,7 +8,7 @@ type Props = {
   date?: Date;            // 위상 계산용(기본: 현재)
 };
 
-export default function Moon({ sizeVw = 5.5, onClick, date = new Date() }: Props) {
+export default function Moon({ sizeVw = 3.7, onClick, date = new Date() }: Props) {
   const { togglePanel } = useSkySettings();
   const pressTimer = useRef<NodeJS.Timeout | null>(null);
   const longPressTriggered = useRef(false);
@@ -23,7 +23,7 @@ export default function Moon({ sizeVw = 5.5, onClick, date = new Date() }: Props
   }, [date]);
 
   // 반응형 크기: 여백 과다 방지 (최소/최대 제한)
-  const size = `clamp(51px, ${sizeVw}vw, 91px)`;
+  const size = `clamp(34px, ${sizeVw}vw, 61px)`;
 
   const handlePointerDown = () => {
     longPressTriggered.current = false;
