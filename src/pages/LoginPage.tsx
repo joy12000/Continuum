@@ -2,7 +2,7 @@ import { useRef, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
-import { ko } from '@supabase/auth-ui-shared/dist/esm/localization/locales';
+// import { ko } from '@supabase/auth-ui-shared/dist/esm/localization/locales';
 
 // Refined custom theme for the Auth component
 const customTheme = {
