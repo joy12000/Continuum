@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import ConfirmModal from '../components/ConfirmModal';
@@ -17,6 +17,28 @@ const Settings: React.FC = () => {
   const [name, setName] = useState("");
   const [gender, setGender] = useState("");
   const [age, setAge] = useState("");
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleTimeUpdate = () => {
+      if (video.playbackRate > 0 && video.currentTime >= video.duration - 0.1) {
+        video.playbackRate = -1;
+        video.play();
+      } else if (video.playbackRate < 0 && video.currentTime <= 0.1) {
+        video.playbackRate = 1;
+        video.play();
+      }
+    };
+
+    video.addEventListener('timeupdate', handleTimeUpdate);
+
+    return () => {
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+    };
+  }, []);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -77,9 +99,9 @@ const Settings: React.FC = () => {
       <div className="relative z-10">
         <div className="text-center mb-6 pt-4">
           <video
+            ref={videoRef}
             src="/AIiconmotion.mp4"
             autoPlay
-            loop
             muted
             playsInline
             className="w-24 h-24 mx-auto mb-4 rounded-full shadow-[0_0_16px_rgba(255,255,220,0.35)] object-cover"

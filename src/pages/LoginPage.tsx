@@ -1,3 +1,4 @@
+import { useRef, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
@@ -51,14 +52,37 @@ const customTheme = {
 };
 
 const LoginPage = () => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleTimeUpdate = () => {
+      if (video.playbackRate > 0 && video.currentTime >= video.duration - 0.1) {
+        video.playbackRate = -1;
+        video.play();
+      } else if (video.playbackRate < 0 && video.currentTime <= 0.1) {
+        video.playbackRate = 1;
+        video.play();
+      }
+    };
+
+    video.addEventListener('timeupdate', handleTimeUpdate);
+
+    return () => {
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+    };
+  }, []);
+
   return (
     <div className="flex items-center justify-center h-screen bg-background">
       <div className="w-full max-w-sm p-8 space-y-6 bg-card rounded-2xl shadow-lg border border-slate-700/50">
         <div className="text-center">
           <video 
+            ref={videoRef}
             src="/AIiconmotion.mp4" 
             autoPlay 
-            loop 
             muted 
             playsInline 
             className="w-24 h-24 mx-auto mb-4 rounded-full shadow-[0_0_16px_rgba(255,255,220,0.35)] object-cover"
