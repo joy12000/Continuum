@@ -239,7 +239,7 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
         spellCheck={false}
         className="absolute inset-0 z-10 px-6 md:px-12 outline-none focus:outline-none select-text flex items-center justify-center"
         onInput={handleInput}
-        data-placeholder="밤하늘에 오늘을 적어 보세요…"
+        data-placeholder="밤하늘에 오늘의 조각을 새겨보세요."
         style={{
           fontFamily: "'Pretendard Variable', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Noto Sans KR, Apple SD Gothic Neo, sans-serif",
           fontWeight: 500,
@@ -254,7 +254,7 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
 
       {!draft && (
         <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center px-6 md:px-12 text-center" style={{ fontSize: "clamp(18px, 3.4vw, 28px)", lineHeight: 1.6, color: "rgba(220,235,255,0.42)", textShadow: "0 0 0.7rem rgba(150,190,255,0.2)" }}>
-          밤하늘에 오늘을 적어 보세요…
+          밤하늘에 오늘의 조각을 새겨보세요.
         </div>
       )}
 

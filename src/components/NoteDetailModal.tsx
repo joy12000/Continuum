@@ -201,7 +201,7 @@ export const NoteDetailModal = ({ noteId, isOpen, onClose }: { noteId: string, i
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
         transition={{ duration: 0.2 }}
-        className="bg-card border border-border rounded-lg shadow-lg max-h-[90vh] overflow-y-auto w-full max-w-5xl"
+        className="bg-card border border-border rounded-lg shadow-lg max-h-[90vh] overflow-y-auto w-[95%] max-w-5xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

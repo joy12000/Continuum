@@ -22,16 +22,7 @@ export default function Moon({ sizeVw = 5.5, onClick, date = new Date() }: Props
 
   return (
     <div className="pointer-events-none absolute right-[2.5vw] top-[2.2vh] z-20">
-      {/* (A) 달 주변 별 밝기 억제(광해) - 반경 소폭 확대 */}
-      <div
-        className="absolute -inset-[12vw] rounded-full pointer-events-none"
-        style={{
-          maskImage: `radial-gradient(closest-side, rgba(0,0,0,0.55), rgba(0,0,0,0) 68%)`,
-          WebkitMaskImage: `radial-gradient(closest-side, rgba(0,0,0,0.55), rgba(0,0,0,0) 68%)`,
-          background: "rgba(0,0,0,0.38)",
-          zIndex: 5,
-        }}
-      />
+      
 
       {/* (B) 타원형 헤일로(살짝만) */}
       <div
