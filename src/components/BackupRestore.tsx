@@ -1,7 +1,7 @@
 
 import { db } from "../lib/db";
 import { encryptJSON, decryptJSON } from "../lib/crypto";
-import { toast } from "../lib/toast";
+import toast from 'react-hot-toast';
 import { supabase } from "../lib/supabase";
 import { deleteAllUserData, bulkAddNotes, listNotes } from "../lib/supabaseService";
 
@@ -27,7 +27,7 @@ export function BackupRestore({ onNotesImported }: { onNotesImported?: () => voi
   async function backup() {
     const password = prompt("백업 암호를 입력하세요 (잊지 마세요!)");
     if (!password) {
-      toast.info("백업이 취소되었습니다.");
+      toast("백업이 취소되었습니다.");
       return;
     }
 
@@ -38,7 +38,7 @@ export function BackupRestore({ onNotesImported }: { onNotesImported?: () => voi
         return;
       }
 
-      toast.info("노트를 가져오는 중...");
+      toast("노트를 가져오는 중...");
       const notes = await listNotes(user.id);
       // TODO: Handle attachments
       // const attachments = await db.attachments.toArray();
@@ -80,7 +80,7 @@ export function BackupRestore({ onNotesImported }: { onNotesImported?: () => voi
 
       const password = prompt("백업 암호를 입력하세요");
       if (!password) {
-        toast.info("복원이 취소되었습니다.");
+        toast("복원이 취소되었습니다.");
         return;
       }
 
@@ -99,12 +99,12 @@ export function BackupRestore({ onNotesImported }: { onNotesImported?: () => voi
             }
             toast.success("데이터 무결성 검증 완료.");
           } else {
-            toast.warn("이전 버전의 백업 파일입니다. 데이터 무결성 검증을 건너뜁니다.");
+            toast("이전 버전의 백업 파일입니다. 데이터 무결성 검증을 건너뜁니다.");
           }
           
           const confirmed = confirm(`복원을 진행하시겠습니까? 현재 모든 데이터가 백업 파일의 내용으로 대체됩니다. (${restoredNotes.length}개의 노트)`);
           if (!confirmed) {
-            toast.info("복원이 취소되었습니다.");
+            toast("복원이 취소되었습니다.");
             return;
           }
 
@@ -114,10 +114,10 @@ export function BackupRestore({ onNotesImported }: { onNotesImported?: () => voi
             return;
           }
 
-          toast.info("기존 데이터를 삭제하는 중... (시간이 걸릴 수 있습니다)");
+          toast("기존 데이터를 삭제하는 중... (시간이 걸릴 수 있습니다)");
           await deleteAllUserData(user.id);
 
-          toast.info(`${restoredNotes.length}개의 노트를 복원하는 중... (시간이 매우 오래 걸릴 수 있습니다)`);
+          toast(`${restoredNotes.length}개의 노트를 복원하는 중... (시간이 매우 오래 걸릴 수 있습니다)`);
           const notesToBulkAdd = restoredNotes.map(n => ({ title: n.title, body: n.body }));
           await bulkAddNotes(notesToBulkAdd, user.id);
 

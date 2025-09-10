@@ -1,4 +1,4 @@
-import { toast } from './toast';
+import toast from 'react-hot-toast';
 
 export interface Config {
   isGenerativeMode: boolean;

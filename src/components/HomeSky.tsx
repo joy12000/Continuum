@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Toasts } from "../components/Toasts";
-import { toast } from "../lib/toast";
+import toast, { Toaster } from 'react-hot-toast';
 
 // Type definitions
 type QuickPrefs = {
@@ -219,7 +218,7 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
 
   return (
     <div ref={containerRef} className="relative h-dvh w-full overflow-hidden text-white">
-      <Toasts />
+      <Toaster />
       <canvas ref={canvasRef} className="absolute inset-0 block w-full h-full" />
 
       <div className="absolute top-3 left-3 z-30">

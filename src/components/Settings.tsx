@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { db, Snapshot } from "../lib/db";
 import type { Note } from "../types/common";
 import ConfirmModal from "./ConfirmModal";
-import { toast } from "../lib/toast";
+import toast from 'react-hot-toast';
 import { DedupSuggestions } from "./DedupSuggestions";
 import { ArrowLeft } from 'lucide-react';
 import { ModelStatus } from "./ModelStatus";
@@ -78,7 +78,7 @@ export function Settings({ engine, setEngine, onNavigateHome, onNavigateToDiagno
   const handleConfirmRestore = async () => {
     if (!modalState.snapshot) return;
     // Restore logic here...
-    toast.info("스냅샷 복원 기능은 아직 구현되지 않았습니다.");
+    toast("스냅샷 복원 기능은 아직 구현되지 않았습니다.");
     setModalState({ isOpen: false, snapshot: null });
   };
 
@@ -120,13 +120,13 @@ export function Settings({ engine, setEngine, onNavigateHome, onNavigateToDiagno
   const handleImportNotes = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) {
-      toast.warn('가져올 파일을 선택해주세요.');
+      toast('가져올 파일을 선택해주세요.');
       return;
     }
 
     const confirmed = confirm(`가져오기를 진행하시겠습니까? 현재 모든 데이터가 가져온 파일의 내용으로 대체됩니다. 이 작업은 되돌릴 수 없습니다.`);
     if (!confirmed) {
-      toast.info("가져오기가 취소되었습니다.");
+      toast("가져오기가 취소되었습니다.");
       return;
     }
 
@@ -147,7 +147,7 @@ export function Settings({ engine, setEngine, onNavigateHome, onNavigateToDiagno
           }
 
           // 1. Backup existing data
-          toast.info("기존 데이터 백업 중...");
+          toast("기존 데이터 백업 중...");
           const backupData = await listNotes(user.id);
           if (backupData) {
             backupNotes = backupData.map((n: any) => ({
@@ -162,11 +162,11 @@ export function Settings({ engine, setEngine, onNavigateHome, onNavigateToDiagno
           }
 
           // 2. Delete existing data
-          toast.info("기존 데이터를 삭제하는 중... (시간이 걸릴 수 있습니다)");
+          toast("기존 데이터를 삭제하는 중... (시간이 걸릴 수 있습니다)");
           await deleteAllUserData(user.id);
 
           // 3. Import new data
-          toast.info(`${importedNotes.length}개의 노트를 가져오는 중... (시간이 매우 오래 걸릴 수 있습니다)`);
+          toast(`${importedNotes.length}개의 노트를 가져오는 중... (시간이 매우 오래 걸릴 수 있습니다)`);
           const notesToBulkAdd = importedNotes.map(n => ({ title: n.title, body: n.body || '' }));
           await bulkAddNotes(notesToBulkAdd, user.id);
 
@@ -181,7 +181,7 @@ export function Settings({ engine, setEngine, onNavigateHome, onNavigateToDiagno
           
           // 4. Restore from backup if import failed
           if (backupNotes.length > 0) {
-            toast.info("오류 발생. 백업 데이터 복원 시도 중...");
+            toast("오류 발생. 백업 데이터 복원 시도 중...");
             try {
               const { data: { user } } = await supabase.auth.getUser();
               if(user){
@@ -205,12 +205,12 @@ export function Settings({ engine, setEngine, onNavigateHome, onNavigateToDiagno
   const handleClearAllData = async () => {
     const confirmed = confirm("정말로 모든 데이터를 삭제하시겠습니까? 이 작업은 되돌릴 수 없으며, 모든 노트, 스냅샷 및 기타 데이터가 영구적으로 삭제됩니다.");
     if (!confirmed) {
-      toast.info("데이터 삭제가 취소되었습니다.");
+      toast("데이터 삭제가 취소되었습니다.");
       return;
     }
 
     try {
-      toast.info("모든 데이터를 삭제하는 중...");
+      toast("모든 데이터를 삭제하는 중...");
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await deleteAllUserData(user.id);

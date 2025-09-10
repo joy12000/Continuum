@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { getNoteById, recalculateChunksAndEmbeddings } from '../lib/supabaseService';
 import { Note } from '../types/common'; // Using the Supabase-compatible Note type
-import { toast } from '../lib/toast';
+import toast from 'react-hot-toast';
 import ConfirmModal from './ConfirmModal';
 
 export default function OverlayEditor() {

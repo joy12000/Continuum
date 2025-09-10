@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { Note } from "../lib/db";
-import { toast } from "../lib/toast";
+import toast from 'react-hot-toast';
 
 class RAGClient {
   private w: Worker;

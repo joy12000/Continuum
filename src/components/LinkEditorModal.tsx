@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import Modal from './Modal';
-import { toast } from '../lib/toast';
+import toast from 'react-hot-toast';
 
 interface LinkEditorModalProps {
   noteId: string;

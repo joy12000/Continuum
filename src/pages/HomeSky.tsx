@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Toasts } from "../components/Toasts";
-import { toast } from "../lib/toast";
+import toast, { Toaster } from 'react-hot-toast';
 import SkyCanvasAnimation from "../components/SkyCanvasAnimation";
 import Moon from "../components/Moon";
 
@@ -79,7 +78,7 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
 
   return (
     <div ref={containerRef} className="relative h-dvh w-full overflow-hidden text-white">
-      <Toasts />
+      <Toaster />
       <SkyCanvasAnimation />
       {/* 상단 비네트: 여백 축소 & 배경 밴딩 억제 */}
       <div
