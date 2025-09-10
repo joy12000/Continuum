@@ -1,5 +1,6 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Session } from '@supabase/supabase-js';
 
 import toast, { Toaster } from 'react-hot-toast';
@@ -269,23 +270,24 @@ const MainLayout = () => {
       <QuickSettingsPanel />
       <main className="flex-grow overflow-y-auto hide-scrollbar overflow-x-hidden">
         <Suspense fallback={<div className="flex justify-center items-center h-full">Loading Page...</div>}>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            {session ? (
-              <>
-                <Route path="/" element={<HomeSky onOpenAnswer={() => setAnswerOpen(true)} answerSignal={answerSignal} />} />
-                <Route path="/settings" element={<Settings />} />
-                <Route path="/calendar" element={<CalendarPage session={session} />} />
-                <Route path="/search" element={<SearchPage session={session} />} />
-                <Route path="/threads" element={<LinksPage session={session} />} />
-                <Route path="/notes/:noteId" element={<NoteDetailPage />} />
-                <Route path="/developer" element={<DeveloperPage />} />
-                <Route path="/diagnostics" element={<Diagnostics onBack={() => window.history.back()} />} />
-              </>
-            ) : (
-              <Route path="*" element={<LoginPage />} />
-            )}
-          </Routes>
+          <AnimatePresence mode="wait">
+            <Routes location={location} key={location.pathname}>
+              {session ? (
+                <>
+                  <Route path="/" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><HomeSky onOpenAnswer={() => setAnswerOpen(true)} answerSignal={answerSignal} /></motion.div>} />
+                  <Route path="/settings" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><Settings /></motion.div>} />
+                  <Route path="/calendar" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><CalendarPage session={session} /></motion.div>} />
+                  <Route path="/search" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><SearchPage session={session} /></motion.div>} />
+                  <Route path="/threads" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><LinksPage session={session} /></motion.div>} />
+                  <Route path="/notes/:noteId" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><NoteDetailPage /></motion.div>} />
+                  <Route path="/developer" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><DeveloperPage /></motion.div>} />
+                  <Route path="/diagnostics" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><Diagnostics onBack={() => window.history.back()} /></motion.div>} />
+                </>
+              ) : (
+                <Route path="*" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><LoginPage /></motion.div>} />
+              )}
+            </Routes>
+          </AnimatePresence>
         </Suspense>
       </main>
       {showNav && <NewBottomNav />}
