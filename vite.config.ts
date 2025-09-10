@@ -47,9 +47,9 @@ export default defineConfig({
           },
         },
         icons: [
-          { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-          { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
-          { src: "/icons/maskable.png", sizes: "512x512", type: "image/png", purpose: "maskable any" },
+          { src: "/icons/AI_192icon.png", sizes: "192x192", type: "image/png" },
+          { src: "/icons/AI_512icon.png", sizes: "512x512", type: "image/png" },
+          { src: "/icons/AI_512icon.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
       },
     }),

@@ -1,6 +1,3 @@
-
-
-
 import { useEffect, useState, useCallback } from "react";
 import { db, Snapshot } from "../lib/db";
 import type { Note } from "../types/common";
@@ -231,6 +228,18 @@ export function Settings({ engine, setEngine, onNavigateHome, onNavigateToDiagno
     <div className="relative p-3 bg-slate-900 text-slate-100 font-sans min-h-screen isolate">
       <SkyCanvasAnimation />
       <div className="relative z-10">
+        <div className="text-center mb-6 pt-4">
+          <video
+            src="/AIiconmotion.mp4"
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="w-24 h-24 mx-auto mb-4 rounded-full shadow-[0_0_16px_rgba(255,255,220,0.35)] object-cover"
+            aria-label="Momentum Logo"
+          ></video>
+          <h1 className="text-3xl font-bold text-gray-200">Momentum</h1>
+        </div>
         <header className="flex items-center justify-between mb-4">
           <h1 className="text-xl font-bold">설정</h1>
           <button onClick={onNavigateHome} className="p-2 rounded-full hover:bg-slate-800">
@@ -342,4 +351,3 @@ export function Settings({ engine, setEngine, onNavigateHome, onNavigateToDiagno
     </div>
   );
 }
-

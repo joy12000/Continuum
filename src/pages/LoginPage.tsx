@@ -56,7 +56,7 @@ const LoginPage = () => {
       <div className="w-full max-w-sm p-8 space-y-6 bg-card rounded-2xl shadow-lg border border-slate-700/50">
         <div className="text-center">
           <video 
-            src="/aiiconmotion.mp4" 
+            src="/AIiconmotion.mp4" 
             autoPlay 
             loop 
             muted 
