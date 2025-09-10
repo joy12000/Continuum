@@ -75,6 +75,18 @@ const Settings: React.FC = () => {
     <PageLayout title="설정" transparent>
       <SkyCanvasAnimation />
       <div className="relative z-10">
+        <div className="text-center mb-6 pt-4">
+          <video
+            src="/AIiconmotion.mp4"
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="w-24 h-24 mx-auto mb-4 rounded-full shadow-[0_0_16px_rgba(255,255,220,0.35)] object-cover"
+            aria-label="Momentum Logo"
+          ></video>
+          <h1 className="text-3xl font-bold text-gray-200">Momentum</h1>
+        </div>
         <div className="space-y-8">
           <SettingsCard title="프로필">
             <div className="space-y-4 p-4 bg-gray-800/50 rounded-lg">
