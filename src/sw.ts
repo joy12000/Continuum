@@ -149,7 +149,7 @@ async function checkForPastNotes() {
       { 
         body: targetNote.body.replace(/<[^>]+>/g, '').substring(0, 100), 
         data: { noteId: targetNote.id },
-        icon: '/icons/icon-192.png'
+        icon: '/icons/AI_192icon.png'
       }
     );
   }
