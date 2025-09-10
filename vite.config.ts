@@ -12,6 +12,7 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      registerType: 'prompt',
       strategies: "injectManifest",
       srcDir: "src",
       filename: "sw.ts",
@@ -23,7 +24,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff2,ttf,otf}"],
-        
+        skipWaiting: false,
+        clientsClaim: true,
       },
       manifest: {
         name: "Continuum",

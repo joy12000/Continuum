@@ -24,6 +24,7 @@ import { GeneratedAnswer } from './components/GeneratedAnswer';
 import { NoteDetailModal } from './components/NoteDetailModal';
 import { addNoteAndChunks, getNotesByIds } from './lib/supabaseService';
 import type { AnswerData, Note } from './types/common';
+import UpdatePrompt from './components/UpdatePrompt';
 
 // Main layout component to handle conditional nav bar and protected routes
 const MainLayout = () => {
@@ -195,6 +196,7 @@ const MainLayout = () => {
   return (
     <div className="flex flex-col h-screen bg-surface text-text-primary">
       <Toasts />
+      <UpdatePrompt />
       <main className="flex-grow overflow-y-auto">
         <Suspense fallback={<div className="flex justify-center items-center h-full">Loading Page...</div>}>
           <Routes>
