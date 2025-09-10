@@ -28,6 +28,23 @@ import UpdatePrompt from './components/UpdatePrompt';
 
 import { SkySettingsProvider } from './contexts/SkySettingsContext';
 import QuickSettingsPanel from './components/QuickSettingsPanel';
+import ChannelService, { BootOption } from './lib/channel';
+
+async function generateMemberHash(memberId: string): Promise<string> {
+  const accessSecret = "6f868414934daf9cbbd7a84eb713eae5";
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(accessSecret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(memberId));
+  return Array.from(new Uint8Array(signature))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
 
 // Main layout component to handle conditional nav bar and protected routes
 const MainLayout = () => {
@@ -189,6 +206,30 @@ const MainLayout = () => {
     window.addEventListener('sky:save', handleSave);
     return () => window.removeEventListener('sky:save', handleSave);
   }, []); // Empty dependency array ensures this runs only once and cleans up on unmount
+
+  useEffect(() => {
+    ChannelService.loadScript();
+    const bootChannelIO = async () => {
+      const bootOption: BootOption = {
+        pluginKey: "e802db19-481f-45bc-9ebc-f126ef36a392",
+      };
+      if (session?.user) {
+        bootOption.memberId = session.user.id;
+        // WARNING: This is not recommended for production.
+        // The memberHash should be generated on the server-side.
+        bootOption.memberHash = await generateMemberHash(session.user.id);
+      }
+      ChannelService.boot(bootOption);
+      ChannelService.track('pageView');
+    };
+    bootChannelIO();
+  }, [session]);
+
+  useEffect(() => {
+    if (location.pathname) {
+      ChannelService.setPage(location.pathname);
+    }
+  }, [location.pathname]);
 
   if (loading) {
     return <div className="flex justify-center items-center h-screen">Loading...</div>; // Or a splash screen

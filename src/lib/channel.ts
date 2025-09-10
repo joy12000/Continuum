@@ -11,7 +11,7 @@ interface IChannelIO {
   (...args: any): void;
 }
 
-interface BootOption {
+export interface BootOption {
   appearance?: string;
   customLauncherSelector?: string;
   hideChannelButtonOnBoot?: boolean;
