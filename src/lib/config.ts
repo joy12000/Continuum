@@ -49,7 +49,7 @@ export function saveConfig(newConfig: Partial<Config>): Config {
     const currentConfig = getConfig();
     const updatedConfig = { ...currentConfig, ...newConfig };
     localStorage.setItem(CONFIG_KEY, JSON.stringify(updatedConfig));
-    toast.success('설정이 저장되었습니다.');
+    localStorage.setItem('pending-toast-message', '설정이 저장되었습니다.');
     return updatedConfig;
   } catch (error) {
     console.error('Failed to save config.', error);

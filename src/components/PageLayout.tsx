@@ -18,8 +18,8 @@ const PageLayout: React.FC<PageLayoutProps> = ({ children, title, transparent, f
   const layoutClasses = `relative min-h-screen text-foreground font-sans ${transparent ? '' : ''} ${className || ''}`;
   
   const contentWrapperClasses = fullWidth 
-    ? "w-full px-4 py-8"
-    : "w-full md:max-w-3xl mx-auto px-4 py-8";
+    ? "w-full px-4 py-8 pb-14"
+    : "w-full md:max-w-3xl mx-auto px-4 py-8 pb-14";
 
   return (
     <div className={layoutClasses}>

@@ -46,6 +46,14 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
     }
   }, [draft]);
 
+  useEffect(() => {
+    const pendingMessage = localStorage.getItem('pending-toast-message');
+    if (pendingMessage) {
+      toast.success(pendingMessage);
+      localStorage.removeItem('pending-toast-message');
+    }
+  }, []);
+
   // Shooting star animation function
   function spawnClassicMeteor() {
     const host = containerRef.current;
@@ -78,7 +86,16 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
 
   return (
     <div ref={containerRef} className="relative h-dvh w-full overflow-hidden text-white">
-      <Toaster />
+      <Toaster
+        toastOptions={{
+          style: {
+            background: 'rgba(15, 23, 42, 0.8)', // slate-900 with some transparency
+            color: '#e2e8f0', // slate-200
+            backdropFilter: 'blur(8px)',
+            border: '1px solid rgba(71, 85, 105, 0.5)', // slate-600 with some transparency
+          },
+        }}
+      />
       <SkyCanvasAnimation />
       {/* 상단 비네트: 여백 축소 & 배경 밴딩 억제 */}
       <div
