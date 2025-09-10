@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
@@ -191,8 +192,18 @@ export const NoteDetailModal = ({ noteId, isOpen, onClose }: { noteId: string, i
   const getPublicUrl = (path: string) => supabase.storage.from('notes-attachments').getPublicUrl(path).data.publicUrl;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 z-50 overflow-y-auto">
-      <div className="p-4 sm:p-6 max-w-5xl mx-auto">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={{ duration: 0.2 }}
+        className="bg-card border border-border rounded-lg shadow-lg max-h-[90vh] overflow-y-auto w-full max-w-5xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <main className="lg:col-span-2 bg-card border border-border rounded-lg p-6 shadow-lg">
             {/* Header */}
@@ -315,7 +326,7 @@ export const NoteDetailModal = ({ noteId, isOpen, onClose }: { noteId: string, i
               )}
           </aside>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 };

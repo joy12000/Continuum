@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { AnswerCard } from "./AnswerCard";
 import { GeneratedAnswer } from "./GeneratedAnswer";
+import { NoteDetailModal } from "./NoteDetailModal";
 import { AnswerData } from '../types/common';
 import { getConfig } from "../lib/config";
 import { generateWithFallback } from "../lib/gen/generate";
@@ -48,6 +49,13 @@ export function AskPanel({ engine, setQuery, notes }: { engine: "auto" | "remote
   const [isGenerating, setIsGenerating] = useState(false);
   const [genError, setGenError] = useState<Error | null>(null);
   const [resGen, setResGen] = useState<AnswerData | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+
+  const handleNoteClick = (noteId: string) => {
+    setSelectedNoteId(noteId);
+    setIsModalOpen(true);
+  };
   
   const settings = getConfig();
 
@@ -118,7 +126,8 @@ export function AskPanel({ engine, setQuery, notes }: { engine: "auto" | "remote
         {showGenAnswer && resGen ? (
           <GeneratedAnswer
             data={resGen}
-            noteTitlesMap={{}} // Add this
+            noteTitlesMap={{}}
+            onNoteClick={handleNoteClick}
           />
         ) : showGenAnswer && isGenerating ? (
           <div className="text-center text-slate-500 animate-pulse">AI가 답변을 생성 중입니다...</div>
@@ -128,6 +137,7 @@ export function AskPanel({ engine, setQuery, notes }: { engine: "auto" | "remote
           res && <AnswerCard kp={res.kp} cites={res.cites} onJump={(id) => setQuery("#" + id)} />
         )}
       </div>
+      {selectedNoteId && <NoteDetailModal noteId={selectedNoteId} isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />}
     </div>
   );
 }

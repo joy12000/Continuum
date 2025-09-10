@@ -43,14 +43,18 @@ export default function AnswerCardsModal({
       <div className="absolute inset-0 bg-slate-900/80" />
       <div
         ref={cardRef}
-        className="absolute left-1/2 -translate-x-1/2 w-[min(920px,94vw)] top-[max(56px,calc(env(safe-area-inset-top,0px)+56px))] bg-white rounded-2xl shadow-2xl p-0 overflow-hidden"
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(920px,94vw)]"
         onClick={(e)=>e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
-          <div className="text-sm text-slate-500">AI 요약 & 출처</div>
-          <button ref={firstRef} onClick={onClose} className="px-3 py-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm">닫기</button>
-        </div>
-        <div className="max-h-[70vh] overflow-auto p-4">
+        <button 
+          ref={firstRef} 
+          onClick={onClose} 
+          className="absolute top-0 right-0 z-10 m-2 p-2 rounded-full bg-black/20 hover:bg-black/40 text-white"
+          aria-label="닫기"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+        <div className="max-h-[80vh] overflow-auto">
           {children}
         </div>
       </div>

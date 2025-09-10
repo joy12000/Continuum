@@ -21,6 +21,7 @@ import NewBottomNav from './components/NewBottomNav';
 import { supabase } from './lib/supabase';
 import AnswerCardsModal from './components/AnswerCardsModal';
 import { GeneratedAnswer } from './components/GeneratedAnswer';
+import { NoteDetailModal } from './components/NoteDetailModal';
 import { addNoteAndChunks, getNotesByIds } from './lib/supabaseService';
 import type { AnswerData, Note } from './types/common';
 
@@ -39,6 +40,7 @@ const MainLayout = () => {
     error: null,
   });
   const [noteTitlesMap, setNoteTitlesMap] = useState<Record<string, string>>({});
+  const [detailNoteId, setDetailNoteId] = useState<string | null>(null);
 
   async function generateSummaryAfterSave(newNoteId: string, noteText: string, userId: string) {
     toast.loading("과거 노트와 연결하는 중...", { id: 'ai-summary-toast' });
@@ -60,7 +62,7 @@ const MainLayout = () => {
       // it means no other relevant notes were found to form a meaningful context.
       if (!contextNoteIds || contextNoteIds.length <= 1) {
         toast.dismiss('ai-summary-toast');
-        setGeneratedAnswer({ data: null, isLoading: false, error: "연결할 만한 과거 노트를 찾지 못했습니다." });
+        setGeneratedAnswer({ data: null, isLoading: false, error: "관련된 과거가 없습니다." });
         setAnswerOpen(true);
         return;
       }
@@ -74,7 +76,7 @@ const MainLayout = () => {
       // If no other notes are left in the context, inform the user.
       if (finalContextNotes.length === 0) {
         toast.dismiss('ai-summary-toast');
-        setGeneratedAnswer({ data: null, isLoading: false, error: "새 노트를 제외하고 연결된 다른 노트가 없습니다." });
+        setGeneratedAnswer({ data: null, isLoading: false, error: "관련된 과거가 없습니다." });
         setAnswerOpen(true);
         return;
       }
@@ -218,8 +220,15 @@ const MainLayout = () => {
       <AnswerCardsModal open={answerOpen} onClose={() => setAnswerOpen(false)}>
         {generatedAnswer.isLoading && <div className="p-4 text-center">답변 생성 중...</div>}
         {generatedAnswer.error && <div className="p-4 text-center text-red-500">오류: {generatedAnswer.error}</div>}
-        {generatedAnswer.data && <GeneratedAnswer data={generatedAnswer.data} noteTitlesMap={noteTitlesMap} />} 
+        {generatedAnswer.data && <GeneratedAnswer data={generatedAnswer.data} noteTitlesMap={noteTitlesMap} onNoteClick={(noteId) => setDetailNoteId(noteId)} />} 
       </AnswerCardsModal>
+      {detailNoteId && (
+        <NoteDetailModal
+          noteId={detailNoteId}
+          isOpen={!!detailNoteId}
+          onClose={() => setDetailNoteId(null)}
+        />
+      )}
     </div>
   );
 };

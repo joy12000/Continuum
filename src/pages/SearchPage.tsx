@@ -167,7 +167,7 @@ const SearchPage = ({ session }: { session: Session | null }) => {
             <div className="bg-slate-900/60 backdrop-blur-lg border border-slate-700/50 rounded-lg p-4">
               {generatedAnswer.isLoading && <div className="p-4 text-center text-muted-foreground">답변 생성 중...</div>}
               {generatedAnswer.error && <div className="p-4 text-center text-destructive">오류: {generatedAnswer.error}</div>}
-              {generatedAnswer.data && <GeneratedAnswer data={generatedAnswer.data} noteTitlesMap={noteTitlesMap} />} 
+              {generatedAnswer.data && <GeneratedAnswer data={generatedAnswer.data} noteTitlesMap={noteTitlesMap} onNoteClick={handleNoteClick} />} 
             </div>
           </div>
         </div>

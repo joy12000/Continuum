@@ -228,17 +228,17 @@ export function Settings({ engine, setEngine, onNavigateHome, onNavigateToDiagno
   };
 
   return (
-    <div className="relative p-4 bg-slate-900 text-slate-100 font-sans min-h-screen isolate">
+    <div className="relative p-3 bg-slate-900 text-slate-100 font-sans min-h-screen isolate">
       <SkyCanvasAnimation />
       <div className="relative z-10">
-        <header className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">설정</h1>
+        <header className="flex items-center justify-between mb-4">
+          <h1 className="text-xl font-bold">설정</h1>
           <button onClick={onNavigateHome} className="p-2 rounded-full hover:bg-slate-800">
             <ArrowLeft size={24} />
           </button>
         </header>
 
-        <div className="space-y-6">
+        <div className="space-y-4">
           <SettingsCard title="임베딩 모드">
             <select 
               value={engine} 
