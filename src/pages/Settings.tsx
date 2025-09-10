@@ -9,29 +9,11 @@ import SkyCanvasAnimation from '../components/SkyCanvasAnimation';
 import PageLayout from '../components/PageLayout';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 
-type QuickPrefs = {
-  starDensity: number;
-  starBrightness: number;
-};
-
-const DEFAULT_PREFS: QuickPrefs = {
-  starDensity: 1.0,
-  starBrightness: 1.0,
-};
-
 const Settings: React.FC = () => {
   const { canInstall, triggerInstall } = usePWAInstall();
   const navigate = useNavigate();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [confirmText, setConfirmText] = useState("");
-  const [prefs, setPrefs] = useState<QuickPrefs>(() => {
-    try {
-      const saved = localStorage.getItem("sky.prefs");
-      return saved ? { ...DEFAULT_PREFS, ...JSON.parse(saved) } : DEFAULT_PREFS;
-    } catch {
-      return DEFAULT_PREFS;
-    }
-  });
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -58,7 +40,7 @@ const Settings: React.FC = () => {
 
   return (
     <PageLayout title="설정" transparent>
-      <SkyCanvasAnimation prefs={prefs} />
+      <SkyCanvasAnimation />
       <div className="relative z-10">
         <div className="space-y-8">
           <SettingsCard title="개발자">

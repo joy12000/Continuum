@@ -1,5 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { motion } from "framer-motion";
+import { useSkySettings } from "../contexts/SkySettingsContext";
 
 type Props = {
   sizeVw?: number;        // 달 지름 기준(vw) - clamp와 병용
@@ -8,6 +9,10 @@ type Props = {
 };
 
 export default function Moon({ sizeVw = 5.5, onClick, date = new Date() }: Props) {
+  const { togglePanel } = useSkySettings();
+  const pressTimer = useRef<NodeJS.Timeout | null>(null);
+  const longPressTriggered = useRef(false);
+
   // (1) 달 위상 계산: -1(그믐) ~ 0(보름) ~ 1(초승)
   const phase = useMemo(() => {
     const synodic = 29.530588853; // 평균 삭망월
@@ -19,6 +24,29 @@ export default function Moon({ sizeVw = 5.5, onClick, date = new Date() }: Props
 
   // 반응형 크기: 여백 과다 방지 (최소/최대 제한)
   const size = `clamp(51px, ${sizeVw}vw, 91px)`;
+
+  const handlePointerDown = () => {
+    longPressTriggered.current = false;
+    pressTimer.current = setTimeout(() => {
+      togglePanel();
+      longPressTriggered.current = true;
+    }, 500); // 500ms for long press
+  };
+
+  const handlePointerUp = () => {
+    if (pressTimer.current) {
+      clearTimeout(pressTimer.current);
+    }
+  };
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (longPressTriggered.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    onClick?.();
+  };
 
   return (
     <div className="pointer-events-none absolute right-[2.5vw] top-[2.2vh] z-20">
@@ -45,7 +73,10 @@ export default function Moon({ sizeVw = 5.5, onClick, date = new Date() }: Props
       {/* (C) 달 버튼(설정 이동) - 고정(패럴랙스 제거) */}
       <motion.button
         type="button"
-        onClick={onClick}
+        onClick={handleClick}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerUp} // Also cancel on pointer leave
         className="relative pointer-events-auto select-none outline-none"
         style={{ width: size, height: size }}
         whileTap={{ scale: 0.98 }}

@@ -5,17 +5,6 @@ import { toast } from "../lib/toast";
 import SkyCanvasAnimation from "../components/SkyCanvasAnimation";
 import Moon from "../components/Moon";
 
-// Type definitions
-type QuickPrefs = {
-  starDensity: number;
-  starBrightness: number;
-};
-
-const DEFAULT_PREFS: QuickPrefs = {
-  starDensity: 1.0,
-  starBrightness: 1.0,
-};
-
 interface HomeSkyProps {
   answerSignal?: number;
   onOpenAnswer?: () => void;
@@ -25,18 +14,8 @@ interface HomeSkyProps {
 export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement | null>(null); // Ref for meteor container
-  const [prefs, setPrefs] = useState<QuickPrefs>(() => {
-    try {
-      const saved = localStorage.getItem("sky.prefs");
-      return saved ? { ...DEFAULT_PREFS, ...JSON.parse(saved) } : DEFAULT_PREFS;
-    } catch {
-      return DEFAULT_PREFS;
-    }
-  });
-
   const [draft, setDraft] = useState<string>("");
   const editorRef = useRef<HTMLDivElement | null>(null);
-  const [showQuick, setShowQuick] = useState(false);
   const [showAnswerStar, setShowAnswerStar] = useState(false);
 
   useEffect(() => {
@@ -44,11 +23,6 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
       setShowAnswerStar(true);
     }
   }, [answerSignal]);
-
-  // Save prefs to localStorage
-  useEffect(() => {
-    localStorage.setItem("sky.prefs", JSON.stringify(prefs));
-  }, [prefs]);
 
   // Listen for paste event from other pages (e.g., Calendar)
   useEffect(() => {
@@ -106,7 +80,7 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
   return (
     <div ref={containerRef} className="relative h-dvh w-full overflow-hidden text-white">
       <Toasts />
-      <SkyCanvasAnimation prefs={prefs} />
+      <SkyCanvasAnimation />
       {/* 상단 비네트: 여백 축소 & 배경 밴딩 억제 */}
       <div
         className="pointer-events-none absolute inset-0 z-10"
@@ -166,62 +140,6 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
           밤하늘에 오늘의 조각을 새겨보세요.
         </div>
       )}
-
-      {showQuick && (
-        <div id="quick-panel" className="absolute right-3 top-16 z-40 w-[260px] rounded-2xl border border-white/10 bg-[#0b1830]/80 p-3 backdrop-blur">
-          <h3 className="mb-2 text-sm text-white/80">빠른 설정</h3>
-          <Slider label="별 밀도" min={0.2} max={2} step={0.05} value={prefs.starDensity} onChange={(v) => setPrefs((p) => ({ ...p, starDensity: v }))} />
-          <Slider label="별 밝기" min={0.5} max={1.5} step={0.05} value={prefs.starBrightness} onChange={(v) => setPrefs((p) => ({ ...p, starBrightness: v }))} />
-        </div>
-      )}
     </div>
-  );
-}
-
-// Helper Components
-function Slider({ label, min, max, step, value, onChange }: { label: string; min: number; max: number; step: number; value: number; onChange: (v: number) => void; }) {
-  return (
-    <label className="mb-3 block text-xs text-white/70">
-      <span className="mb-1 block">{label}</span>
-      <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} className="w-full accent-sky-300" />
-      <div className="mt-0.5 text-right text-[11px] text-white/50">{value.toFixed(2)}</div>
-    </label>
-  );
-}
-
-function AnswerStarSVG() {
-  return (
-    <svg width="36" height="36" viewBox="0 0 24 24" fill="url(#answer-gradient)" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <defs>
-        <linearGradient id="answer-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" style={{stopColor: '#fde047', stopOpacity: 1}} />
-          <stop offset="100%" style={{stopColor: '#f97316', stopOpacity: 1}} />
-        </linearGradient>
-      </defs>
-      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.77 5.82 22 7 14.14 2 9.27l6.91-1.01L12 2z" />
-    </svg>
-  );
-}
-
-function CrescentMoonSVG() {
-  return (
-    <svg width="36" height="36" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <radialGradient id="moonGlow" cx="50%" cy="45%" r="55%"><stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" /><stop offset="60%" stopColor="#dbe7ff" stopOpacity="0.85" /><stop offset="100%" stopColor="#c0d6ff" stopOpacity="0.55" /></radialGradient>
-        <mask id="crescentMask"><rect width="100%" height="100%" fill="black" /><circle cx="34" cy="30" r="18" fill="white" /><circle cx="42" cy="26" r="16" fill="black" /></mask>
-        <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.6" result="blur" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
-      </defs>
-      <g filter="url(#softGlow)"><circle cx="34" cy="30" r="20" fill="url(#moonGlow)" mask="url(#crescentMask)" /></g>
-    </svg>
-  );
-}
-
-function SaveIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-      <polyline points="17 21 17 13 7 13 7 21" />
-      <polyline points="7 3 7 8 15 8" />
-    </svg>
   );
 }

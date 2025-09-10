@@ -1,17 +1,10 @@
 import React, { useRef, useEffect } from 'react';
-
-type QuickPrefs = {
-  starDensity: number;
-  starBrightness: number;
-};
+import { useSkySettings } from '../contexts/SkySettingsContext';
 
 const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
 
-interface SkyCanvasAnimationProps {
-  prefs?: QuickPrefs;
-}
-
-const SkyCanvasAnimation: React.FC<SkyCanvasAnimationProps> = ({ prefs = { starDensity: 1.0, starBrightness: 1.0 } }) => {
+const SkyCanvasAnimation: React.FC = () => {
+  const { prefs } = useSkySettings();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rafRef = useRef<number | null>(null);
   const starsRef = useRef<{ x: number; y: number; r: number; tw: number }[]>([]);
@@ -99,7 +92,7 @@ const SkyCanvasAnimation: React.FC<SkyCanvasAnimationProps> = ({ prefs = { starD
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
   }, [prefs.starBrightness]);
 
-  return <canvas ref={canvasRef} className="absolute inset-0 block w-full h-full" />;
+  return <canvas ref={canvasRef} className="fixed inset-0 -z-10 block w-full h-full" />;
 };
 
 export default React.memo(SkyCanvasAnimation);

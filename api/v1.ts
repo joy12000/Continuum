@@ -471,7 +471,11 @@ async function handleGenerateThread(req: VercelRequest, res: VercelResponse) {
 
     const { data: job, error: jobError } = await supabase
       .from('thread_generation_jobs')
-      .insert({ user_id: userId, status: 'pending' })
+      .insert({ 
+        user_id: userId, 
+        status: 'pending',
+        exclude_singletons: excludeSingletons
+      })
       .select()
       .single();
 
@@ -481,7 +485,7 @@ async function handleGenerateThread(req: VercelRequest, res: VercelResponse) {
 
     // fire and forget
     runThreadGeneration(job.id, userId, token, excludeSingletons).catch(console.error);
-    return res.status(2022).json({ jobId: job.id });
+    return res.status(202).json({ jobId: job.id });
 
   } else if (req.method === "GET") {
     const { jobId } = req.query;

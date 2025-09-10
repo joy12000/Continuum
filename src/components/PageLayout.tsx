@@ -14,7 +14,7 @@ interface PageLayoutProps {
 
 const PageLayout: React.FC<PageLayoutProps> = ({ children, title, transparent, fullWidth, className, hideMoon }) => {
   const navigate = useNavigate();
-  const layoutClasses = `relative min-h-screen text-foreground font-sans ${transparent ? '' : 'bg-background'} ${className || ''}`;
+  const layoutClasses = `relative min-h-screen text-foreground font-sans ${transparent ? '' : ''} ${className || ''}`;
   
   const contentWrapperClasses = fullWidth 
     ? "w-full px-4 py-8"

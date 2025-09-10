@@ -26,6 +26,9 @@ import { addNoteAndChunks, getNotesByIds } from './lib/supabaseService';
 import type { AnswerData, Note } from './types/common';
 import UpdatePrompt from './components/UpdatePrompt';
 
+import { SkySettingsProvider } from './contexts/SkySettingsContext';
+import QuickSettingsPanel from './components/QuickSettingsPanel';
+
 // Main layout component to handle conditional nav bar and protected routes
 const MainLayout = () => {
   const location = useLocation();
@@ -198,6 +201,7 @@ const MainLayout = () => {
     <div className="flex flex-col h-screen bg-surface text-text-primary">
       <Toasts />
       <UpdatePrompt />
+      <QuickSettingsPanel />
       <main className="flex-grow overflow-y-auto hide-scrollbar overflow-x-hidden">
         <Suspense fallback={<div className="flex justify-center items-center h-full">Loading Page...</div>}>
           <Routes>
@@ -239,7 +243,9 @@ const MainLayout = () => {
 export default function App() {
   return (
     <Router>
-      <MainLayout />
+      <SkySettingsProvider>
+        <MainLayout />
+      </SkySettingsProvider>
     </Router>
   );
 }
