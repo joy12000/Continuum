@@ -10,13 +10,6 @@ import { supabase } from '@/lib/supabase';
 import type { InsightThread, Note } from '@lib/types';
 import type { Session } from '@supabase/supabase-js';
 import { BeakerIcon, CpuChipIcon } from '@heroicons/react/24/outline';
-import SkyCanvasAnimation from '@/components/SkyCanvasAnimation';
-
-// --- Type Definitions ---
-interface CachedThreadsResponse {
-  threads: InsightThread[];
-  lastUpdatedAt: string | null;
-}
 
 // --- Time Formatting Helper ---
 const formatTimeAgo = (dateString: string | null): string => {
@@ -67,6 +60,11 @@ const startGenerationJob = async (excludeSingletons: boolean): Promise<{ jobId: 
     }
     return response.json();
 };
+
+interface CachedThreadsResponse {
+  threads: InsightThread[];
+  lastUpdatedAt: string | null;
+}
 
 const LinksPage = ({ session }: { session: Session | null }) => {
   const queryClient = useQueryClient();
@@ -141,7 +139,7 @@ const LinksPage = ({ session }: { session: Session | null }) => {
 
     if (!threads || threads.length === 0) {
       return (
-        <div className="text-center p-8 bg-slate-900/60 backdrop-blur-lg border border-slate-700/50 rounded-lg shadow-lg">
+        <div className="text-center p-8 bg-slate-900/60 backdrop-blur-lg border border-slate-700/50 rounded-lg shadow-lg max-w-md mx-auto">
           <BeakerIcon className="w-16 h-16 mx-auto text-accent mb-4" />
           <h3 className="text-xl font-bold mb-4">아직 연결된 생각 없음</h3>
           <p className="text-muted-foreground mb-6">노트를 분석하여 새로운 인사이트를 발견하세요.</p>
@@ -197,7 +195,7 @@ const LinksPage = ({ session }: { session: Session | null }) => {
             </button>
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {threads.map((thread: InsightThread) => (
             <InsightThreadCard key={thread.threadId} thread={thread} onNoteClick={handleNoteClick} />
           ))}
@@ -207,9 +205,7 @@ const LinksPage = ({ session }: { session: Session | null }) => {
   };
 
   return (
-    <div className="bg-links-background h-screen">
-    <PageLayout title="인사이트 스레드" transparent>
-      
+    <PageLayout title="인사이트 스레드" transparent fullWidth className="bg-links-background">
       <div className="relative z-10">
         {renderContent()}
       </div>
@@ -219,7 +215,6 @@ const LinksPage = ({ session }: { session: Session | null }) => {
         noteId={selectedNoteId}
       />}
     </PageLayout>
-    </div>
   );
 };
 
