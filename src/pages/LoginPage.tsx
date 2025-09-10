@@ -61,7 +61,7 @@ const LoginPage = () => {
             loop 
             muted 
             playsInline 
-            className="w-24 h-24 mx-auto mb-4 rounded-full shadow-[0_0_16px_rgba(255,255,220,0.35)] object-cover"
+            className="w-24 h-24 mx-auto mb-4"
             aria-label="Continuum Logo"
           ></video>
           <h1 className="text-3xl font-bold text-gray-200">Continuum</h1>
