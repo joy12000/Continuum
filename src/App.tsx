@@ -2,7 +2,7 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { Session } from '@supabase/supabase-js';
 
-import toast from 'react-hot-toast';
+import toast, { Toaster } from 'react-hot-toast';
 // Lazy load pages
 const HomeSky = lazy(() => import('./pages/HomeSky'));
 const Settings = lazy(() => import('./pages/Settings'));
@@ -14,8 +14,6 @@ const DeveloperPage = lazy(() => import('./pages/DeveloperPage'));
 
 import NoteDetailPage from './pages/NoteDetailPage'; // Not lazy
 const Diagnostics = lazy(() => import('./components/Diagnostics'));
-
-import { Toasts } from './components/Toasts';
 
 import NewBottomNav from './components/NewBottomNav';
 import { supabase } from './lib/supabase';
@@ -244,7 +242,29 @@ const MainLayout = () => {
 
   return (
     <div className="flex flex-col h-screen bg-surface text-text-primary">
-      <Toasts />
+      <Toaster
+        position="bottom-center"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: '#1f2937',
+            color: '#f3f4f6',
+            border: '1px solid #374151',
+          },
+          success: {
+            iconTheme: {
+              primary: '#22c55e',
+              secondary: '#1f2937',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#1f2937',
+            },
+          },
+        }}
+      />
       <UpdatePrompt />
       <QuickSettingsPanel />
       <main className="flex-grow overflow-y-auto hide-scrollbar overflow-x-hidden">

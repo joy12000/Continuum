@@ -2,7 +2,7 @@ import { useRef, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
-// import { ko } from '@supabase/auth-ui-shared/dist/esm/localization/locales';
+import { ko } from '@supabase/auth-ui-shared/dist/esm/localization/locales';
 
 // Refined custom theme for the Auth component
 const customTheme = {
@@ -58,19 +58,23 @@ const LoginPage = () => {
     const video = videoRef.current;
     if (!video) return;
 
+    const handleEnded = () => {
+      video.playbackRate = -1;
+      video.play();
+    };
+
     const handleTimeUpdate = () => {
-      if (video.playbackRate > 0 && video.currentTime >= video.duration - 0.1) {
-        video.playbackRate = -1;
-        video.play();
-      } else if (video.playbackRate < 0 && video.currentTime <= 0.1) {
+      if (video.playbackRate < 0 && video.currentTime < 0.1) {
         video.playbackRate = 1;
         video.play();
       }
     };
-
+    
+    video.addEventListener('ended', handleEnded);
     video.addEventListener('timeupdate', handleTimeUpdate);
 
     return () => {
+      video.removeEventListener('ended', handleEnded);
       video.removeEventListener('timeupdate', handleTimeUpdate);
     };
   }, []);

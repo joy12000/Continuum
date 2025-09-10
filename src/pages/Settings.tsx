@@ -23,19 +23,23 @@ const Settings: React.FC = () => {
     const video = videoRef.current;
     if (!video) return;
 
+    const handleEnded = () => {
+      video.playbackRate = -1;
+      video.play();
+    };
+
     const handleTimeUpdate = () => {
-      if (video.playbackRate > 0 && video.currentTime >= video.duration - 0.1) {
-        video.playbackRate = -1;
-        video.play();
-      } else if (video.playbackRate < 0 && video.currentTime <= 0.1) {
+      if (video.playbackRate < 0 && video.currentTime < 0.1) {
         video.playbackRate = 1;
         video.play();
       }
     };
-
+    
+    video.addEventListener('ended', handleEnded);
     video.addEventListener('timeupdate', handleTimeUpdate);
 
     return () => {
+      video.removeEventListener('ended', handleEnded);
       video.removeEventListener('timeupdate', handleTimeUpdate);
     };
   }, []);
@@ -111,7 +115,7 @@ const Settings: React.FC = () => {
         </div>
         <div className="space-y-8">
           <SettingsCard title="프로필">
-            <div className="space-y-4 p-4 bg-gray-800/50 rounded-lg">
+            <div className="space-y-4 p-4 bg-gray-800/50 rounded-lg max-w-sm mx-auto">
               <h3 className="text-lg font-semibold text-sky-300 mb-4">내 정보</h3>
               <div className="flex flex-col space-y-2">
                 <label htmlFor="profile-name" className="text-sm text-gray-400">이름</label>
