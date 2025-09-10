@@ -206,7 +206,7 @@ const LinksPage = () => {
 
   return (
     <PageLayout title="인사이트 스레드">
-      <SkyCanvasAnimation />
+      
       <div className="relative z-10">
         {renderContent()}
       </div>
