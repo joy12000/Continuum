@@ -37,7 +37,7 @@ function pickSupabase(req: VercelRequest): SupabaseClient | null {
   return null;
 }
 
-const MAX_NOTES = parseInt(process.env.CONTINUUM_MAX_NOTES || "400", 10);
+const MAX_NOTES = parseInt(process.env.MOMENTUM_MAX_NOTES || "400", 10);
 
 const envNum = (name: string, def: number) => {
   const v = process.env[name];
@@ -119,7 +119,7 @@ async function runThreadGeneration(jobId: string, userId: string, token: string,
     }
 
     // Precomputed edges via RPC (server-side SQL for speed)
-    const minEdge = envNum('CONTINUUM_MIN_EDGE', 0.02);
+    const minEdge = envNum('MOMENTUM_MIN_EDGE', 0.02);
     const { data: edges, error: edgesError } = await supabase.rpc('get_all_edges', {
       minimum_weight: minEdge
     });
@@ -135,7 +135,7 @@ async function runThreadGeneration(jobId: string, userId: string, token: string,
     const prepared = prepareNotes(notes as Note[], (chunks as NoteChunk[]) ?? []);
 
     // === Cluster method selection (env-driven) =======================
-    const CLUSTER_METHOD = process.env.CONTINUUM_CLUSTER_METHOD ?? "hybrid";
+    const CLUSTER_METHOD = process.env.MOMENTUM_CLUSTER_METHOD ?? "hybrid";
     const method = String(CLUSTER_METHOD).toLowerCase();
 
     let clusters: number[][];
@@ -154,8 +154,8 @@ async function runThreadGeneration(jobId: string, userId: string, token: string,
 
       } else if (method === "auto") {
         // Auto threshold to fit k range + modularity
-        const kMin = envNum('CONTINUUM_KMIN', 3);
-        const kMax = envNum('CONTINUUM_KMAX', 12);
+        const kMin = envNum('MOMENTUM_KMIN', 3);
+        const kMax = envNum('MOMENTUM_KMAX', 12);
         clusters = clusterByAutoThreshold(prepared, edges as any, {
           kMin,
           kMax
@@ -163,10 +163,10 @@ async function runThreadGeneration(jobId: string, userId: string, token: string,
 
       } else {
         // HYBRID: LPA → if out-of-range => AUTO; isolation, kNN sparsify, MST fallback, absorb singletons
-        const kMin    = envNum('CONTINUUM_KMIN', 4);   // slightly higher default to reduce over-splitting
-        const kMax    = envNum('CONTINUUM_KMAX', 12);
-        const knnK    = Math.max(1, Math.min(64, envNum('CONTINUUM_CLUSTER_K', 8)));
-        const mutual  = envBool01('CONTINUUM_CLUSTER_MUTUAL', true);
+        const kMin    = envNum('MOMENTUM_KMIN', 4);   // slightly higher default to reduce over-splitting
+        const kMax    = envNum('MOMENTUM_KMAX', 12);
+        const knnK    = Math.max(1, Math.min(64, envNum('MOMENTUM_CLUSTER_K', 8)));
+        const mutual  = envBool01('MOMENTUM_CLUSTER_MUTUAL', true);
 
         clusters = clusterHybrid(prepared, edges as any, {
           kMin, kMax,
@@ -282,7 +282,7 @@ async function handleFindContextCluster(req: VercelRequest, res: VercelResponse)
     const normalizedEdges = normalizeEdges(prepared, edges as any);
 
     // === Cluster method selection (env-driven) =======================
-    const CLUSTER_METHOD = process.env.CONTINUUM_CLUSTER_METHOD ?? "hybrid";
+    const CLUSTER_METHOD = process.env.MOMENTUM_CLUSTER_METHOD ?? "hybrid";
     const method = String(CLUSTER_METHOD).toLowerCase();
     let clusters: number[][];
 
@@ -630,9 +630,9 @@ async function handleGetConnections(req: VercelRequest, res: VercelResponse) {
   }
 
   // 환경값 + 쿼리값 파싱 (NaN 가드 포함)
-  const K_ENV   = Number(process.env.CONTINUUM_CONN_K ?? 12);
-  const MIN_ENV = Number(process.env.CONTINUUM_CONN_MIN ?? 0.05);
-  const MUT_ENV = String(process.env.CONTINUUM_CONN_MUTUAL ?? "false") === "true";
+  const K_ENV   = Number(process.env.MOMENTUM_CONN_K ?? 12);
+  const MIN_ENV = Number(process.env.MOMENTUM_CONN_MIN ?? 0.05);
+  const MUT_ENV = String(process.env.MOMENTUM_CONN_MUTUAL ?? "false") === "true";
 
   const kRaw   = Number(req.query.k ?? K_ENV);
   const minRaw = Number(req.query.min_score ?? MIN_ENV);

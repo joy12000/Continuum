@@ -1,0 +1,8 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import React, { useState } from 'react';
+import { DocumentTextIcon } from '@heroicons/react/24/outline';
+const InsightThreadCard = ({ thread, onNoteClick }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+    return (_jsxs("div", { className: "border border-slate-700/50 bg-slate-900/60 backdrop-blur-lg rounded-lg p-4 shadow-lg flex flex-col h-full transition-all duration-300 hover:bg-slate-800/70 hover:shadow-xl cursor-pointer", onClick: () => setIsExpanded(!isExpanded), children: [_jsx("h3", { className: "text-lg font-bold text-primary break-words", children: thread.title }), _jsx("p", { className: `mt-2 text-muted-foreground flex-grow text-base ${!isExpanded ? 'line-clamp-3' : ''}`, children: thread.summary }), _jsxs("div", { className: "mt-4 pt-3 border-t border-slate-700/50", children: [_jsx("h4", { className: "text-base font-semibold text-muted-foreground mb-2", children: "Included Notes" }), _jsx("ul", { className: "space-y-2", children: thread.notes.map((note) => (_jsx("li", { children: _jsxs("button", { onClick: (e) => { e.stopPropagation(); onNoteClick(note); }, className: "flex items-center gap-2 text-left text-base text-primary hover:underline hover:text-accent transition-colors w-full truncate", children: [_jsx(DocumentTextIcon, { className: "w-5 h-5 flex-shrink-0" }), _jsx("span", { children: note.title || 'Untitled Note' })] }) }, note.id))) })] }), _jsx("div", { className: "mt-3 text-sm text-right text-muted-foreground/80", children: _jsxs("span", { children: ["Relevance Score: ", (thread.relevanceScore ?? 0).toFixed(2)] }) })] }));
+};
+export default React.memo(InsightThreadCard);

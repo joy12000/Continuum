@@ -23,7 +23,7 @@ const RAG_TEST_CASES: RagCase[] = [
     id: 1,
     question: "What is the primary data storage method?",
     context: [
-      { id: 'rag-test-1', content: 'Continuum uses IndexedDB via Dexie.js for local storage.' },
+      { id: 'rag-test-1', content: 'Momentum uses IndexedDB via Dexie.js for local storage.' },
       { id: 'rag-test-2', content: 'The UI is built with React and Vite.' }
     ],
     expectedSourceId: 'rag-test-1',

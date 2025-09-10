@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { Note } from "./types.js";
 
-const MODEL = process.env.CONTINUUM_GEMINI_MODEL || "gemini-1.5-pro";
+const MODEL = process.env.MOMENTUM_GEMINI_MODEL || "gemini-1.5-pro";
 
 function requireEnv(key: string) {
   const v = process.env[key];

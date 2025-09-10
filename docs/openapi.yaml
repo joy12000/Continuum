@@ -1,6 +1,6 @@
 openapi: 3.0.0
 info:
-  title: "Continuum Links & Threads API (Refactored)"
+  title: "Momentum Links & Threads API (Refactored)"
   description: "비용 최적화를 위해 캐시 조회와 생성/분석 기능이 분리된 API 명세"
   version: "1.1.0"
 servers:

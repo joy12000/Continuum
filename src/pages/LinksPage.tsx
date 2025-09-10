@@ -68,7 +68,7 @@ interface CachedThreadsResponse {
 
 const LinksPage = ({ session }: { session: Session | null }) => {
   const queryClient = useQueryClient();
-  const [jobId, setJobId] = useState<string | null>(localStorage.getItem('continuum_job_id'));
+  const [jobId, setJobId] = useState<string | null>(localStorage.getItem('momentum_job_id'));
   const [isModalOpen, setModalOpen] = useState(false);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [excludeSingletons, setExcludeSingletons] = useState<boolean>(true);
@@ -87,7 +87,7 @@ const LinksPage = ({ session }: { session: Session | null }) => {
   const handleJobSuccess = () => {
     console.log("Job completed successfully!");
     alert("인사이트 스레드 분석 완료!");
-    localStorage.removeItem('continuum_job_id');
+    localStorage.removeItem('momentum_job_id');
     setJobId(null);
     queryClient.invalidateQueries({ queryKey: ['cachedThreads'] });
   };
@@ -95,7 +95,7 @@ const LinksPage = ({ session }: { session: Session | null }) => {
   const handleJobError = (error: string) => {
     console.error("Job failed:", error);
     alert(`오류가 발생했습니다: ${error}`);
-    localStorage.removeItem('continuum_job_id');
+    localStorage.removeItem('momentum_job_id');
     setJobId(null);
   };
 
@@ -108,7 +108,7 @@ const LinksPage = ({ session }: { session: Session | null }) => {
   const handleGenerateClick = async () => {
     try {
       const data = await startGenerationJob(excludeSingletons);
-      localStorage.setItem('continuum_job_id', data.jobId);
+      localStorage.setItem('momentum_job_id', data.jobId);
       setJobId(data.jobId);
     } catch (error: any) {
       alert(`분석 시작 실패: ${error.message}`);
@@ -116,7 +116,7 @@ const LinksPage = ({ session }: { session: Session | null }) => {
   };
   
   useEffect(() => {
-    const runningJobId = localStorage.getItem('continuum_job_id');
+    const runningJobId = localStorage.getItem('momentum_job_id');
     if (runningJobId) {
       setJobId(runningJobId);
     }

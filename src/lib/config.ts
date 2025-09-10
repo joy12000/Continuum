@@ -10,7 +10,7 @@ export interface Config {
   genEndpoint?: string; // 다시 추가
 }
 
-const CONFIG_KEY = 'continuum-config';
+const CONFIG_KEY = 'momentum-config';
 
 // 항상 일관된 기본값을 제공하는 상수
 const DEFAULT_CONFIG: Config = {

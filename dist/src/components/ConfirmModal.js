@@ -1,0 +1,4 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+export default function ConfirmModal({ title = '확인', children, confirmText = '확인', cancelText = '취소', onConfirm, onClose, }) {
+    return (_jsx("div", { className: "fixed inset-0 z-50 flex items-center justify-center bg-black/40", children: _jsxs("div", { className: "bg-white text-black max-w-md w-full rounded-2xl p-5 shadow-2xl", children: [_jsx("h3", { className: "text-lg font-semibold mb-2", children: title }), _jsx("div", { className: "text-sm text-gray-700 mb-4 whitespace-pre-wrap", children: children }), _jsxs("div", { className: "flex justify-end gap-2", children: [_jsx("button", { onClick: onClose, className: "px-3 py-1 rounded-lg border", children: cancelText }), _jsx("button", { onClick: onConfirm, className: "px-3 py-1 rounded-lg bg-black text-white", children: confirmText })] })] }) }));
+}

@@ -1,5 +1,5 @@
 
-# Continuum (MVP)
+# Momentum (MVP)
 
 온디바이스 하이브리드 검색(PWA) MVP
 
@@ -53,7 +53,7 @@ npm run preview
 
 
 ## Web Share Target (안드로이드 PWA 공유)
-- 앱을 설치(PWA)한 뒤, 브라우저/다른 앱에서 "공유" → "Continuum"을 선택하면
+- 앱을 설치(PWA)한 뒤, 브라우저/다른 앱에서 "공유" → "Momentum"을 선택하면
   `/share?title=...&text=...&url=...`으로 열리고 자동으로 노트가 생성됩니다.
 - 현재는 GET 방식(텍스트/URL 공유)만 처리합니다. 파일 공유(이미지 등)는 추후 POST + SW 핸들링으로 확장 가능합니다.
 
@@ -79,7 +79,7 @@ npm run preview
 
 
 ## 파일 공유(POST) — 이미지까지 캡처
-- PWA 설치 후, 안드로이드에서 "공유" → "Continuum" 선택 시 이미지/파일도 함께 전송됩니다.
+- PWA 설치 후, 안드로이드에서 "공유" → "Momentum" 선택 시 이미지/파일도 함께 전송됩니다.
 - 서비스워커가 `/share` POST를 받아 **임시 큐(IndexedDB)**에 저장하고, 앱이 이를 즉시 노트+첨부로 변환합니다.
 
 ## 첨부 미디어

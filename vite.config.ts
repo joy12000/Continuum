@@ -28,8 +28,8 @@ export default defineConfig({
         clientsClaim: true,
       },
       manifest: {
-        name: "Continuum",
-        short_name: "Continuum",
+        name: "Momentum",
+        short_name: "Momentum",
         description: "오프라인 온디바이스 검색 PWA",
         theme_color: "#0f172a",
         background_color: "#0f172a",

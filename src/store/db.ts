@@ -15,7 +15,7 @@ export class AppDB extends Dexie {
   dedup_logs!: Table<DedupLog, number>;
   snapshots!: Table<Snapshot, string>;
 
-  constructor(){ super("continuum");
+  constructor(){ super("momentum");
     this.version(1).stores({
       notes: "id, createdAt, updatedAt, *tags",
       attachments: "id, noteId, createdAt",

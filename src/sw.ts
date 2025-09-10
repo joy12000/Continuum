@@ -10,7 +10,7 @@ import Dexie, { Table } from "dexie";
 export interface Note { id: string; body: string; createdAt: number; updatedAt: number; tags: string[]; }
 export class AppDB extends Dexie {
   notes!: Table<Note, string>;
-  constructor(){ super("continuum");
+  constructor(){ super("momentum");
     this.version(1).stores({
       notes: "id, createdAt, updatedAt, *tags",
     });
@@ -27,7 +27,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then(cacheNames => {
       return Promise.all(
         cacheNames.map(cacheName => {
-          if (cacheName.startsWith('continuum-cache-') && cacheName !== 'continuum-cache-v1') {
+          if (cacheName.startsWith('momentum-cache-') && cacheName !== 'momentum-cache-v1') {
             return caches.delete(cacheName);
           }
         })
@@ -51,7 +51,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
       (async () => {
         try {
           const networkResponse = await fetch(request);
-          const cache = await caches.open('continuum-cache-v1');
+          const cache = await caches.open('momentum-cache-v1');
           cache.put(request, networkResponse.clone());
           return networkResponse;
         } catch (error) {
@@ -71,13 +71,13 @@ self.addEventListener('fetch', (event: FetchEvent) => {
         if (cachedResponse) {
           // Revalidate in the background
           fetch(request).then(networkResponse => {
-            const cache = caches.open('continuum-cache-v1');
+            const cache = caches.open('momentum-cache-v1');
             cache.then(c => c.put(request, networkResponse));
           });
           return cachedResponse;
         }
         const networkResponse = await fetch(request);
-        const cache = await caches.open('continuum-cache-v1');
+        const cache = await caches.open('momentum-cache-v1');
         cache.put(request, networkResponse.clone());
         return networkResponse;
       })()
@@ -94,7 +94,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
       const text = formData.get("text") as string || "";
       const url = formData.get("url") as string || "";
       
-      const dbReq = indexedDB.open("continuum-share-queue", 1);
+      const dbReq = indexedDB.open("momentum-share-queue", 1);
       dbReq.onupgradeneeded = () => {
         dbReq.result.createObjectStore("items", { autoIncrement: true });
       };
@@ -108,7 +108,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
       await store.add({ title, text, url, files, createdAt: Date.now() });
       await new Promise(r => tx.oncomplete = r as any);
       
-      const bc = new BroadcastChannel("continuum-share");
+      const bc = new BroadcastChannel("momentum-share");
       bc.postMessage({ type: "queued" });
       bc.close();
 

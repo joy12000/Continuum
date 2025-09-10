@@ -57,7 +57,7 @@ export function BackupRestore({ onNotesImported }: { onNotesImported?: () => voi
       const blobs = await encryptJSON(backupData, password);
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blobs);
-      a.download = `continuum-backup-${new Date().toISOString().slice(0, 19)}.bin`;
+      a.download = `momentum-backup-${new Date().toISOString().slice(0, 19)}.bin`;
       a.click();
       URL.revokeObjectURL(a.href);
       toast.success("암호화된 백업 파일이 생성되었습니다.");

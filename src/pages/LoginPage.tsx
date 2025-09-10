@@ -62,9 +62,9 @@ const LoginPage = () => {
             muted 
             playsInline 
             className="w-24 h-24 mx-auto mb-4 rounded-full shadow-[0_0_16px_rgba(255,255,220,0.35)] object-cover"
-            aria-label="Continuum Logo"
+            aria-label="Momentum Logo"
           ></video>
-          <h1 className="text-3xl font-bold text-gray-200">Continuum</h1>
+          <h1 className="text-3xl font-bold text-gray-200">Momentum</h1>
           <p className="text-muted-foreground">로그인하여 계속하세요</p>
         </div>
         <Auth
