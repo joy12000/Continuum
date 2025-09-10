@@ -37,7 +37,7 @@ function pickSupabase(req: VercelRequest): SupabaseClient | null {
   return null;
 }
 
-const MAX_NOTES = parseInt(process.env.MOMENTUM_MAX_NOTES || "400", 10);
+const MAX_NOTES = parseInt(process.env.CONTINUUM_MAX_NOTES || "400", 10);
 
 const envNum = (name: string, def: number) => {
   const v = process.env[name];
@@ -90,7 +90,7 @@ function absorbSingletons(
 
 // --- THREAD GENERATION (async job) ---
 
-async function runThreadGeneration(jobId: string, userId: string, token: string, excludeSingletons: boolean) {
+async function runThreadGeneration(jobId: string, userId: string, token: string) {
   const supabase = getSupabaseClient(token);
   const updateJobStatus = async (status: string) => {
     const { error } = await supabase
@@ -119,7 +119,7 @@ async function runThreadGeneration(jobId: string, userId: string, token: string,
     }
 
     // Precomputed edges via RPC (server-side SQL for speed)
-    const minEdge = envNum('MOMENTUM_MIN_EDGE', 0.02);
+    const minEdge = envNum('CONTINUUM_MIN_EDGE', 0.02);
     const { data: edges, error: edgesError } = await supabase.rpc('get_all_edges', {
       minimum_weight: minEdge
     });
@@ -134,54 +134,61 @@ async function runThreadGeneration(jobId: string, userId: string, token: string,
 
     const prepared = prepareNotes(notes as Note[], (chunks as NoteChunk[]) ?? []);
 
-    const normalizedEdges = normalizeEdges(prepared, edges as any);
-
     // === Cluster method selection (env-driven) =======================
-    const CLUSTER_METHOD = process.env.MOMENTUM_CLUSTER_METHOD ?? "hybrid";
+    const CLUSTER_METHOD = process.env.CONTINUUM_CLUSTER_METHOD ?? "hybrid";
     const method = String(CLUSTER_METHOD).toLowerCase();
 
     let clusters: number[][];
 
-    // method 분기
-    if (method === "legacy") {
-      clusters = cluster(prepared, normalizedEdges as any).clusters;
+    try {
+      if (method === "legacy") {
+        // Simple DSU + threshold (autoThreshold inside)
+        clusters = cluster(prepared, edges as any).clusters;
 
-    } else if (method === "lpa") {
-      clusters = clusterLPA(prepared, normalizedEdges as any, {
-        minEdge: 0, minClusterSize: 2
-      }).clusters;
+      } else if (method === "lpa") {
+        // Label Propagation (no hard threshold)
+        clusters = clusterLPA(prepared, edges as any, {
+          minEdge: 0, // Already filtered in DB
+          minClusterSize: 2
+        }).clusters;
 
-    } else if (method === "auto") {
-      const kMin = envNum('MOMENTUM_KMIN', 3);
-      const kMax = envNum('MOMENTUM_KMAX', 12);
-      clusters = clusterByAutoThreshold(prepared, normalizedEdges as any, { kMin, kMax }).clusters;
+      } else if (method === "auto") {
+        // Auto threshold to fit k range + modularity
+        const kMin = envNum('CONTINUUM_KMIN', 3);
+        const kMax = envNum('CONTINUUM_KMAX', 12);
+        clusters = clusterByAutoThreshold(prepared, edges as any, {
+          kMin,
+          kMax
+        }).clusters;
 
-    } else if (method === "louvain") {
-      const minClusterSize = envNum('MOMENTUM_MIN_CLUSTER_SIZE', 2);
-      clusters = clusterLouvain(prepared, normalizedEdges as any, { minClusterSize }).clusters;
+      } else {
+        // HYBRID: LPA → if out-of-range => AUTO; isolation, kNN sparsify, MST fallback, absorb singletons
+        const kMin    = envNum('CONTINUUM_KMIN', 4);   // slightly higher default to reduce over-splitting
+        const kMax    = envNum('CONTINUUM_KMAX', 12);
+        const knnK    = Math.max(1, Math.min(64, envNum('CONTINUUM_CLUSTER_K', 8)));
+        const mutual  = envBool01('CONTINUUM_CLUSTER_MUTUAL', true);
 
-    } else {
-      const kMin    = envNum('MOMENTUM_KMIN', 4);
-      const kMax    = envNum('MOMENTUM_KMAX', 12);
-      const knnK    = Math.max(1, Math.min(64, envNum('MOMENTUM_CLUSTER_K', 8)));
-      const mutual  = envBool01('MOMENTUM_CLUSTER_MUTUAL', true);
+        clusters = clusterHybrid(prepared, edges as any, {
+          kMin, kMax,
+          minEdge: 0, // Already filtered in DB
+          minClusterSize: 2,
+          knnK,
+          mutual
+        }).clusters;
 
-      clusters = clusterHybrid(prepared, normalizedEdges as any, {
-        kMin, kMax, minEdge: 0, minClusterSize: 2, knnK, mutual
-      }).clusters;
-
-      clusters = absorbSingletons(clusters, normalizedEdges as any);
+        // ── [absorbSingletons] 고립 아닌 싱글톤은 가장 잘 맞는 군집으로 흡수 ──
+        clusters = absorbSingletons(clusters, edges as any);
+      }
+    } catch (e) {
+      // Fallback safety: use legacy
+      console.error('[cluster] fallback to legacy due to error:', e);
+      clusters = cluster(prepared, edges as any).clusters;
     }
     // === /Cluster method selection ===================================
 
-    let finalClusters = clusters;
-    if (excludeSingletons) {
-      finalClusters = clusters.filter(c => c.length > 1);
-    }
-
     // Build response threads (LLM summaries with safe numeric fields)
     const out: InsightThread[] = [];
-    for (const idxs of finalClusters) {
+    for (const idxs of clusters) {
       const groupNotes = idxs.map((i) => prepared[i].note);
       if (!groupNotes.length) continue;
 
@@ -270,7 +277,7 @@ async function handleFindContextCluster(req: VercelRequest, res: VercelResponse)
     const normalizedEdges = normalizeEdges(prepared, edges as any);
 
     // === Cluster method selection (env-driven) =======================
-    const CLUSTER_METHOD = process.env.MOMENTUM_CLUSTER_METHOD ?? "hybrid";
+    const CLUSTER_METHOD = process.env.CONTINUUM_CLUSTER_METHOD ?? "hybrid";
     const method = String(CLUSTER_METHOD).toLowerCase();
     let clusters: number[][];
 
@@ -455,9 +462,6 @@ async function handleGenerateThread(req: VercelRequest, res: VercelResponse) {
   const { supabase, userId, token } = auth;
 
   if (req.method === "POST") {
-    const excludeSingletons =
-      String(req.body?.excludeSingletons ?? 'false').toLowerCase() === 'true';
-
     const { data: job, error: jobError } = await supabase
       .from('thread_generation_jobs')
       .insert({ user_id: userId, status: 'pending' })
@@ -469,8 +473,8 @@ async function handleGenerateThread(req: VercelRequest, res: VercelResponse) {
     }
 
     // fire and forget
-    runThreadGeneration(job.id, userId, token, excludeSingletons).catch(console.error);
-    return res.status(202).json({ jobId: job.id, excludeSingletons });
+    runThreadGeneration(job.id, userId, token).catch(console.error);
+    return res.status(202).json({ jobId: job.id });
 
   } else if (req.method === "GET") {
     const { jobId } = req.query;
@@ -619,9 +623,9 @@ async function handleGetConnections(req: VercelRequest, res: VercelResponse) {
   }
 
   // 환경값 + 쿼리값 파싱 (NaN 가드 포함)
-  const K_ENV   = Number(process.env.MOMENTUM_CONN_K ?? 12);
-  const MIN_ENV = Number(process.env.MOMENTUM_CONN_MIN ?? 0.05);
-  const MUT_ENV = String(process.env.MOMENTUM_CONN_MUTUAL ?? "false") === "true";
+  const K_ENV   = Number(process.env.CONTINUUM_CONN_K ?? 12);
+  const MIN_ENV = Number(process.env.CONTINUUM_CONN_MIN ?? 0.05);
+  const MUT_ENV = String(process.env.CONTINUUM_CONN_MUTUAL ?? "false") === "true";
 
   const kRaw   = Number(req.query.k ?? K_ENV);
   const minRaw = Number(req.query.min_score ?? MIN_ENV);
@@ -661,8 +665,8 @@ async function handleGetConnections(req: VercelRequest, res: VercelResponse) {
     meta: {
       k: K,
       min_score: MIN_SCORE,
-      mutual_requested: MUTUAL,
-      mutual_applied: false,  // 아직 미적용
+      mutual_requested: MUTUAL,   // 현재는 적용 안 함(표시만)
+      mutual_applied: true,      // ← 실제 mutual kNN 적용 시 true로 바꿔
       weights: { sim: sim_w, citation: citation_w, tag: tag_w }
     }
   });
