@@ -176,6 +176,7 @@ const MainLayout = () => {
         // The delay is kept to allow vector indexes to propagate.
         setTimeout(() => {
           generateSummaryAfterSave(newNote.id, detail.text, user.id);
+        
         }, 2000);
       } catch (error) {
         console.error("Failed to save note and generate title:", error);
@@ -197,7 +198,7 @@ const MainLayout = () => {
     <div className="flex flex-col h-screen bg-surface text-text-primary">
       <Toasts />
       <UpdatePrompt />
-      <main className="flex-grow overflow-y-auto hide-scrollbar">
+      <main className="flex-grow overflow-y-auto hide-scrollbar overflow-x-hidden">
         <Suspense fallback={<div className="flex justify-center items-center h-full">Loading Page...</div>}>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
