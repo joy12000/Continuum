@@ -76,6 +76,39 @@ const Settings: React.FC = () => {
       <SkyCanvasAnimation />
       <div className="relative z-10">
         <div className="space-y-8">
+          <SettingsCard title="프로필">
+            <div className="space-y-4 p-4 bg-gray-800/50 rounded-lg">
+              <h3 className="text-lg font-semibold text-sky-300 mb-4">내 정보</h3>
+              <div className="flex flex-col space-y-2">
+                <label htmlFor="profile-name" className="text-sm text-gray-400">이름</label>
+                <input id="profile-name" type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full p-2 bg-gray-900 border border-gray-700 rounded-lg focus:ring-sky-500 focus:border-sky-500 transition-colors text-white" />
+              </div>
+              <div className="flex flex-col space-y-2">
+                <label htmlFor="profile-gender" className="text-sm text-gray-400">성별</label>
+                <select id="profile-gender" value={gender} onChange={(e) => setGender(e.target.value)} className="w-full p-2 bg-gray-900 border border-gray-700 rounded-lg focus:ring-sky-500 focus:border-sky-500 transition-colors text-white">
+                  <option value="">선택 안 함</option>
+                  <option value="male">남성</option>
+                  <option value="female">여성</option>
+                </select>
+              </div>
+              <div className="flex flex-col space-y-2">
+                <label htmlFor="profile-age" className="text-sm text-gray-400">나이</label>
+                <select id="profile-age" value={age} onChange={(e) => setAge(e.target.value)} className="w-full p-2 bg-gray-900 border border-gray-700 rounded-lg focus:ring-sky-500 focus:border-sky-500 transition-colors text-white">
+                  <option value="">선택 안 함</option>
+                  <option value="10s">10대</option>
+                  <option value="20s">20대</option>
+                  <option value="30s">30대</option>
+                  <option value="40s">40대</option>
+                  <option value="50s">50대</option>
+                  <option value="60s_plus">60대 이상</option>
+                </select>
+              </div>
+              <button onClick={handleProfileUpdate} className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-lg transition-colors mt-4">
+                프로필 저장
+              </button>
+            </div>
+          </SettingsCard>
+
           <SettingsCard title="개발자">
             <button onClick={() => navigate('/developer')} className="w-full flex items-center justify-between p-4 bg-black/20 rounded-lg hover:bg-black/30 transition-colors">
               <span>개발자 페이지</span>
@@ -99,26 +132,6 @@ const Settings: React.FC = () => {
               <span>로그아웃</span>
               <ArrowLeftOnRectangleIcon className="w-6 h-6" />
             </button>
-          </SettingsCard>
-
-          <SettingsCard title="프로필">
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm text-gray-400">이름</label>
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full p-2 bg-gray-900 border border-gray-700 rounded-md focus:ring-sky-500 focus:border-sky-500 transition-colors text-white" />
-              </div>
-              <div>
-                <label className="text-sm text-gray-400">성별</label>
-                <input type="text" value={gender} onChange={(e) => setGender(e.target.value)} className="w-full p-2 bg-gray-900 border border-gray-700 rounded-md focus:ring-sky-500 focus:border-sky-500 transition-colors text-white" />
-              </div>
-              <div>
-                <label className="text-sm text-gray-400">나이</label>
-                <input type="number" value={age} onChange={(e) => setAge(e.target.value)} className="w-full p-2 bg-gray-900 border border-gray-700 rounded-md focus:ring-sky-500 focus:border-sky-500 transition-colors text-white" />
-              </div>
-              <button onClick={handleProfileUpdate} className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
-                프로필 저장
-              </button>
-            </div>
           </SettingsCard>
 
           <SettingsCard title="위험 구역" titleClassName="text-red-400">
