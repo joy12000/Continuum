@@ -5,13 +5,31 @@ import ConfirmModal from '../components/ConfirmModal';
 import { toast } from 'react-hot-toast';
 import { ArrowLeftIcon, ArrowLeftOnRectangleIcon, CodeBracketIcon, ExclamationTriangleIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { SettingsCard } from '../components/SettingsCard';
-import SkyBackground from '../components/SkyBackground';
+import SkyCanvasAnimation from '../components/SkyCanvasAnimation';
 import Moon from '../components/Moon';
+
+type QuickPrefs = {
+  starDensity: number;
+  starBrightness: number;
+};
+
+const DEFAULT_PREFS: QuickPrefs = {
+  starDensity: 1.0,
+  starBrightness: 1.0,
+};
 
 const Settings: React.FC = () => {
   const navigate = useNavigate();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [confirmText, setConfirmText] = useState("");
+  const [prefs, setPrefs] = useState<QuickPrefs>(() => {
+    try {
+      const saved = localStorage.getItem("sky.prefs");
+      return saved ? { ...DEFAULT_PREFS, ...JSON.parse(saved) } : DEFAULT_PREFS;
+    } catch {
+      return DEFAULT_PREFS;
+    }
+  });
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -38,7 +56,7 @@ const Settings: React.FC = () => {
 
   return (
     <div className="relative min-h-screen w-full text-white">
-      <SkyBackground />
+      <SkyCanvasAnimation prefs={prefs} />
       <Moon onClick={() => navigate('/settings')} />
       <div className="relative z-10 p-4 sm:p-6 max-w-4xl mx-auto">
         <header className="flex items-center justify-between mb-8">

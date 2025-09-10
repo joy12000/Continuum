@@ -43,7 +43,7 @@ export default function Moon({ sizeVw = 5.5, onClick, date = new Date() }: Props
           right: `calc(${size} * -0.65)`,
           top: `calc(${size} * -0.42)`,
           filter: "blur(12px)",
-          opacity: 0.16, // 0.14~0.18 권장
+          opacity: 0.22, // 0.14~0.18 권장
           background:
             "radial-gradient(60% 50% at 60% 50%, rgba(255,255,230,0.9), rgba(255,255,230,0.0) 70%)",
           mixBlendMode: "screen",
@@ -63,7 +63,7 @@ export default function Moon({ sizeVw = 5.5, onClick, date = new Date() }: Props
       >
         {/* 본체 텍스처 */}
         <div
-          className="rounded-full overflow-hidden shadow-[0_0_16px_rgba(255,255,220,0.28)]"
+          className="rounded-full overflow-hidden shadow-[0_0_16px_rgba(255,255,220,0.35)]"
           style={{
             width: "100%",
             height: "100%",
@@ -71,7 +71,7 @@ export default function Moon({ sizeVw = 5.5, onClick, date = new Date() }: Props
             backgroundSize: "cover",
             backgroundPosition: "center",
             // 배경(#0A2142 계열)과 톤 정합
-            filter: "saturate(0.9) brightness(0.9) contrast(1.03) hue-rotate(-6deg)",
+            filter: "saturate(0.7) brightness(1.1) contrast(1.0) hue-rotate(-6deg)",
           }}
         />
 
