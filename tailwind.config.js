@@ -5,7 +5,8 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: '#000000', // Dark blue, almost black
+        background: 'hsl(222, 47%, 11%)', // Dark blue, almost black
+        'links-background': 'hsl(222, 47%, 15%)',
         foreground: 'hsl(210, 40%, 98%)', // Almost white
         
         card: 'hsl(222, 47%, 15%)',

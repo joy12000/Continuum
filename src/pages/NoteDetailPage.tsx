@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { supabase } from '../lib/supabase';
 import type { Note, NoteAttachment } from '../types/common';
+import type { Session } from '@supabase/supabase-js';
 import PageLayout from '../components/PageLayout';
 import { DocumentTextIcon, TagIcon, LinkIcon, PencilIcon, ArrowLeftIcon, TrashIcon, CheckIcon, XMarkIcon, PaperClipIcon, ExclamationTriangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
@@ -47,6 +48,7 @@ const NoteDetailPage = () => {
   const { noteId } = useParams<{ noteId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [session, setSession] = useState<Session | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isLinkEditorOpen, setIsLinkEditorOpen] = useState(false);
 
@@ -55,11 +57,23 @@ const NoteDetailPage = () => {
   const [editBody, setEditBody] = useState('');
   const [editTags, setEditTags] = useState('');
 
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   // --- Data Fetching with React Query ---
   const { data, isLoading, error } = useQuery({
     queryKey: ['noteDetail', noteId],
     queryFn: () => fetchNoteData(noteId!),
-    enabled: !!noteId,
+    enabled: !!noteId && !!session,
   });
 
   const { note, attachments, backlinks, connections } = data || {};

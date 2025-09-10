@@ -71,7 +71,7 @@ export default function Moon({ sizeVw = 5.5, onClick, date = new Date() }: Props
             backgroundSize: "cover",
             backgroundPosition: "center",
             // 배경(#0A2142 계열)과 톤 정합
-            filter: "saturate(0.7) brightness(1.1) contrast(1.0) hue-rotate(-6deg)",
+            filter: "saturate(0.7) brightness(1.3) contrast(1.0) hue-rotate(-6deg)",
           }}
         />
 

@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import ConfirmModal from '../components/ConfirmModal';
 import { toast } from 'react-hot-toast';
-import { ArrowLeftIcon, ArrowLeftOnRectangleIcon, CodeBracketIcon, ExclamationTriangleIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { ArrowDownOnSquareIcon, ArrowLeftOnRectangleIcon, CodeBracketIcon, ExclamationTriangleIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { SettingsCard } from '../components/SettingsCard';
 import SkyCanvasAnimation from '../components/SkyCanvasAnimation';
 import PageLayout from '../components/PageLayout';
+import { usePWAInstall } from '../hooks/usePWAInstall';
 
 type QuickPrefs = {
   starDensity: number;
@@ -19,6 +20,7 @@ const DEFAULT_PREFS: QuickPrefs = {
 };
 
 const Settings: React.FC = () => {
+  const { canInstall, triggerInstall } = usePWAInstall();
   const navigate = useNavigate();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [confirmText, setConfirmText] = useState("");
@@ -63,6 +65,17 @@ const Settings: React.FC = () => {
             <button onClick={() => navigate('/developer')} className="w-full flex items-center justify-between p-4 bg-black/20 rounded-lg hover:bg-black/30 transition-colors">
               <span>개발자 페이지</span>
               <CodeBracketIcon className="w-6 h-6" />
+            </button>
+          </SettingsCard>
+
+          <SettingsCard title="앱 설치">
+            <button
+              onClick={canInstall ? triggerInstall : undefined}
+              disabled={!canInstall}
+              className="w-full flex items-center justify-between p-4 bg-black/20 rounded-lg hover:bg-black/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span>{canInstall ? "앱 설치" : "앱이 이미 설치되었거나 설치할 수 없습니다"}</span>
+              <ArrowDownOnSquareIcon className="w-6 h-6" />
             </button>
           </SettingsCard>
 

@@ -205,9 +205,9 @@ const MainLayout = () => {
               <>
                 <Route path="/" element={<HomeSky onOpenAnswer={() => setAnswerOpen(true)} answerSignal={answerSignal} />} />
                 <Route path="/settings" element={<Settings />} />
-                <Route path="/calendar" element={<CalendarPage />} />
+                <Route path="/calendar" element={<CalendarPage session={session} />} />
                 <Route path="/search" element={<SearchPage session={session} />} />
-                <Route path="/threads" element={<LinksPage />} />
+                <Route path="/threads" element={<LinksPage session={session} />} />
                 <Route path="/notes/:noteId" element={<NoteDetailPage />} />
                 <Route path="/developer" element={<DeveloperPage />} />
                 <Route path="/diagnostics" element={<Diagnostics onBack={() => window.history.back()} />} />

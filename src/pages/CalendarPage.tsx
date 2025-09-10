@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import CalendarMonth from '../components/CalendarMonth';
 import { supabase } from '../lib/supabase';
 import type { Note } from '../types/common';
+import type { Session } from '@supabase/supabase-js';
 import PageLayout from '../components/PageLayout';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeftIcon, ChevronRightIcon, CalendarIcon } from '@heroicons/react/24/outline';
@@ -87,7 +88,7 @@ const fetchNoteActivity = async (startDate: string, endDate: string): Promise<No
     return response.json();
 }
 
-const CalendarPage = () => {
+const CalendarPage = ({ session }: { session: Session | null }) => {
   const [selectedDate, setSelectedDate] = useState<string>(ymd(new Date()));
   const [displayDate, setDisplayDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -107,18 +108,19 @@ const CalendarPage = () => {
   const { data: activityData, isLoading: isActivityLoading, error: activityError } = useQuery<NoteActivity[], Error>({
     queryKey: ['noteActivity', year, month],
     queryFn: () => fetchNoteActivity(firstDayOfMonth, lastDayOfMonth),
+    enabled: !!session,
   });
 
   const { data: notesForSelectedDay, isLoading: areNotesLoading, error: notesError } = useQuery<Note[], Error>({
     queryKey: ['notesForDate', selectedDate],
     queryFn: () => fetchNotesForDate(selectedDate),
-    enabled: !!selectedDate,
+    enabled: !!selectedDate && !!session,
   });
 
   const { data: dailySummary, isLoading: isSummaryLoading, error: summaryError } = useQuery<{ title: string; summary: string } | null, Error>({
     queryKey: ['dailySummary', selectedDate],
     queryFn: () => fetchDailySummary(notesForSelectedDay),
-    enabled: !!notesForSelectedDay && notesForSelectedDay.length > 0,
+    enabled: !!notesForSelectedDay && notesForSelectedDay.length > 0 && !!session,
   });
 
   const notesByDate = useMemo(() => {

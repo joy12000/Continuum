@@ -8,6 +8,7 @@ import { NoteDetailModal } from '@/components/NoteDetailModal';
 import { useJobStatus } from '@/hooks/useJobStatus';
 import { supabase } from '@/lib/supabase';
 import type { InsightThread, Note } from '@lib/types';
+import type { Session } from '@supabase/supabase-js';
 import { BeakerIcon, CpuChipIcon } from '@heroicons/react/24/outline';
 import SkyCanvasAnimation from '@/components/SkyCanvasAnimation';
 
@@ -67,7 +68,7 @@ const startGenerationJob = async (excludeSingletons: boolean): Promise<{ jobId: 
     return response.json();
 };
 
-const LinksPage = () => {
+const LinksPage = ({ session }: { session: Session | null }) => {
   const queryClient = useQueryClient();
   const [jobId, setJobId] = useState<string | null>(localStorage.getItem('continuum_job_id'));
   const [isModalOpen, setModalOpen] = useState(false);
@@ -82,6 +83,7 @@ const LinksPage = () => {
   const { data: cachedData, error: queryError, isLoading: isLoadingInitial } = useQuery<CachedThreadsResponse, Error>({
     queryKey: ['cachedThreads'],
     queryFn: fetchCachedThreads,
+    enabled: !!session,
   });
 
   const handleJobSuccess = () => {
@@ -205,7 +207,8 @@ const LinksPage = () => {
   };
 
   return (
-    <PageLayout title="인사이트 스레드">
+    <div className="bg-links-background h-screen">
+    <PageLayout title="인사이트 스레드" transparent>
       
       <div className="relative z-10">
         {renderContent()}
@@ -216,6 +219,7 @@ const LinksPage = () => {
         noteId={selectedNoteId}
       />}
     </PageLayout>
+    </div>
   );
 };
 
