@@ -38,14 +38,14 @@ export default function Moon({ sizeVw = 5.5, onClick, date = new Date() }: Props
         aria-hidden
         className="absolute pointer-events-none"
         style={{
-          width: `calc(${size} * 2.2)`,
-          height: `calc(${size} * 1.8)`,
-          right: `calc(${size} * -0.65)`,
-          top: `calc(${size} * -0.42)`,
-          filter: "blur(12px)",
-          opacity: 0.22, // 0.14~0.18 권장
+          width: `calc(${size} * 2.5)`,
+          height: `calc(${size} * 2.1)`,
+          right: `calc(${size} * -0.75)`,
+          top: `calc(${size} * -0.55)`,
+          filter: "blur(16px)",
+          opacity: 0.35, 
           background:
-            "radial-gradient(60% 50% at 60% 50%, rgba(255,255,230,0.9), rgba(255,255,230,0.0) 70%)",
+            "radial-gradient(60% 50% at 60% 50%, rgba(200,220,255,0.9), rgba(200,220,255,0.0) 70%)",
           mixBlendMode: "screen",
           zIndex: 10,
         }}
@@ -63,15 +63,23 @@ export default function Moon({ sizeVw = 5.5, onClick, date = new Date() }: Props
       >
         {/* 본체 텍스처 */}
         <div
-          className="rounded-full overflow-hidden shadow-[0_0_16px_rgba(255,255,220,0.35)]"
+          className="rounded-full overflow-hidden shadow-[0_0_24px_rgba(200,220,255,0.35)]"
           style={{
             width: "100%",
             height: "100%",
             backgroundImage: `url(/assets/moon.png)`,
             backgroundSize: "cover",
             backgroundPosition: "center",
-            // 배경(#0A2142 계열)과 톤 정합
-            filter: "saturate(0.7) brightness(1.3) contrast(1.0) hue-rotate(-6deg)",
+            filter: "saturate(0.8) brightness(1.4) contrast(1.1) hue-rotate(-8deg)",
+          }}
+        />
+
+        {/* Faint Overlay */}
+        <div
+          className="absolute inset-0 rounded-full"
+          style={{
+            backgroundColor: 'hsla(222, 47%, 80%, 0.1)',
+            mixBlendMode: 'overlay',
           }}
         />
 
@@ -80,20 +88,20 @@ export default function Moon({ sizeVw = 5.5, onClick, date = new Date() }: Props
           className="absolute inset-0 rounded-full pointer-events-none"
           style={{
             background:
-              "radial-gradient(86% 86% at 50% 50%, rgba(0,0,0,0) 70%, rgba(0,0,0,0.18) 100%)",
+              "radial-gradient(86% 86% at 50% 50%, rgba(0,0,0,0) 70%, rgba(0,0,0,0.25) 100%)",
             mixBlendMode: "multiply",
           }}
         />
 
         {/* (위상 그림자) */}
         <div
-          className="absolute inset-0 rounded-full mix-blend-multiply pointer-events-none"
+          className="absolute inset-0 rounded-full mix-blend-hard-light pointer-events-none"
           style={{
-            maskImage: `radial-gradient(120% 120% at ${50 + phase * 50}% 50%, rgba(0,0,0,0) 46%, rgba(0,0,0,1) 52%)`,
-            WebkitMaskImage: `radial-gradient(120% 120% at ${50 + phase * 50}% 50%, rgba(0,0,0,0) 46%, rgba(0,0,0,1) 52%)`,
+            maskImage: `radial-gradient(120% 120% at ${50 + phase * 50}% 50%, rgba(0,0,0,0) 48%, rgba(0,0,0,1) 54%)`,
+            WebkitMaskImage: `radial-gradient(120% 120% at ${50 + phase * 50}% 50%, rgba(0,0,0,0) 48%, rgba(0,0,0,1) 54%)`,
             background:
-              "radial-gradient(80% 80% at 45% 45%, rgba(0,0,0,0.0), rgba(0,0,0,0.75))",
-            opacity: 0.85,
+              "radial-gradient(80% 80% at 45% 45%, rgba(0,0,0,0.2), rgba(0,0,0,0.85))",
+            opacity: 0.7,
           }}
         />
       </motion.button>

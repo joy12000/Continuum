@@ -1,5 +1,5 @@
 import { Session } from '@supabase/supabase-js';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { SearchBar } from '../components/SearchBar';
 import { useSearch } from '../hooks/useSearch';
 import PageLayout from '../components/PageLayout';
@@ -24,10 +24,10 @@ const SearchPage = ({ session }: { session: Session | null }) => {
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [noteTitlesMap, setNoteTitlesMap] = useState<Record<string, string>>({});
 
-  const handleNoteClick = (noteId: string) => {
+  const handleNoteClick = useCallback((noteId: string) => {
     setSelectedNoteId(noteId);
     setIsModalOpen(true);
-  };
+  }, []);
 
   useEffect(() => {
     const generateAnswer = async () => {
@@ -85,7 +85,13 @@ const SearchPage = ({ session }: { session: Session | null }) => {
       }
     };
 
-    generateAnswer();
+    const handler = setTimeout(() => {
+      generateAnswer();
+    }, 500);
+
+    return () => {
+      clearTimeout(handler);
+    };
   }, [results, query]);
 
   const GeneratedAnswerCard = () => (
@@ -112,31 +118,40 @@ const SearchPage = ({ session }: { session: Session | null }) => {
           className="bg-slate-900/60 backdrop-blur-lg border border-slate-700/50 text-primary placeholder-muted-foreground focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/80"
         />
         <div className="mt-6">
-          {/* Mobile layout: Generated answer first */}
-          <div className="lg:hidden">
-            {(generatedAnswer.data || generatedAnswer.isLoading || generatedAnswer.error) && (
-              <div className="mb-6">
-                <h2 className="text-xl font-semibold mb-4">생성된 답변</h2>
-                <GeneratedAnswerCard />
+          {query.trim() !== '' ? (
+            <>
+              {/* Mobile layout: Generated answer first */}
+              <div className="lg:hidden">
+                {(generatedAnswer.data || generatedAnswer.isLoading || generatedAnswer.error) && (
+                  <div className="mb-6">
+                    <h2 className="text-xl font-semibold mb-4">생성된 답변</h2>
+                    <GeneratedAnswerCard />
+                  </div>
+                )}
+                <div>
+                  <h2 className="text-xl font-semibold mb-4">검색 결과</h2>
+                  <SearchResultsList results={results} loading={loading} noteTitlesMap={noteTitlesMap} query={query} onNoteClick={handleNoteClick} />
+                </div>
               </div>
-            )}
-            <div>
-              <h2 className="text-xl font-semibold mb-4">검색 결과</h2>
-              <SearchResultsList results={results} loading={loading} noteTitlesMap={noteTitlesMap} query={query} onNoteClick={handleNoteClick} />
-            </div>
-          </div>
 
-          {/* Desktop layout: Two columns */}
-          <div className="hidden lg:grid lg:grid-cols-3 lg:gap-8">
-            <div className="lg:col-span-2">
-              <h2 className="text-xl font-semibold mb-4">검색 결과</h2>
-              <SearchResultsList results={results} loading={loading} noteTitlesMap={noteTitlesMap} query={query} onNoteClick={handleNoteClick} />
+              {/* Desktop layout: Two columns */}
+              <div className="hidden lg:grid lg:grid-cols-3 lg:gap-8">
+                <div className="lg:col-span-2">
+                  <h2 className="text-xl font-semibold mb-4">검색 결과</h2>
+                  <SearchResultsList results={results} loading={loading} noteTitlesMap={noteTitlesMap} query={query} onNoteClick={handleNoteClick} />
+                </div>
+                <div className="lg:col-span-1">
+                  <h2 className="text-xl font-semibold mb-4">생성된 답변</h2>
+                  <GeneratedAnswerCard />
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="text-center p-12 text-muted-foreground">
+              <h2 className="text-2xl font-semibold mb-2">무엇이든 물어보세요.</h2>
+              <p>당신의 기억 속에서 답을 찾아드립니다.</p>
             </div>
-            <div className="lg:col-span-1">
-              <h2 className="text-xl font-semibold mb-4">생성된 답변</h2>
-              <GeneratedAnswerCard />
-            </div>
-          </div>
+          )}
         </div>
       </div>
       {selectedNoteId && <NoteDetailModal noteId={selectedNoteId} isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />}

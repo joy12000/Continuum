@@ -12,7 +12,7 @@ interface InsightThreadCardProps {
 const InsightThreadCard: React.FC<InsightThreadCardProps> = ({ thread, onNoteClick }) => {
   return (
     <div className="border border-slate-700/50 bg-slate-900/60 backdrop-blur-lg rounded-lg p-4 shadow-lg flex flex-col h-full transition-all duration-300 hover:bg-slate-800/70 hover:shadow-xl">
-      <h3 className="text-lg font-bold text-primary">{thread.title}</h3>
+      <h3 className="text-lg font-bold text-primary break-words">{thread.title}</h3>
       <p className="mt-2 text-muted-foreground flex-grow text-sm">{thread.summary}</p>
       
       <div className="mt-4 pt-3 border-t border-slate-700/50">

@@ -9,11 +9,12 @@ interface PageLayoutProps {
   transparent?: boolean;
   fullWidth?: boolean;
   className?: string;
+  hideMoon?: boolean;
 }
 
-const PageLayout: React.FC<PageLayoutProps> = ({ children, title, transparent, fullWidth, className }) => {
+const PageLayout: React.FC<PageLayoutProps> = ({ children, title, transparent, fullWidth, className, hideMoon }) => {
   const navigate = useNavigate();
-  const layoutClasses = `relative text-foreground font-sans ${transparent ? '' : 'bg-background'} ${className || ''}`;
+  const layoutClasses = `relative min-h-screen text-foreground font-sans ${transparent ? '' : 'bg-background'} ${className || ''}`;
   
   const contentWrapperClasses = fullWidth 
     ? "w-full px-4 py-8"
@@ -21,7 +22,7 @@ const PageLayout: React.FC<PageLayoutProps> = ({ children, title, transparent, f
 
   return (
     <div className={layoutClasses}>
-      <Moon onClick={() => navigate('/settings')} />
+      {!hideMoon && <Moon onClick={() => navigate('/settings')} />}
       <div className={contentWrapperClasses}>
         {title && (
           <div className="relative text-center mb-6">

@@ -197,7 +197,7 @@ const MainLayout = () => {
     <div className="flex flex-col h-screen bg-surface text-text-primary">
       <Toasts />
       <UpdatePrompt />
-      <main className="flex-grow overflow-y-auto">
+      <main className="flex-grow overflow-y-auto hide-scrollbar">
         <Suspense fallback={<div className="flex justify-center items-center h-full">Loading Page...</div>}>
           <Routes>
             <Route path="/login" element={<LoginPage />} />

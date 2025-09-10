@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import PageLayout from '@/components/PageLayout';
 import InsightThreadCard from '@/components/InsightThreadCard';
@@ -73,10 +73,10 @@ const LinksPage = ({ session }: { session: Session | null }) => {
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [excludeSingletons, setExcludeSingletons] = useState<boolean>(true);
 
-  const handleNoteClick = (note: Note) => {
+  const handleNoteClick = useCallback((note: Note) => {
     setSelectedNoteId(note.id);
     setModalOpen(true);
-  };
+  }, []);
 
   const { data: cachedData, error: queryError, isLoading: isLoadingInitial } = useQuery<CachedThreadsResponse, Error>({
     queryKey: ['cachedThreads'],
@@ -169,8 +169,8 @@ const LinksPage = ({ session }: { session: Session | null }) => {
 
     return (
       <div>
-        <div className="flex justify-between items-center mb-6">
-          <span className="text-sm text-muted-foreground">
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+          <span className="text-sm text-muted-foreground text-center sm:text-left">
             마지막 분석: {formatTimeAgo(cachedData.lastUpdatedAt)}
           </span>
           <div className="flex items-center gap-4">
@@ -205,7 +205,7 @@ const LinksPage = ({ session }: { session: Session | null }) => {
   };
 
   return (
-    <PageLayout title="인사이트 스레드" transparent fullWidth className="bg-links-background">
+    <PageLayout title="인사이트 스레드" transparent fullWidth className="bg-links-background" hideMoon>
       <div className="relative z-10">
         {renderContent()}
       </div>
