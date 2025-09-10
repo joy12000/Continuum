@@ -14,7 +14,7 @@ const PageLayout: React.FC<PageLayoutProps> = ({ children, title, transparent })
   return (
     <div className={layoutClasses}>
       <Moon onClick={() => navigate('/settings')} />
-      <div className="max-w-3xl mx-auto px-4 py-8">
+      <div className="w-full md:max-w-3xl mx-auto px-4 py-8">
         {title && (
           <h1 
             className="text-3xl font-bold mb-6 text-center text-gray-200 text-shadow-glow"
