@@ -212,7 +212,7 @@ const NoteDetailPage = () => {
             <div className="flex items-center mb-6 pb-4 border-b border-border">
               <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-secondary transition-colors" aria-label="뒤로 가기"><ArrowLeftIcon className="w-6 h-6 text-muted-foreground" /></button>
               {isEditing ? (
-                <input type="text" value={editTitle} onChange={e => setEditTitle(e.target.value)} className="flex-grow bg-transparent text-3xl font-bold text-gray-200 focus:outline-none focus:ring-0 border-b-2 border-transparent focus:border-accent transition-colors mx-4" placeholder="제목 (선택 사항)" />
+                <input type="text" value={editTitle} onChange={e => setEditTitle(e.target.value)} className="flex-grow bg-transparent text-3xl font-bold text-gray-200 focus:outline-none focus:ring-0 border-b-2 border-transparent focus:border-sky-500 transition-colors mx-4 pb-2" placeholder="제목 (선택 사항)" />
               ) : (
                 <h1 className="text-3xl font-bold text-gray-200 flex-grow mx-4">{note.title || '제목 없는 노트'}</h1>
               )}

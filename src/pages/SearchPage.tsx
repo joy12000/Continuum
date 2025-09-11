@@ -14,7 +14,7 @@ import SearchResultsList from '../components/SearchResultsList';
 const SearchPage = ({ session }: { session: Session | null }) => {
   const [query, setQuery] = useState('');
   const token = session?.access_token;
-  const { results, loading } = useSearch(query, token);
+  const { results, loading, search } = useSearch(token);
   const [generatedAnswer, setGeneratedAnswer] = useState<{ data: AnswerData | null; isLoading: boolean; error: string | null }>({
     data: null,
     isLoading: false,
@@ -29,70 +29,70 @@ const SearchPage = ({ session }: { session: Session | null }) => {
     setIsModalOpen(true);
   }, []);
 
+  const generateAnswer = useCallback(async () => {
+    if (!results || results.length === 0 || query.trim().length < 2) {
+      setGeneratedAnswer({ data: null, isLoading: false, error: null });
+      setNoteTitlesMap({});
+      return;
+    }
+
+    try {
+      setGeneratedAnswer({ data: null, isLoading: true, error: null });
+
+      const topNoteIds = [...new Set(results.map(r => r.note_id))].slice(0, 5);
+      const contextNotes = await getNotesByIds(topNoteIds);
+
+      if (!contextNotes || contextNotes.length === 0) {
+        throw new Error("Could not fetch context notes.");
+      }
+
+      const newNoteTitlesMap: Record<string, string> = {};
+      contextNotes.forEach((n: Note) => {
+        newNoteTitlesMap[n.id] = n.title || '제목 없는 노트';
+      });
+      setNoteTitlesMap(newNoteTitlesMap);
+
+      const generateRes = await fetch('/api/v1?action=generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'rag',
+          input: { query },
+          context: contextNotes.map((n: Note) => ({ id: n.id, body: n.body }))
+        })
+      });
+
+      if (!generateRes.ok || !generateRes.body) {
+        const errorText = await generateRes.text();
+        throw new Error(`요약 생성 실패: ${errorText}`);
+      }
+
+      const result = await generateRes.json();
+      const summaryText = result?.data?.summary;
+      if (!summaryText) throw new Error("AI response did not contain a valid summary.");
+
+      const finalAnswerData: AnswerData = {
+        answerSegments: [{ sentence: summaryText, sourceNoteId: '' }],
+        sourceNotes: contextNotes.map((n: Note) => n.id),
+      };
+
+      setGeneratedAnswer({ data: finalAnswerData, isLoading: false, error: null });
+
+    } catch (error) {
+      console.error("Failed to generate search answer:", error);
+      setGeneratedAnswer({ data: null, isLoading: false, error: (error as Error).message });
+    }
+  }, [query, results]);
+
   useEffect(() => {
-    const generateAnswer = async () => {
-      if (!results || results.length === 0 || query.trim().length < 2) {
-        setGeneratedAnswer({ data: null, isLoading: false, error: null });
-        setNoteTitlesMap({});
-        return;
-      }
-
-      try {
-        setGeneratedAnswer({ data: null, isLoading: true, error: null });
-
-        const topNoteIds = [...new Set(results.map(r => r.note_id))].slice(0, 5);
-        const contextNotes = await getNotesByIds(topNoteIds);
-
-        if (!contextNotes || contextNotes.length === 0) {
-          throw new Error("Could not fetch context notes.");
-        }
-
-        const newNoteTitlesMap: Record<string, string> = {};
-        contextNotes.forEach((n: Note) => {
-          newNoteTitlesMap[n.id] = n.title || '제목 없는 노트';
-        });
-        setNoteTitlesMap(newNoteTitlesMap);
-
-        const generateRes = await fetch('/api/v1?action=generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'rag',
-            input: { query },
-            context: contextNotes.map((n: Note) => ({ id: n.id, body: n.body }))
-          })
-        });
-
-        if (!generateRes.ok || !generateRes.body) {
-          const errorText = await generateRes.text();
-          throw new Error(`요약 생성 실패: ${errorText}`);
-        }
-
-        const result = await generateRes.json();
-        const summaryText = result?.data?.summary;
-        if (!summaryText) throw new Error("AI response did not contain a valid summary.");
-
-        const finalAnswerData: AnswerData = {
-          answerSegments: [{ sentence: summaryText, sourceNoteId: '' }],
-          sourceNotes: contextNotes.map((n: Note) => n.id),
-        };
-
-        setGeneratedAnswer({ data: finalAnswerData, isLoading: false, error: null });
-
-      } catch (error) {
-        console.error("Failed to generate search answer:", error);
-        setGeneratedAnswer({ data: null, isLoading: false, error: (error as Error).message });
-      }
-    };
-
-    const handler = setTimeout(() => {
+    if (results.length > 0) {
       generateAnswer();
-    }, 500);
+    }
+  }, [results, generateAnswer]);
 
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [results, query]);
+  const handleSearch = () => {
+    search(query);
+  };
 
   const GeneratedAnswerCard = () => (
     <div className="bg-slate-900/60 backdrop-blur-lg border border-slate-700/50 rounded-lg p-4 shadow-lg">
@@ -109,6 +109,7 @@ const SearchPage = ({ session }: { session: Session | null }) => {
         <SearchBar 
           q={query} 
           setQ={setQuery} 
+          onSearch={handleSearch}
           onFocus={() => {}} // Placeholder
           suggestedQuestions={[]}
           isLoadingSuggestions={false}
