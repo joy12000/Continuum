@@ -7,15 +7,16 @@ import { DocumentTextIcon } from '@heroicons/react/24/outline';
 interface InsightThreadCardProps {
   thread: InsightThread;
   onNoteClick: (note: Note) => void;
+  isExpanded: boolean;
+  onToggleExpand: (threadId: string) => void;
 }
 
-const InsightThreadCard: React.FC<InsightThreadCardProps> = ({ thread, onNoteClick }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+const InsightThreadCard: React.FC<InsightThreadCardProps> = ({ thread, onNoteClick, isExpanded, onToggleExpand }) => {
 
   return (
     <div 
       className="border border-slate-700/50 bg-slate-900/60 backdrop-blur-lg rounded-3xl p-4 shadow-lg flex flex-col h-full transition-all duration-300 hover:bg-slate-800/70 hover:shadow-xl cursor-pointer"
-      onClick={() => setIsExpanded(!isExpanded)}
+      onClick={() => onToggleExpand(thread.threadId)}
     >
       <h3 className="text-lg font-bold text-primary break-words">{thread.title}</h3>
       <p className={`mt-2 text-muted-foreground flex-grow text-base ${!isExpanded ? 'line-clamp-3' : ''}`}>{thread.summary}</p>

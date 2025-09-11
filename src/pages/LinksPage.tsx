@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase';
 import type { InsightThread, Note } from '@lib/types';
 import type { Session } from '@supabase/supabase-js';
 import { BeakerIcon, CpuChipIcon } from '@heroicons/react/24/outline';
+import Switch from '@/components/Switch';
 
 // --- Time Formatting Helper ---
 const formatTimeAgo = (dateString: string | null): string => {
@@ -72,6 +73,11 @@ const LinksPage = ({ session }: { session: Session | null }) => {
   const [isModalOpen, setModalOpen] = useState(false);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [excludeSingletons, setExcludeSingletons] = useState<boolean>(true);
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
+
+  const handleToggleExpand = (threadId: string) => {
+    setExpandedCardId(prevId => prevId === threadId ? null : threadId);
+  };
 
   const handleNoteClick = useCallback((note: Note) => {
     setSelectedNoteId(note.id);
@@ -150,18 +156,12 @@ const LinksPage = ({ session }: { session: Session | null }) => {
             >
                 생각 연결하기
             </button>
-            <div className="flex items-center">
-                <input
-                    type="checkbox"
-                    id="exclude-singletons-initial"
-                    checked={excludeSingletons}
-                    onChange={(e) => setExcludeSingletons(e.target.checked)}
-                    className="h-4 w-4 rounded border-border text-accent focus:ring-accent"
-                />
-                <label htmlFor="exclude-singletons-initial" className="ml-2 text-sm text-muted-foreground">
-                    단일 노트 스레드 제외
-                </label>
-            </div>
+            <Switch
+              id="exclude-singletons-initial"
+              checked={excludeSingletons}
+              onChange={setExcludeSingletons}
+              label="단일 노트 스레드 제외"
+            />
           </div>
         </div>
       );
@@ -174,18 +174,12 @@ const LinksPage = ({ session }: { session: Session | null }) => {
             마지막 분석: {formatTimeAgo(cachedData.lastUpdatedAt)}
           </span>
           <div className="flex items-center gap-4">
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="exclude-singletons"
-                checked={excludeSingletons}
-                onChange={(e) => setExcludeSingletons(e.target.checked)}
-                className="h-4 w-4 rounded border-border text-accent focus:ring-accent"
-              />
-              <label htmlFor="exclude-singletons" className="ml-2 text-sm text-muted-foreground">
-                단일 노트 제외
-              </label>
-            </div>
+            <Switch
+              id="exclude-singletons"
+              checked={excludeSingletons}
+              onChange={setExcludeSingletons}
+              label="단일 노트 제외"
+            />
             <button
               onClick={handleGenerateClick}
               className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-accent-foreground bg-accent/80 rounded-lg hover:bg-accent disabled:bg-muted transition-colors"
@@ -197,7 +191,13 @@ const LinksPage = ({ session }: { session: Session | null }) => {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {threads.map((thread: InsightThread) => (
-            <InsightThreadCard key={thread.threadId} thread={thread} onNoteClick={handleNoteClick} />
+            <InsightThreadCard
+              key={thread.threadId}
+              thread={thread}
+              onNoteClick={handleNoteClick}
+              isExpanded={expandedCardId === thread.threadId}
+              onToggleExpand={handleToggleExpand}
+            />
           ))}
         </div>
       </div>
