@@ -13,12 +13,12 @@ export function useSearch(token: string | undefined) {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const search = useCallback(async (query: string) => {
+  const search = useCallback(async (query: string): Promise<SearchResult[]> => {
     const trimmedQuery = query.trim();
     if (trimmedQuery.length < 2 || !token) {
       setResults([]);
       setLoading(false);
-      return;
+      return [];
     }
 
     setLoading(true);
@@ -44,9 +44,11 @@ export function useSearch(token: string | undefined) {
       }
       const data = await res.json();
       setResults(data);
+      return data;
     } catch (error) {
       console.error('Search failed:', error);
       setResults([]);
+      return [];
     } finally {
       setLoading(false);
     }

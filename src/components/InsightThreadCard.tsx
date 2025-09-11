@@ -14,7 +14,7 @@ const InsightThreadCard: React.FC<InsightThreadCardProps> = ({ thread, onNoteCli
 
   return (
     <div 
-      className="border border-slate-700/50 bg-slate-900/60 backdrop-blur-lg rounded-lg p-4 shadow-lg flex flex-col h-full transition-all duration-300 hover:bg-slate-800/70 hover:shadow-xl cursor-pointer"
+      className="border border-slate-700/50 bg-slate-900/60 backdrop-blur-lg rounded-3xl p-4 shadow-lg flex flex-col h-full transition-all duration-300 hover:bg-slate-800/70 hover:shadow-xl cursor-pointer"
       onClick={() => setIsExpanded(!isExpanded)}
     >
       <h3 className="text-lg font-bold text-primary break-words">{thread.title}</h3>

@@ -30,7 +30,7 @@ const CalendarMonth: React.FC<Props> = ({ year, month, weekLabels, notesByDate, 
   const todayKey = ymd(new Date());
 
   return (
-    <div className="cal-grid">
+    <div className="cal-grid rounded-3xl">
       <div className="cal-weekhead">{weekLabels.map((w,i)=>(<div key={i} className={`wcell ${i===0?"sun":""} ${i===6?"sat":""}`}>{w}</div>))}</div>
       <div className="cal-cells">
         {cells.map((c)=>{

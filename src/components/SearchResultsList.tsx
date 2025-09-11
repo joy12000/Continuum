@@ -16,11 +16,11 @@ const SearchResultsList: React.FC<SearchResultsListProps> = ({ results, loading,
   const [feedback, setFeedback] = useState<Record<string, 'like' | 'dislike' | null>>({});
 
   if (loading) {
-    return <div className="p-4 text-muted-foreground text-center bg-slate-900/60 backdrop-blur-lg border border-slate-700/50 rounded-lg shadow-lg">검색 중...</div>;
+    return <div className="p-4 text-muted-foreground text-center bg-slate-900/60 backdrop-blur-lg border border-slate-700/50 rounded-3xl shadow-lg">검색 중...</div>;
   }
 
   if (results.length === 0) {
-    return <div className="p-4 text-muted-foreground text-center bg-slate-900/60 backdrop-blur-lg border border-slate-700/50 rounded-lg shadow-lg">검색 결과가 없습니다.</div>;
+    return <div className="p-4 text-muted-foreground text-center bg-slate-900/60 backdrop-blur-lg border border-slate-700/50 rounded-3xl shadow-lg">검색 결과가 없습니다.</div>;
   }
 
   const handleFeedback = (result: SearchResult, newFeedback: 'like' | 'dislike') => {
@@ -41,7 +41,7 @@ const SearchResultsList: React.FC<SearchResultsListProps> = ({ results, loading,
 
         return (
           <li key={key}>
-            <div className="block w-full text-left border border-slate-700/50 bg-slate-900/60 backdrop-blur-lg rounded-lg p-4 transition-all duration-300 hover:bg-slate-800/70 hover:shadow-xl">
+            <div className="block w-full text-left border border-slate-700/50 bg-slate-900/60 backdrop-blur-lg rounded-3xl p-4 transition-all duration-300 hover:bg-slate-800/70 hover:shadow-xl">
               <div className="flex justify-between items-start gap-4">
                 <button onClick={() => onNoteClick(result.note_id)} className="flex-grow text-left">
                   <h3 className="text-lg font-semibold text-primary hover:underline">{noteTitlesMap[result.note_id] || '제목 없는 노트'}</h3>

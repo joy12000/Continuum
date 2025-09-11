@@ -29,8 +29,8 @@ const SearchPage = ({ session }: { session: Session | null }) => {
     setIsModalOpen(true);
   }, []);
 
-  const generateAnswer = useCallback(async () => {
-    if (!results || results.length === 0 || query.trim().length < 2) {
+  const generateAnswer = useCallback(async (currentQuery: string, currentResults: any[]) => {
+    if (!currentResults || currentResults.length === 0 || currentQuery.trim().length < 2) {
       setGeneratedAnswer({ data: null, isLoading: false, error: null });
       setNoteTitlesMap({});
       return;
@@ -39,7 +39,8 @@ const SearchPage = ({ session }: { session: Session | null }) => {
     try {
       setGeneratedAnswer({ data: null, isLoading: true, error: null });
 
-      const topNoteIds = [...new Set(results.map(r => r.note_id))].slice(0, 5);
+      const filteredResults = currentResults.filter(r => r.similarity >= 0.7);
+      const topNoteIds = [...new Set(filteredResults.map(r => r.note_id))].slice(0, 5);
       const contextNotes = await getNotesByIds(topNoteIds);
 
       if (!contextNotes || contextNotes.length === 0) {
@@ -57,7 +58,7 @@ const SearchPage = ({ session }: { session: Session | null }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'rag',
-          input: { query },
+          input: { query: currentQuery },
           context: contextNotes.map((n: Note) => ({ id: n.id, body: n.body }))
         })
       });
@@ -82,16 +83,11 @@ const SearchPage = ({ session }: { session: Session | null }) => {
       console.error("Failed to generate search answer:", error);
       setGeneratedAnswer({ data: null, isLoading: false, error: (error as Error).message });
     }
-  }, [query, results]);
+  }, []);
 
-  useEffect(() => {
-    if (results.length > 0) {
-      generateAnswer();
-    }
-  }, [results, generateAnswer]);
-
-  const handleSearch = () => {
-    search(query);
+  const handleSearch = async () => {
+    const searchResults = await search(query);
+    await generateAnswer(query, searchResults);
   };
 
   const GeneratedAnswerCard = () => (

@@ -31,7 +31,7 @@ npm run preview
     *   **출력 디렉터리**: `dist`
 3.  **환경 변수**: 프로젝트 설정의 **Settings → Environment Variables**에서 다음 변수를 추가해야 합니다.
     *   `GEMINI_API_KEY`: Google Gemini API 키
-    *   `GEMINI_EMBED_MODEL` (선택 사항): 사용할 Gemini 모델 (기본값: `gemini-1.5-flash`)
+    *   `GEMINI_EMBED_MODEL` (선택 사항): 사용할 Gemini 모델 (기본값: `gemini-1.5-flash`-> 2.0-flash로 변경)
 4.  **캐시 및 헤더 정책**:
     *   `vercel.json` 파일에 ONNX/WASM 환경에 필요한 `COOP/COEP` 헤더가 설정되어 있습니다.
     *   `/models` 와 `/*.wasm` 파일은 브라우저에 1년간 캐시되어 재방문 시 로딩 속도를 높입니다.
