@@ -45,4 +45,4 @@ const InsightThreadCard: React.FC<InsightThreadCardProps> = ({ thread, onNoteCli
   );
 };
 
-export default React.memo(InsightThreadCard);
+export default InsightThreadCard;
