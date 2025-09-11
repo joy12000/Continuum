@@ -213,7 +213,7 @@ async function runThreadGeneration(jobId: string, userId: string, token: string,
       const safeScore = Number.isFinite(rawScore) ? rawScore : 0;
 
       out.push({
-        id: idxs.map((i) => prepared[i].note.id).join("_"),
+        threadId: idxs.map((i) => prepared[i].note.id).join("_"),
         title,
         summary,
         note_ids: idxs.map((i) => prepared[i].note.id),
