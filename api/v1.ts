@@ -542,6 +542,94 @@ async function handleGetNote(req: VercelRequest, res: VercelResponse) {
   res.status(200).json(note);
 }
 
+async function handleGetNoteFullDetails(req: VercelRequest, res: VercelResponse) {
+  const auth = await requireUser(req, res);
+  if (!auth) return;
+  const { supabase } = auth;
+  const noteId = req.query.noteId as string;
+
+  if (!noteId) {
+    return res.status(400).json({ error: "Missing noteId" });
+  }
+
+  try {
+    // 1. Fetch Note Data
+    const { data: noteData, error: noteError } = await supabase
+      .from("notes")
+      .select("id, title, body, tags, created_at, updated_at")
+      .eq("id", noteId)
+      .single();
+
+    if (noteError) throw new Error(noteError.message);
+    if (!noteData) return res.status(404).json({ error: "Note not found" });
+
+    const note = {
+      ...noteData,
+      createdAt: noteData.created_at,
+      updatedAt: noteData.updated_at,
+    };
+    delete (note as any).created_at;
+    delete (note as any).updated_at;
+
+    // 2. Fetch Attachments
+    const { data: attachments, error: attachmentsError } = await supabase
+      .from('note_attachments')
+      .select('*')
+      .eq('note_id', noteId);
+    if (attachmentsError) throw new Error(attachmentsError.message);
+
+    // 3. Fetch Backlinks (reusing logic from handleGetBacklinks)
+    const { data: backlinksData, error: backlinksError } = await supabase
+      .from("note_links")
+      .select("from_note_id,to_note_id,notes!note_links_from_note_id_fkey(id,title)")
+      .eq("to_note_id", noteId);
+    if (backlinksError) throw new Error(backlinksError.message);
+    const backlinks = (backlinksData ?? []).map((row: any) => ({
+      from_note_id: row.from_note_id,
+      to_note_id: row.to_note_id,
+      title: row.notes?.[0]?.title ?? null
+    }));
+
+    // 4. Fetch Connections (reusing logic from handleGetConnections)
+    const K_ENV   = Number(process.env.CONTINUUM_CONN_K ?? 12);
+    const MIN_ENV = Number(process.env.CONTINUUM_CONN_MIN ?? 0.05);
+    const kRaw   = Number(req.query.k ?? K_ENV);
+    const minRaw = Number(req.query.min_score ?? MIN_ENV);
+    const K         = Number.isFinite(kRaw)   && kRaw   > 0 ? kRaw   : K_ENV;
+    const MIN_SCORE = Number.isFinite(minRaw) && minRaw >= 0 ? minRaw : MIN_ENV;
+    const sim_w       = req.query.sim_weight       ? Number(req.query.sim_weight)       : 0.7;
+    const citation_w  = req.query.citation_weight  ? Number(req.query.citation_weight)  : 0.2;
+    const tag_w       = req.query.tag_weight       ? Number(req.query.tag_weight)       : 0.1;
+
+    const { data: connectionsData, error: connectionsError } = await supabase.rpc('get_connections_for_note', {
+      target_note_id: noteId,
+      sim_w, citation_w, tag_w
+    });
+    if (connectionsError) throw new Error(connectionsError.message);
+    const connections = (connectionsData ?? [])
+      .map((d: any) => ({
+        note_id: d.note_id,
+        title: d.title ?? null,
+        score: Number.isFinite(Number(d.score)) ? Number(d.score) : 0
+      }))
+      .filter(d => d.score >= MIN_SCORE)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, K);
+
+    // 5. Combine and Send Response
+    return res.status(200).json({
+      note,
+      attachments: attachments || [],
+      backlinks: backlinks || [],
+      connections: connections || [],
+    });
+
+  } catch (e: any) {
+    console.error(`handleGetNoteFullDetails failed for note ${noteId}:`, e);
+    return res.status(500).json({ error: e.message || "Failed to fetch full note details." });
+  }
+}
+
 async function handleUpdateNote(req: VercelRequest, res: VercelResponse) {
   const auth = await requireUser(req, res);
   if (!auth) return;
@@ -789,6 +877,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleFindContextCluster(req, res);
       case 'get-note':
         return await handleGetNote(req, res);
+      case 'get-note-full-details':
+        return await handleGetNoteFullDetails(req, res);
       case 'get-notes-for-date':
         return await handleGetNotesForDate(req, res);
       case 'summarize-day':

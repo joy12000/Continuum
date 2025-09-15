@@ -17,29 +17,21 @@ const fetchNoteData = async (noteId: string) => {
   const token = session?.access_token;
   if (!token) throw new Error('인증이 필요합니다.');
 
-  const notePromise = fetch(`/api/v1?action=get-note&noteId=${noteId}`, { headers: { 'Authorization': `Bearer ${token}` } });
-  const attachmentsPromise = supabase.from('note_attachments').select('*').eq('note_id', noteId);
-  const backlinksPromise = fetch(`/api/v1?action=get-backlinks&noteId=${noteId}`, { headers: { 'Authorization': `Bearer ${token}` } });
-  const connectionsPromise = fetch(`/api/v1?action=get-connections&noteId=${noteId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+  const response = await fetch(`/api/v1?action=get-note-full-details&noteId=${noteId}`, { headers: { 'Authorization': `Bearer ${token}` } });
 
-  const [noteRes, { data: attachments, error: attachmentsError }, backlinksRes, connectionsRes] = await Promise.all([notePromise, attachmentsPromise, backlinksPromise, connectionsPromise]);
-
-  if (!noteRes.ok) {
-    if (noteRes.status === 404) throw new Error('노트를 찾을 수 없습니다.');
-    const errorData = await noteRes.json();
+  if (!response.ok) {
+    if (response.status === 404) throw new Error('노트를 찾을 수 없습니다.');
+    const errorData = await response.json();
     throw new Error(errorData.error || '노트를 불러오는데 실패했습니다.');
   }
-  if (attachmentsError) throw new Error('첨부파일을 불러오는데 실패했습니다.');
 
-  const note: Note = await noteRes.json();
-  const backlinks: { backlinks: { from_note_id: string; title: string | null; }[] } = await backlinksRes.json();
-  const connections: { connections: { note_id: string; title: string | null; score: number; }[] } = await connectionsRes.json();
+  const fullDetails = await response.json();
 
   return {
-    note,
-    attachments: (attachments || []) as NoteAttachment[],
-    backlinks: backlinks.backlinks || [],
-    connections: connections.connections || [],
+    note: fullDetails.note,
+    attachments: fullDetails.attachments || [],
+    backlinks: fullDetails.backlinks || [],
+    connections: fullDetails.connections || [],
   };
 };
 
@@ -146,7 +138,7 @@ export const NoteDetailModal = ({ noteId, isOpen, onClose }: { noteId: string, i
   const deleteNoteMutation = useMutation({
     mutationFn: async () => {
       if (attachments && attachments.length > 0) {
-        const paths = attachments.map(a => a.storage_path);
+        const paths = attachments.map((a: NoteAttachment) => a.storage_path);
         await supabase.storage.from('notes-attachments').remove(paths);
       }
       const { error } = await supabase.from('notes').delete().eq('id', noteId!);
@@ -205,7 +197,7 @@ export const NoteDetailModal = ({ noteId, isOpen, onClose }: { noteId: string, i
         onClick={(e) => e.stopPropagation()}
       >
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <main className="lg:col-span-2 bg-card border border-border rounded-lg p-6 shadow-lg">
+          <main className="lg:col-span-2 bg-card border border-border rounded-lg p-8 shadow-lg">
             {/* Header */}
             <div className="flex items-center mb-6 pb-4 border-b border-border">
               <button onClick={onClose} className="p-2 rounded-full hover:bg-secondary transition-colors" aria-label="닫기"><XMarkIcon className="w-6 h-6 text-muted-foreground" /></button>
@@ -244,7 +236,7 @@ export const NoteDetailModal = ({ noteId, isOpen, onClose }: { noteId: string, i
           </main>
 
           <aside className="lg:col-span-1 space-y-6">
-            <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
+            <div className="bg-card border border-border rounded-lg p-6 shadow-lg">
               <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">상세 정보</h3>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex justify-between"><strong>생성일</strong><span>{new Date(note.createdAt).toLocaleString('ko-KR')}</span></li>
@@ -252,11 +244,11 @@ export const NoteDetailModal = ({ noteId, isOpen, onClose }: { noteId: string, i
               </ul>
             </div>
 
-            <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
+            <div className="bg-card border border-border rounded-lg p-6 shadow-lg">
               <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">태그</h3>
               {note.tags && note.tags.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
-                  {note.tags.map(tag => <span key={tag} className="flex items-center gap-1 bg-secondary text-secondary-foreground text-xs font-medium px-3 py-1 rounded-full"><TagIcon className="w-4 h-4" /> {tag}</span>)}
+                  {note.tags.map((tag: string) => <span key={tag} className="flex items-center gap-1 bg-secondary text-secondary-foreground text-xs font-medium px-3 py-1 rounded-full"><TagIcon className="w-4 h-4" /> {tag}</span>)}
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">태그 없음.</p>
@@ -264,10 +256,10 @@ export const NoteDetailModal = ({ noteId, isOpen, onClose }: { noteId: string, i
             </div>
 
             {attachments && attachments.length > 0 && (
-              <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
+              <div className="bg-card border border-border rounded-lg p-6 shadow-lg">
                 <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">첨부파일</h3>
                 <ul className="space-y-2">
-                  {attachments.map(att => (
+                  {attachments.map((att: NoteAttachment) => (
                     <li key={att.id} className="flex items-center justify-between bg-secondary p-2 rounded-lg">
                       <a href={getPublicUrl(att.storage_path)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-primary-foreground hover:underline">
                         <PaperClipIcon className="w-5 h-5" /><span>{att.file_name}</span>
@@ -285,22 +277,22 @@ export const NoteDetailModal = ({ noteId, isOpen, onClose }: { noteId: string, i
 
             {!isEditing && (
               <>
-                <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
+                <div className="bg-card border border-border rounded-lg p-6 shadow-lg">
                   <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">연결된 노트</h3>
                   {connections && connections.length > 0 ? (
                     <ul className="space-y-2">
-                      {connections.map(conn => <li key={conn.note_id}><Link to={`/notes/${conn.note_id}`} className="flex items-center gap-2 text-sm text-primary-foreground hover:underline"><LinkIcon className="w-5 h-5" /><span>{conn.title || '제목 없는 노트'}</span></Link></li>)}
+                      {connections.map((conn: { note_id: string; title: string | null; score: number; }) => <li key={conn.note_id}><Link to={`/notes/${conn.note_id}`} className="flex items-center gap-2 text-sm text-primary-foreground hover:underline"><LinkIcon className="w-5 h-5" /><span>{conn.title || '제목 없는 노트'}</span></Link></li>)}
                     </ul>
                   ) : (
                     <p className="text-sm text-muted-foreground">연결된 노트 없음.</p>
                   )}
                 </div>
 
-                <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
+                <div className="bg-card border border-border rounded-lg p-6 shadow-lg">
                   <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">역링크</h3>
                   {backlinks && backlinks.length > 0 ? (
                     <ul className="space-y-2">
-                      {backlinks.map(link => <li key={link.from_note_id}><Link to={`/notes/${link.from_note_id}`} className="flex items-center gap-2 text-sm text-primary-foreground hover:underline"><LinkIcon className="w-5 h-5" /><span>{link.title || '제목 없는 노트'}</span></Link></li>)}
+                      {backlinks.map((link: { from_note_id: string; title: string | null; }) => <li key={link.from_note_id}><Link to={`/notes/${link.from_note_id}`} className="flex items-center gap-2 text-sm text-primary-foreground hover:underline"><LinkIcon className="w-5 h-5" /><span>{link.title || '제목 없는 노트'}</span></Link></li>)}
                     </ul>
                   ) : (
                     <p className="text-sm text-muted-foreground">역링크 없음.</p>
@@ -316,7 +308,7 @@ export const NoteDetailModal = ({ noteId, isOpen, onClose }: { noteId: string, i
               </>
             )}
              {isEditing && (
-                <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
+                <div className="bg-card border border-border rounded-lg p-6 shadow-lg">
                   <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">링크 관리</h3>
                   <button onClick={() => setIsLinkEditorOpen(true)} className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-primary-foreground bg-secondary rounded-lg hover:bg-secondary/80 transition-colors">
                     <LinkIcon className="w-5 h-5" />
