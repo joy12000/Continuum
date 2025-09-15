@@ -1,15 +1,6 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import type { Note } from "./types.js";
+import { getGenerativeModel } from "./generativeai.js";
 
 const MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
-
-function requireEnv(key: string) {
-  const v = process.env[key];
-  if (!v) throw new Error(`${key} is required.`);
-  return v;
-}
-
-const genAI = new GoogleGenerativeAI(requireEnv("GEMINI_API_KEY"));
 
 export async function summarizeThread(notes: Note[]): Promise<{ title: string; summary: string }> {
   // Sort by created_at to elicit a "narrative over time"
@@ -45,7 +36,7 @@ export async function summarizeThread(notes: Note[]): Promise<{ title: string; s
   Your response must be ONLY the raw JSON object, without any markdown formatting, backticks, or other explanatory text.
   `;
 
-  const model = genAI.getGenerativeModel({ model: MODEL });
+  const model = getGenerativeModel('thread');
   const result = await model.generateContent(prompt);
   let text = result.response.text();
 
@@ -90,7 +81,7 @@ Today's Notes:
 ${bullets}
 `;
 
-  const model = genAI.getGenerativeModel({ model: MODEL });
+  const model = getGenerativeModel();
   const result = await model.generateContent(prompt);
   const text = result.response.text();
   try {
@@ -124,7 +115,7 @@ ${bodyExcerpt}
 
 Your response must be ONLY the raw JSON object.
 `;
-  const model = genAI.getGenerativeModel({ model: MODEL });
+  const model = getGenerativeModel();
   const result = await model.generateContent(prompt);
   const text = result.response.text().replace(/```json|```/g, '');
 
@@ -175,7 +166,7 @@ ${newNoteText}
 Your response must be ONLY the raw JSON object, like {"summary": "..."}.
 `;
 
-  const model = genAI.getGenerativeModel({ model: MODEL });
+  const model = getGenerativeModel();
   const result = await model.generateContent(prompt);
   let text = result.response.text();
 
