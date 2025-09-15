@@ -816,6 +816,7 @@ async function handleGetNotesForDate(req: VercelRequest, res: VercelResponse) {
   const notes = (data || []).map((n: any) => ({
     id: n.id,
     title: n.title,
+    body: n.body, // Add body field
     createdAt: n.created_at,
     updatedAt: n.updated_at,
   }));
