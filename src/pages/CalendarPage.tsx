@@ -188,8 +188,8 @@ const CalendarPage = ({ session }: { session: Session | null }) => {
               )}
               {dailySummary && (
                 <div className="p-4 rounded-lg bg-accent/20 border border-accent/50 mb-4">
-                  <h3 className="font-bold text-lg text-accent">{dailySummary.title}</h3>
-                  <p className="text-sm text-muted-foreground mt-2 whitespace-pre-line">{dailySummary.summary}</p>
+                  <h3 className="font-bold text-xl text-accent">{dailySummary.title}</h3>
+                  <p className="text-base text-muted-foreground mt-2 whitespace-pre-line">{dailySummary.summary}</p>
                 </div>
               )}
 
@@ -200,8 +200,8 @@ const CalendarPage = ({ session }: { session: Session | null }) => {
                   {notesForSelectedDay.map(note => (
                     <li key={note.id}>
                       <button onClick={() => handleNoteClick(note.id)} className="block w-full text-left p-4 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors duration-200">
-                        <h3 className="font-semibold text-primary truncate">{note.title || '제목 없는 노트'}</h3>
-                        <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{note.body}</p>
+                        <h3 className="font-semibold text-lg text-primary truncate">{note.title || '제목 없는 노트'}</h3>
+                        <p className="text-base text-muted-foreground line-clamp-2 mt-1">{note.body}</p>
                         <div className="text-xs text-muted-foreground/80 mt-2 text-right">{new Date(note.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</div>
                       </button>
                     </li>
