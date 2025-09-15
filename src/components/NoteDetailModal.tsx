@@ -216,13 +216,13 @@ export const NoteDetailModal = ({ noteId, isOpen, onClose }: { noteId: string, i
                     <button onClick={() => setIsEditing(false)} className="flex items-center gap-2 px-3 py-1 text-sm font-medium text-muted-foreground bg-secondary rounded-lg hover:bg-secondary/80 transition-colors"><XMarkIcon className="w-4 h-4" /><span>취소</span></button>
                   </>
                 ) : (
-                  <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 px-3 py-1 text-sm font-medium text-primary-foreground bg-accent rounded-lg hover:bg-accent/80 transition-colors"><PencilIcon className="w-4 h-4" /><span>수정</span></button>
+                  <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 px-3 py-1 text-sm font-medium text-primary-foreground bg-accent rounded-lg hover:bg-accent/80 transition-colors"><PencilIcon className="w-4 h-4" /></button>
                 )}
               </div>
             </div>
 
             {/* Body */}
-            <div className="prose prose-invert max-w-none prose-base prose-p:text-muted-foreground prose-headings:text-primary-foreground prose-a:text-accent prose-strong:text-primary-foreground">
+            <div className="prose prose-invert max-w-none prose-base prose-p:text-white prose-headings:text-primary-foreground prose-a:text-accent prose-strong:text-primary-foreground">
               {isEditing ? (
                 <textarea
                   value={editBody}
