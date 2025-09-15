@@ -205,31 +205,34 @@ const NoteDetailPage = () => {
 
   return (
     <PageLayout title={isEditing ? '노트 수정' : ''}>
-      <div className="p-4 sm:p-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <main className="lg:col-span-2 bg-card border border-border rounded-lg p-6 shadow-lg">
+      <div className="p-2 sm:p-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <main className="lg:col-span-2 bg-card border border-border rounded-lg p-4 shadow-lg">
             {/* Header */}
-            <div className="flex items-center mb-6 pb-4 border-b border-border">
-              <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-secondary transition-colors" aria-label="뒤로 가기"><ArrowLeftIcon className="w-6 h-6 text-muted-foreground" /></button>
-              {isEditing ? (
-                <input type="text" value={editTitle} onChange={e => setEditTitle(e.target.value)} className="flex-grow bg-transparent text-3xl font-bold text-gray-200 focus:outline-none focus:ring-0 border-b-2 border-transparent focus:border-sky-500 transition-colors mx-4 pb-2" placeholder="제목 (선택 사항)" />
-              ) : (
-                <h1 className="text-3xl font-bold text-gray-200 flex-grow mx-4">{note.title || '제목 없는 노트'}</h1>
-              )}
-              <div className="flex items-center gap-2 ml-auto">
+            {/* Header */}
+            <div className="flex justify-between items-start mb-6 pb-4 border-b border-border">
+              <div className="flex items-center">
+                <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-secondary transition-colors" aria-label="뒤로 가기"><ArrowLeftIcon className="w-6 h-6 text-muted-foreground" /></button>
+                {isEditing ? (
+                  <input type="text" value={editTitle} onChange={e => setEditTitle(e.target.value)} className="flex-grow bg-transparent text-2xl font-bold text-gray-200 focus:outline-none focus:ring-0 border-b-2 border-transparent focus:border-sky-500 transition-colors mx-2 pb-1" placeholder="제목 (선택 사항)" />
+                ) : (
+                  <h1 className="text-2xl font-bold text-gray-200 mx-2">{note.title || '제목 없는 노트'}</h1>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
                 {isEditing ? (
                   <>
-                    <button onClick={() => updateNoteMutation.mutate()} className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors" disabled={updateNoteMutation.isPending}><CheckIcon className="w-5 h-5" /><span>저장</span></button>
-                    <button onClick={() => setIsEditing(false)} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground bg-secondary rounded-lg hover:bg-secondary/80 transition-colors"><XMarkIcon className="w-5 h-5" /><span>취소</span></button>
+                    <button onClick={() => updateNoteMutation.mutate()} className="flex items-center gap-2 px-3 py-1 text-sm font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors" disabled={updateNoteMutation.isPending}><CheckIcon className="w-4 h-4" /><span>저장</span></button>
+                    <button onClick={() => setIsEditing(false)} className="flex items-center gap-2 px-3 py-1 text-sm font-medium text-muted-foreground bg-secondary rounded-lg hover:bg-secondary/80 transition-colors"><XMarkIcon className="w-4 h-4" /><span>취소</span></button>
                   </>
                 ) : (
-                  <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary-foreground bg-accent rounded-lg hover:bg-accent/80 transition-colors"><PencilIcon className="w-5 h-5" /><span>수정</span></button>
+                  <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 px-3 py-1 text-sm font-medium text-primary-foreground bg-accent rounded-lg hover:bg-accent/80 transition-colors"><PencilIcon className="w-4 h-4" /><span>수정</span></button>
                 )}
               </div>
             </div>
 
             {/* Body */}
-            <div className="prose prose-invert max-w-none prose-lg prose-p:text-muted-foreground prose-headings:text-primary-foreground prose-a:text-accent prose-strong:text-primary-foreground">
+            <div className="prose prose-invert max-w-none prose-base prose-p:text-muted-foreground prose-headings:text-primary-foreground prose-a:text-accent prose-strong:text-primary-foreground">
               {isEditing ? (
                 <textarea
                   value={editBody}
@@ -247,14 +250,6 @@ const NoteDetailPage = () => {
 
           <aside className="lg:col-span-1 space-y-6">
             <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
-              <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">상세 정보</h3>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex justify-between"><strong>생성일</strong><span>{new Date(note.createdAt).toLocaleString('ko-KR')}</span></li>
-                <li className="flex justify-between"><strong>수정일</strong><span>{new Date(note.updatedAt).toLocaleString('ko-KR')}</span></li>
-              </ul>
-            </div>
-
-            <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
               <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">태그</h3>
               {note.tags && note.tags.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
@@ -263,6 +258,14 @@ const NoteDetailPage = () => {
               ) : (
                 <p className="text-sm text-muted-foreground">태그 없음.</p>
               )}
+            </div>
+
+            <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
+              <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">상세 정보</h3>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li className="flex justify-between"><strong>생성일</strong><span>{new Date(note.createdAt).toLocaleString('ko-KR')}</span></li>
+                <li className="flex justify-between"><strong>수정일</strong><span>{new Date(note.updatedAt).toLocaleString('ko-KR')}</span></li>
+              </ul>
             </div>
 
             {attachments && attachments.length > 0 && (
@@ -287,27 +290,7 @@ const NoteDetailPage = () => {
 
             {!isEditing && (
               <>
-                <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
-                  <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">연결된 노트</h3>
-                  {connections && connections.length > 0 ? (
-                    <ul className="space-y-2">
-                      {connections.map(conn => <li key={conn.note_id}><Link to={`/notes/${conn.note_id}`} className="flex items-center gap-2 text-sm text-primary-foreground hover:underline"><LinkIcon className="w-5 h-5" /><span>{conn.title || '제목 없는 노트'}</span></Link></li>)}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">연결된 노트 없음.</p>
-                  )}
-                </div>
-
-                <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
-                  <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">역링크</h3>
-                  {backlinks && backlinks.length > 0 ? (
-                    <ul className="space-y-2">
-                      {backlinks.map(link => <li key={link.from_note_id}><Link to={`/notes/${link.from_note_id}`} className="flex items-center gap-2 text-sm text-primary-foreground hover:underline"><LinkIcon className="w-5 h-5" /><span>{link.title || '제목 없는 노트'}</span></Link></li>)}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">역링크 없음.</p>
-                  )}
-                </div>
+                
 
                 <div className="bg-card border border-border rounded-lg p-4 shadow-lg mt-6">
                   <button onClick={() => { if(window.confirm('정말로 이 노트를 삭제하시겠습니까?')) deleteNoteMutation.mutate() }} className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-destructive-foreground bg-destructive rounded-lg hover:bg-destructive/80 disabled:opacity-50 transition-colors" disabled={deleteNoteMutation.isPending}>

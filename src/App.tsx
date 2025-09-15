@@ -2,6 +2,7 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Session } from '@supabase/supabase-js';
+import { useQueryClient } from '@tanstack/react-query'; // Import useQueryClient
 
 import toast, { Toaster } from 'react-hot-toast';
 // Lazy load pages
@@ -28,6 +29,7 @@ import UpdatePrompt from './components/UpdatePrompt';
 import { SkySettingsProvider } from './contexts/SkySettingsContext';
 import QuickSettingsPanel from './components/QuickSettingsPanel';
 import ChannelService, { BootOption } from './lib/channel';
+import { fetchNoteActivity } from './pages/CalendarPage'; // Import fetchNoteActivity
 
 async function generateMemberHash(memberId: string): Promise<string> {
   const accessSecret = "6f868414934daf9cbbd7a84eb713eae5";
@@ -45,10 +47,19 @@ async function generateMemberHash(memberId: string): Promise<string> {
     .join("");
 }
 
+// Helper function for YYYY-MM-DD format
+function ymd(d: Date): string {
+  const y = d.getFullYear();
+  const m = (d.getMonth() + 1).toString().padStart(2, '0');
+  const dd = d.getDate().toString().padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
+
 // Main layout component to handle conditional nav bar and protected routes
 const MainLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient(); // Get query client instance
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   
@@ -145,6 +156,21 @@ const MainLayout = () => {
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
       setLoading(false);
+
+      // Pre-fetch calendar data for the current month if authenticated
+      if (session) {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = today.getMonth(); // 0-indexed
+
+        const firstDayOfMonth = new Date(year, month, 1).toISOString().split('T')[0];
+        const lastDayOfMonth = new Date(year, month + 1, 0).toISOString().split('T')[0];
+
+        queryClient.prefetchQuery({
+          queryKey: ['noteActivity', year, month],
+          queryFn: () => fetchNoteActivity(firstDayOfMonth, lastDayOfMonth),
+        });
+      }
     };
     getSession();
 
