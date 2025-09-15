@@ -67,13 +67,13 @@ export async function summarizeDay(notes: Note[]): Promise<{ title: string; summ
   const timeline = [...notes].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
   const bullets = timeline.map((n, i) => {
     const title = n.title ?? `Note ${i + 1}`;
-    const body = (n.body ?? "").slice(0, 600); // Limit content length
+    const body = (n.body ?? ""); // Removed content length limit
     return `- ${title}: ${body}`;
   }).join("\n");
 
   const prompt = `You are an analytical assistant. Based on the following notes from a single day, please perform two tasks:
-1. Create a concise, insightful title that captures the main theme of the day's thoughts. The title should be a maximum of 8 words and in Korean.
-2. Write a short narrative summary (3-5 sentences) that connects the ideas from the notes, reflecting on the day's activities or thoughts. The summary must be in Korean.
+1. Create a concise, insightful title that captures the main theme of the day's thoughts. The title must be in Korean.
+2. Write a narrative summary that connects the ideas from the notes, reflecting on the day's activities or thoughts. The summary must be in Korean.
 
 Return the result strictly as a JSON object with keys: "title" and "summary".
 
