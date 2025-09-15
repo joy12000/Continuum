@@ -188,7 +188,7 @@ const CalendarPage = ({ session }: { session: Session | null }) => {
               )}
               {dailySummary && (
                 <div className="p-4 rounded-lg bg-accent/20 border border-accent/50 mb-4">
-                  <h3 className="font-bold text-xl text-primary-foreground">{dailySummary.title}</h3>
+                  <h3 className="font-bold text-xl text-blue-400">{dailySummary.title}</h3>
                   <p className="text-base text-white mt-2 whitespace-pre-line">{dailySummary.summary}</p>
                 </div>
               )}

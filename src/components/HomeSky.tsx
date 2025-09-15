@@ -218,7 +218,7 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
 
   return (
     <div ref={containerRef} className="relative h-dvh w-full overflow-hidden text-white">
-      <Toaster />
+      
       <canvas ref={canvasRef} className="absolute inset-0 block w-full h-full" />
 
       <div className="absolute top-3 left-3 z-30">

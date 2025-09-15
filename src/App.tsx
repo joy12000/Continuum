@@ -270,7 +270,7 @@ const MainLayout = () => {
   return (
     <div className="flex flex-col h-screen bg-surface text-text-primary">
       <Toaster
-        position="bottom-center"
+        position="top-center"
         toastOptions={{
           duration: 3000,
           style: {
