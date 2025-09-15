@@ -72,7 +72,7 @@ const fetchDailySummary = async (notes: Note[] | undefined): Promise<{ title: st
 };
 
 // API 호출 함수: 월별 노트 활동(개수) 가져오기
-const fetchNoteActivity = async (startDate: string, endDate: string): Promise<NoteActivity[]> => {
+export const fetchNoteActivity = async (startDate: string, endDate: string): Promise<NoteActivity[]> => {
     const { data: { session } } = await supabase.auth.getSession();
     const token = session?.access_token;
     if (!token) throw new Error('인증이 필요합니다.');
