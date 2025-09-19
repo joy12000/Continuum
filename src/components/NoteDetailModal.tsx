@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { supabase } from '../lib/supabase';
 import type { Note, NoteAttachment } from '../types/common';
-import { DocumentTextIcon, TagIcon, LinkIcon, PencilIcon, ArrowLeftIcon, TrashIcon, CheckIcon, XMarkIcon, PaperClipIcon, ExclamationTriangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { TagIcon, PencilIcon, TrashIcon, CheckIcon, XMarkIcon, PaperClipIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
-import { LinkEditorModal } from '../components/LinkEditorModal';
 
 // --- Skeleton Loader Component ---
 const SkeletonLoader = ({ className = 'h-8' }: { className?: string }) => (
@@ -16,7 +15,7 @@ const SkeletonLoader = ({ className = 'h-8' }: { className?: string }) => (
 );
 
 // --- API Fetching Functions ---
-const fetchBasicNoteData = async (noteId: string) => {
+const fetchBasicNoteData = async (noteId: string): Promise<Note> => {
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
   if (!token) throw new Error('인증이 필요합니다.');
@@ -30,27 +29,23 @@ const fetchBasicNoteData = async (noteId: string) => {
   return await response.json();
 };
 
-const fetchSecondaryNoteData = async (noteId: string) => {
+const fetchAttachmentsData = async (noteId: string): Promise<{ attachments: NoteAttachment[] }> => {
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
   if (!token) throw new Error('인증이 필요합니다.');
 
-  const response = await fetch(`/api/v1?action=get-note-secondary-details&noteId=${noteId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+  const response = await fetch(`/api/v1?action=get-note-attachments&noteId=${noteId}`, { headers: { 'Authorization': `Bearer ${token}` } });
   if (!response.ok) {
-    // It's okay if this fails, we just won't show secondary data.
-    console.error("부가 정보 로딩 실패");
-    return null;
+    console.error("첨부파일 로딩 실패");
+    return { attachments: [] };
   }
   return await response.json();
 };
 
-
 // --- Main Component ---
 export const NoteDetailModal = ({ noteId, isOpen, onClose }: { noteId: string, isOpen: boolean, onClose: () => void }) => {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
-  const [isLinkEditorOpen, setIsLinkEditorOpen] = useState(false);
 
   // --- Edit State ---
   const [editTitle, setEditTitle] = useState('');
@@ -58,62 +53,45 @@ export const NoteDetailModal = ({ noteId, isOpen, onClose }: { noteId: string, i
   const [editTags, setEditTags] = useState('');
 
   // --- Data Fetching with React Query ---
-  // 1. Fetch basic note data first
   const { data: note, isLoading: isNoteLoading, error: noteError } = useQuery<Note>({
     queryKey: ['noteBasicDetail', noteId],
     queryFn: () => fetchBasicNoteData(noteId!),
     enabled: !!noteId && isOpen,
   });
 
-  // 2. Fetch secondary data after basic data is available
-  const { data: secondaryData, isLoading: isSecondaryLoading } = useQuery({
-    queryKey: ['noteSecondaryDetail', noteId],
-    queryFn: () => fetchSecondaryNoteData(noteId!),
-    enabled: !!note && isOpen, // Only run when basic note data is loaded
+  const { data: attachmentsData, isLoading: isAttachmentsLoading } = useQuery({
+    queryKey: ['noteAttachments', noteId],
+    queryFn: () => fetchAttachmentsData(noteId!),
+    enabled: !!note && isOpen,
   });
 
-  const { attachments, backlinks, connections } = secondaryData || {};
+  const attachments = attachmentsData?.attachments;
 
   useEffect(() => {
-    if (!note) return;
-    if (isEditing) {
+    if (note && isEditing) {
       setEditTitle(note.title || '');
       setEditBody(note.body || '');
       setEditTags((note.tags || []).join(', '));
     }
   }, [isEditing, note]);
 
-  // --- Mutations (omitted for brevity, they remain the same) ---
+  // --- Mutations ---
   const updateNoteMutation = useMutation({
     mutationFn: async () => {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
       if (!token) throw new Error('인증이 필요합니다.');
-
       const tagsArray = editTags.split(',').map(t => t.trim()).filter(Boolean);
-
       const response = await fetch(`/api/v1?action=update-note&noteId=${noteId}`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          title: editTitle,
-          body: editBody,
-          tags: tagsArray,
-        }),
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: editTitle, body: editBody, tags: tagsArray }),
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || '노트 업데이트에 실패했습니다.');
-      }
+      if (!response.ok) throw new Error((await response.json()).error || '노트 업데이트에 실패했습니다.');
     },
     onSuccess: () => {
       toast.success("노트가 성공적으로 업데이트되었습니다.");
       queryClient.invalidateQueries({ queryKey: ['noteBasicDetail', noteId] });
-      queryClient.invalidateQueries({ queryKey: ['noteSecondaryDetail', noteId] });
       queryClient.invalidateQueries({ queryKey: ['noteActivity'] });
       window.dispatchEvent(new CustomEvent('notes:updated'));
       setIsEditing(false);
@@ -124,7 +102,7 @@ export const NoteDetailModal = ({ noteId, isOpen, onClose }: { noteId: string, i
   const deleteNoteMutation = useMutation({
     mutationFn: async () => {
       if (attachments && attachments.length > 0) {
-        const paths = attachments.map((a: NoteAttachment) => a.storage_path);
+        const paths = attachments.map((a) => a.storage_path);
         await supabase.storage.from('notes-attachments').remove(paths);
       }
       const { error } = await supabase.from('notes').delete().eq('id', noteId!);
@@ -132,49 +110,19 @@ export const NoteDetailModal = ({ noteId, isOpen, onClose }: { noteId: string, i
     },
     onSuccess: () => {
       toast.success('노트가 삭제되었습니다.');
-      queryClient.invalidateQueries({ queryKey: ['notes'] }); // For any note list
+      queryClient.invalidateQueries({ queryKey: ['notes'] });
       window.dispatchEvent(new CustomEvent('notes:updated'));
       onClose();
     },
     onError: (err: any) => toast.error(`삭제 실패: ${err.message}`),
   });
 
-  const deleteAttachmentMutation = useMutation({
-    mutationFn: async (attachment: NoteAttachment) => {
-      await supabase.storage.from('notes-attachments').remove([attachment.storage_path]);
-      const { error } = await supabase.from('note_attachments').delete().eq('id', attachment.id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("첨부파일이 삭제되었습니다.");
-      queryClient.invalidateQueries({ queryKey: ['noteSecondaryDetail', noteId] });
-    },
-    onError: (err: any) => toast.error(`첨부파일 삭제 실패: ${err.message}`),
-  });
-
-
   if (!isOpen) return null;
-
-  // --- Render Logic ---
-  if (isNoteLoading) {
-    return <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"><ArrowPathIcon className="w-12 h-12 animate-spin text-accent" /></div>;
-  }
-
-  if (noteError) {
-    return <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"><div className="bg-card text-destructive p-8 rounded-lg"><ExclamationTriangleIcon className="w-12 h-12" /><p className="mt-4 text-xl">{noteError.message}</p><button onClick={onClose} className="mt-4 btn">닫기</button></div></div>;
-  }
-
-  if (!note) {
-    return <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"><div className="bg-card text-destructive p-8 rounded-lg"><ExclamationTriangleIcon className="w-12 h-12" /><p className="mt-4 text-xl">노트를 찾을 수 없습니다.</p><button onClick={onClose} className="mt-4 btn">닫기</button></div></div>;
-  }
 
   const getPublicUrl = (path: string) => supabase.storage.from('notes-attachments').getPublicUrl(path).data.publicUrl;
 
   return (
-    <div 
-      className="fixed inset-0 bg-black bg-opacity-75 z-[100] flex items-center justify-center p-4"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 bg-black bg-opacity-75 z-[100] flex items-center justify-center p-4" onClick={onClose}>
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -185,14 +133,15 @@ export const NoteDetailModal = ({ noteId, isOpen, onClose }: { noteId: string, i
       >
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <main className="lg:col-span-2 bg-card border border-border rounded-lg p-4 shadow-lg">
-            {/* Header */}
             <div className="flex justify-between items-start mb-6 pb-4 border-b border-border">
-              <div className="flex items-center">
+              <div className="flex items-center w-full">
                 <button onClick={onClose} className="p-2 rounded-full hover:bg-secondary transition-colors" aria-label="닫기"><XMarkIcon className="w-6 h-6 text-muted-foreground" /></button>
-                {isEditing ? (
+                {isNoteLoading ? (
+                  <SkeletonLoader className="h-8 w-3/4 mx-2" />
+                ) : isEditing ? (
                   <input type="text" value={editTitle} onChange={e => setEditTitle(e.target.value)} className="flex-grow bg-transparent text-2xl font-bold text-gray-200 focus:outline-none focus:ring-0 border-b-2 border-transparent focus:border-accent transition-colors mx-2" placeholder="제목 (선택 사항)" />
                 ) : (
-                  <h1 className="text-2xl font-bold text-gray-200 mx-2">{note.title || '제목 없는 노트'}</h1>
+                  <h1 className="text-2xl font-bold text-gray-200 mx-2">{note?.title || '제목 없는 노트'}</h1>
                 )}
               </div>
               <div className="flex items-center gap-2">
@@ -207,19 +156,17 @@ export const NoteDetailModal = ({ noteId, isOpen, onClose }: { noteId: string, i
               </div>
             </div>
 
-            {/* Body */}
             <div className="prose prose-invert max-w-none prose-base prose-p:text-white prose-headings:text-primary-foreground prose-a:text-accent prose-strong:text-primary-foreground">
-              {isEditing ? (
-                <textarea
-                  value={editBody}
-                  onChange={e => setEditBody(e.target.value)}
-                  className="w-full h-96 bg-background border border-border rounded-lg p-4 focus:outline-none focus:ring-2 focus:ring-accent transition-colors"
-                  placeholder="노트 내용 (마크다운 지원)"
-                />
+              {isNoteLoading ? (
+                <div className="space-y-2">
+                  <SkeletonLoader className="h-4 w-full" />
+                  <SkeletonLoader className="h-4 w-5/6" />
+                  <SkeletonLoader className="h-4 w-full" />
+                </div>
+              ) : isEditing ? (
+                <textarea value={editBody} onChange={e => setEditBody(e.target.value)} className="w-full h-96 bg-background border border-border rounded-lg p-4 focus:outline-none focus:ring-2 focus:ring-accent transition-colors" placeholder="노트 내용 (마크다운 지원)" />
               ) : (
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {note.body || ''}
-                </ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{note?.body || ''}</ReactMarkdown>
               )}
             </div>
           </main>
@@ -227,88 +174,47 @@ export const NoteDetailModal = ({ noteId, isOpen, onClose }: { noteId: string, i
           <aside className="lg:col-span-1 space-y-4">
             <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
               <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">태그</h3>
-              {isNoteLoading ? <SkeletonLoader /> : (
-                note.tags && note.tags.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {note.tags.map((tag: string) => <span key={tag} className="flex items-center gap-1 bg-secondary text-secondary-foreground text-xs font-medium px-3 py-1 rounded-full"><TagIcon className="w-4 h-4" /> {tag}</span>)}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">태그 없음.</p>
-                )
+              {isNoteLoading ? (
+                <div className="flex flex-wrap gap-2"><SkeletonLoader className="h-6 w-20" /><SkeletonLoader className="h-6 w-24" /></div>
+              ) : note?.tags && note.tags.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {note.tags.map((tag: string) => <span key={tag} className="flex items-center gap-1 bg-secondary text-secondary-foreground text-xs font-medium px-3 py-1 rounded-full"><TagIcon className="w-4 h-4" /> {tag}</span>)}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">태그 없음.</p>
               )}
             </div>
 
             <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
               <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">상세 정보</h3>
-              {isNoteLoading ? <SkeletonLoader className="h-12"/> : (
+              {isNoteLoading ? (
+                <div className="space-y-3"><SkeletonLoader className="h-5 w-full" /><SkeletonLoader className="h-5 w-full" /></div>
+              ) : (
                 <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li className="flex justify-between"><strong>생성일</strong><span>{new Date(note.createdAt).toLocaleString('ko-KR')}</span></li>
-                  <li className="flex justify-between"><strong>수정일</strong><span>{new Date(note.updatedAt).toLocaleString('ko-KR')}</span></li>
+                  <li className="flex justify-between"><strong>생성일</strong><span>{note?.createdAt ? new Date(note.createdAt).toLocaleString('ko-KR') : ''}</span></li>
+                  <li className="flex justify-between"><strong>수정일</strong><span>{note?.updatedAt ? new Date(note.updatedAt).toLocaleString('ko-KR') : ''}</span></li>
                 </ul>
               )}
             </div>
 
             <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
               <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">첨부파일</h3>
-              {isSecondaryLoading ? (
-                <div className="space-y-2">
-                  <SkeletonLoader />
-                  <SkeletonLoader />
-                </div>
+              {isAttachmentsLoading ? (
+                <div className="space-y-2"><SkeletonLoader className="h-10 w-full" /><SkeletonLoader className="h-10 w-full" /></div>
+              ) : attachments && attachments.length > 0 ? (
+                <ul className="space-y-2">
+                  {attachments.map((att: NoteAttachment) => (
+                    <li key={att.id} className="flex items-center justify-between bg-secondary p-2 rounded-lg">
+                      <a href={getPublicUrl(att.storage_path)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-primary-foreground hover:underline">
+                        <PaperClipIcon className="w-5 h-5" /><span>{att.file_name}</span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
               ) : (
-                attachments && attachments.length > 0 ? (
-                  <ul className="space-y-2">
-                    {attachments.map((att: NoteAttachment) => (
-                      <li key={att.id} className="flex items-center justify-between bg-secondary p-2 rounded-lg">
-                        <a href={getPublicUrl(att.storage_path)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-primary-foreground hover:underline">
-                          <PaperClipIcon className="w-5 h-5" /><span>{att.file_name}</span>
-                        </a>
-                        {isEditing && (
-                          <button onClick={() => deleteAttachmentMutation.mutate(att)} className="p-1 text-muted-foreground hover:text-destructive rounded-full hover:bg-destructive/10 transition-colors" aria-label="첨부파일 삭제">
-                            <TrashIcon className="w-4 h-4" />
-                          </button>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-muted-foreground">첨부파일 없음.</p>
-                )
+                <p className="text-sm text-muted-foreground">첨부파일 없음.</p>
               )}
             </div>
-            
-            {/* Placeholder for Backlinks and Connections with Skeleton UI */}
-            <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
-              <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">연결된 노트</h3>
-              {isSecondaryLoading ? (
-                <div className="space-y-2">
-                  <SkeletonLoader />
-                  <SkeletonLoader />
-                  <SkeletonLoader />
-                </div>
-              ) : (
-                connections && connections.length > 0 ? (
-                  <p className="text-sm text-muted-foreground">연결된 노트 {connections.length}개</p>
-                ) : (
-                  <p className="text-sm text-muted-foreground">연결된 노트 없음.</p>
-                )
-              )}
-            </div>
-             <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
-              <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">백링크</h3>
-              {isSecondaryLoading ? (
-                <div className="space-y-2">
-                  <SkeletonLoader />
-                </div>
-              ) : (
-                backlinks && backlinks.length > 0 ? (
-                  <p className="text-sm text-muted-foreground">백링크 {backlinks.length}개</p>
-                ) : (
-                  <p className="text-sm text-muted-foreground">백링크 없음.</p>
-                )
-              )}
-            </div>
-
 
             {!isEditing && (
               <div className="bg-card border border-border rounded-lg p-4 shadow-lg mt-6">
