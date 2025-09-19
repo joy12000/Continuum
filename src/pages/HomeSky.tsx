@@ -129,39 +129,35 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
         )} */}
       </div>
 
-      <div className="absolute inset-0 z-10 px-6 md:px-12 pt-40">
-        <div className="w-full max-w-3xl mx-auto">
-          <div
-            ref={editorRef}
-            role="textbox"
-            aria-label="밤하늘 메모"
-            contentEditable
-            suppressContentEditableWarning
-            spellCheck={false}
-            className="outline-none focus:outline-none select-text"
-            onInput={handleInput}
-            data-placeholder="밤하늘에 오늘의 조각을 새겨보세요."
-            style={{
-              fontFamily: "'Pretendard Variable', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Noto Sans KR, Apple SD Gothic Neo, sans-serif",
-              fontWeight: 500,
-              fontSize: "clamp(18px, 3.4vw, 28px)",
-              lineHeight: 1.6,
-              textAlign: "left",
-              color: "rgba(235,243,255,0.92)",
-              textShadow: "0 0 0.4rem rgba(180,210,255,0.65), 0 0 1.2rem rgba(140,190,255,0.35)",
-              mixBlendMode: "screen",
-            }}
-          />
+      <div
+        ref={editorRef}
+        role="textbox"
+        aria-label="밤하늘 메모"
+        contentEditable
+        suppressContentEditableWarning
+        spellCheck={false}
+        className="absolute inset-0 z-10 pt-40 px-6 sm:px-12 md:px-24 lg:px-48 xl:px-64 outline-none focus:outline-none select-text"
+        onInput={handleInput}
+        data-placeholder="밤하늘에 오늘의 조각을 새겨보세요."
+        style={{
+          fontFamily: "'Pretendard Variable', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Noto Sans KR, Apple SD Gothic Neo, sans-serif",
+          fontWeight: 500,
+          fontSize: "clamp(18px, 3.4vw, 28px)",
+          lineHeight: 1.6,
+          textAlign: "left",
+          color: "rgba(235,243,255,0.92)",
+          textShadow: "0 0 0.4rem rgba(180,210,255,0.65), 0 0 1.2rem rgba(140,190,255,0.35)",
+          mixBlendMode: "screen",
+        }}
+      />
 
-          {!draft && (
-            <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center p-6 md:p-12 text-center">
-              <p style={{ fontSize: "clamp(18px, 3.4vw, 28px)", lineHeight: 1.6, color: "rgba(220,235,255,0.42)", textShadow: "0 0 0.7rem rgba(150,190,255,0.2)" }}>
-                밤하늘에 오늘의 조각을 새겨보세요.
-              </p>
-            </div>
-          )}
+      {!draft && (
+        <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center p-6 md:p-12 text-center">
+          <p style={{ fontSize: "clamp(18px, 3.4vw, 28px)", lineHeight: 1.6, color: "rgba(220,235,255,0.42)", textShadow: "0 0 0.7rem rgba(150,190,255,0.2)" }}>
+            밤하늘에 오늘의 조각을 새겨보세요.
+          </p>
         </div>
-      </div>
+      )}
     </div>
   );
 }
