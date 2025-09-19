@@ -47,14 +47,43 @@ const fetchNotesForDate = async (date: string | null): Promise<NoteTitle[]> => {
   return response.json();
 };
 
-// API 호출 함수: 하루 노트 요약 생성
-const fetchDailySummary = async (date: string | null): Promise<{ title: string; summary: string } | null> => {
+// API 호출 함수: 하루 노트 요약 생성 (새로운 로직)
+const fetchAndSummarizeDay = async (date: string | null): Promise<{ title: string; summary: string } | null> => {
   if (!date) return null;
-  // This function now needs to fetch the notes for the summary itself.
-  // Or be disabled until notes are fully loaded, which is complex.
-  // For now, we disable it and can re-enable it later if needed.
-  // This is a placeholder to show the summary logic would need adjustment.
-  return null;
+
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  if (!token) throw new Error('인증이 필요합니다.');
+
+  // 1. Fetch full notes for the day
+  const notesResponse = await fetch(`/api/v1?action=get-full-notes-for-date&date=${date}`, {
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  if (!notesResponse.ok) {
+    console.error('요약을 위한 노트 전체 데이터 로딩 실패');
+    return null;
+  }
+  const notes: Note[] = await notesResponse.json();
+
+  if (notes.length === 0) {
+    return null;
+  }
+
+  // 2. Summarize the notes
+  const summaryResponse = await fetch(`/api/v1?action=summarize-day`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ notes }),
+  });
+
+  if (!summaryResponse.ok) {
+    const errorData = await summaryResponse.json();
+    throw new Error(errorData.error || '일일 요약을 생성하는데 실패했습니다.');
+  }
+  return summaryResponse.json();
 };
 
 // API 호출 함수: 월별 노트 활동(개수) 가져오기
@@ -103,10 +132,11 @@ const CalendarPage = ({ session }: { session: Session | null }) => {
     enabled: !!selectedDate && !!session,
   });
   
-  // Daily summary is disabled for now as it requires full note bodies which are no longer fetched upfront.
-  const isSummaryLoading = false;
-  const summaryError = null;
-  const dailySummary = null;
+  const { data: dailySummary, isLoading: isSummaryLoading, error: summaryError } = useQuery<{ title: string; summary: string } | null, Error>({
+    queryKey: ['dailySummary', selectedDate],
+    queryFn: () => fetchAndSummarizeDay(selectedDate),
+    enabled: !!selectedDate && !!session && (activityData?.some(a => a.activity_date === selectedDate && a.count > 0) ?? false),
+  });
 
   const notesByDate = useMemo(() => {
     const map: Record<string, Note[]> = {};
@@ -163,7 +193,20 @@ const CalendarPage = ({ session }: { session: Session | null }) => {
           <div className="lg:col-span-2">
             <h2 className="text-xl font-semibold text-primary mb-4">{selectedDate}</h2>
             <div className="space-y-4">
-              {/* Summary section is temporarily disabled */}
+              {isSummaryLoading && (
+                <div className="p-4 rounded-lg bg-secondary text-center text-muted-foreground animate-pulse">일일 요약 생성 중...</div>
+              )}
+              {summaryError && (
+                <div className="p-4 rounded-lg bg-destructive/20 text-destructive">
+                  <p className="font-bold">요약 오류</p><p className="text-sm mt-1">{summaryError.message}</p>
+                </div>
+              )}
+              {dailySummary && (
+                <div className="p-4 rounded-lg bg-accent/20 border border-accent/50 mb-4">
+                  <h3 className="font-bold text-xl text-blue-400">{dailySummary.title}</h3>
+                  <p className="text-base text-white mt-2 whitespace-pre-line">{dailySummary.summary}</p>
+                </div>
+              )}
 
               {areNotesLoading && <p className="text-center text-muted-foreground">노트 목록 로딩 중...</p>}
               {notesError && <p className="text-center text-destructive">오류: {notesError.message}</p>}
@@ -180,7 +223,7 @@ const CalendarPage = ({ session }: { session: Session | null }) => {
                   ))}
                 </ul>
               ) : (
-                !areNotesLoading && <div className="text-center text-muted-foreground p-8 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center"><CalendarIcon className="w-12 h-12 mb-4"/><p>이 날짜에 노트가 없습니다.</p></div>
+                !areNotesLoading && !isSummaryLoading && <div className="text-center text-muted-foreground p-8 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center"><CalendarIcon className="w-12 h-12 mb-4"/><p>이 날짜에 노트가 없습니다.</p></div>
               )}
             </div>
           </div>

@@ -5,7 +5,7 @@ import type { Note } from '../types/common';
 
 // --- Skeleton Loader Component ---
 const SkeletonLoader = ({ className = 'h-4' }: { className?: string }) => (
-  <div className={`bg-secondary/50 animate-pulse rounded ${className}`} />
+  <div className={`bg-accent/40 animate-pulse rounded ${className}`} />
 );
 
 // API to fetch the full details of a single note

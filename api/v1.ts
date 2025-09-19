@@ -766,6 +766,28 @@ async function handleGetNotesForDate(req: VercelRequest, res: VercelResponse) {
   return res.status(200).json(notes);
 }
 
+async function handleGetFullNotesForDate(req: VercelRequest, res: VercelResponse) {
+  const auth = await requireUser(req, res);
+  if (!auth) return;
+  const { supabase } = auth;
+
+  const date = req.query.date as string;
+  if (!date || typeof date !== 'string') {
+    return res.status(400).json({ error: "Missing or invalid 'date' query parameter" });
+  }
+
+  const { data, error } = await supabase.rpc('get_notes_for_date', {
+    target_date_str: date,
+  });
+
+  if (error) {
+    return res.status(500).json({ error: "Failed to fetch full notes for date", detail: error.message });
+  }
+
+  // The RPC returns all necessary fields including body
+  return res.status(200).json(data || []);
+}
+
 async function handleSummarizeDay(req: VercelRequest, res: VercelResponse) {
   const auth = await requireUser(req, res);
   if (!auth) return;
@@ -824,6 +846,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleGetNoteAttachments(req, res);
       case 'get-notes-for-date':
         return await handleGetNotesForDate(req, res);
+      case 'get-full-notes-for-date':
+        return await handleGetFullNotesForDate(req, res);
       case 'summarize-day':
         return await handleSummarizeDay(req, res);
       case 'update-note':

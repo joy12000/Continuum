@@ -174,11 +174,11 @@ export const NoteDetailModal = ({ noteId, isOpen, onClose }: { noteId: string, i
           <aside className="lg:col-span-1 bg-card border border-border rounded-lg p-4 shadow-lg flex flex-col">
             {/* Details Section */}
             <div>
-              <h3 className="text-lg font-semibold mb-3 text-primary-foreground">상세 정보</h3>
+              <h3 className="text-lg font-semibold mb-3 text-foreground">상세 정보</h3>
               {isNoteLoading ? (
                 <div className="space-y-3"><SkeletonLoader className="h-5 w-full" /><SkeletonLoader className="h-5 w-full" /></div>
               ) : (
-                <ul className="space-y-2 text-sm text-muted-foreground">
+                <ul className="space-y-2 text-sm text-slate-300">
                   <li className="flex justify-between"><strong>생성일</strong><span>{note?.createdAt ? new Date(note.createdAt).toLocaleString('ko-KR') : ''}</span></li>
                   <li className="flex justify-between"><strong>수정일</strong><span>{note?.updatedAt ? new Date(note.updatedAt).toLocaleString('ko-KR') : ''}</span></li>
                 </ul>
@@ -189,7 +189,7 @@ export const NoteDetailModal = ({ noteId, isOpen, onClose }: { noteId: string, i
 
             {/* Tags Section */}
             <div>
-              <h3 className="text-lg font-semibold mb-3 text-primary-foreground">태그</h3>
+              <h3 className="text-lg font-semibold mb-3 text-foreground">태그</h3>
               {isNoteLoading ? (
                 <div className="flex flex-wrap gap-2"><SkeletonLoader className="h-6 w-20" /><SkeletonLoader className="h-6 w-24" /></div>
               ) : note?.tags && note.tags.length > 0 ? (
@@ -197,7 +197,7 @@ export const NoteDetailModal = ({ noteId, isOpen, onClose }: { noteId: string, i
                   {note.tags.map((tag: string) => <span key={tag} className="flex items-center gap-1 bg-secondary text-secondary-foreground text-xs font-medium px-3 py-1 rounded-full"><TagIcon className="w-4 h-4" /> {tag}</span>)}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">태그 없음.</p>
+                <p className="text-sm text-slate-400">태그 없음.</p>
               )}
             </div>
 
@@ -205,21 +205,21 @@ export const NoteDetailModal = ({ noteId, isOpen, onClose }: { noteId: string, i
 
             {/* Attachments Section */}
             <div>
-              <h3 className="text-lg font-semibold mb-3 text-primary-foreground">첨부파일</h3>
+              <h3 className="text-lg font-semibold mb-3 text-foreground">첨부파일</h3>
               {isAttachmentsLoading ? (
                 <div className="space-y-2"><SkeletonLoader className="h-10 w-full" /><SkeletonLoader className="h-10 w-full" /></div>
               ) : attachments && attachments.length > 0 ? (
                 <ul className="space-y-2">
                   {attachments.map((att: NoteAttachment) => (
                     <li key={att.id} className="flex items-center justify-between bg-secondary p-2 rounded-lg">
-                      <a href={getPublicUrl(att.storage_path)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-primary-foreground hover:underline">
+                      <a href={getPublicUrl(att.storage_path)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-foreground hover:underline">
                         <PaperClipIcon className="w-5 h-5" /><span>{att.file_name}</span>
                       </a>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-sm text-muted-foreground">첨부파일 없음.</p>
+                <p className="text-sm text-slate-400">첨부파일 없음.</p>
               )}
             </div>
 
