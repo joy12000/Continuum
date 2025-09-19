@@ -742,9 +742,16 @@ async function handleGetNotesForDate(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: "Missing or invalid 'date' query parameter" });
   }
 
-  const { data, error } = await supabase.rpc('get_notes_for_date', {
-    target_date_str: date,
-  });
+  // Construct start and end timestamps for the given date
+  const startDate = `${date}T00:00:00.000Z`;
+  const endDate = `${date}T23:59:59.999Z`;
+
+  const { data, error } = await supabase
+    .from("notes")
+    .select("id, title, created_at")
+    .gte('created_at', startDate)
+    .lte('created_at', endDate)
+    .order("created_at", { ascending: false });
 
   if (error) {
     return res.status(500).json({ error: "Failed to fetch notes for date", detail: error.message });
@@ -753,9 +760,7 @@ async function handleGetNotesForDate(req: VercelRequest, res: VercelResponse) {
   const notes = (data || []).map((n: any) => ({
     id: n.id,
     title: n.title,
-    body: n.body, // Add body field
     createdAt: n.created_at,
-    updatedAt: n.updated_at,
   }));
 
   return res.status(200).json(notes);

@@ -171,9 +171,25 @@ export const NoteDetailModal = ({ noteId, isOpen, onClose }: { noteId: string, i
             </div>
           </main>
 
-          <aside className="lg:col-span-1 space-y-4">
-            <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
-              <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">태그</h3>
+          <aside className="lg:col-span-1 bg-card border border-border rounded-lg p-4 shadow-lg flex flex-col">
+            {/* Details Section */}
+            <div>
+              <h3 className="text-lg font-semibold mb-3 text-primary-foreground">상세 정보</h3>
+              {isNoteLoading ? (
+                <div className="space-y-3"><SkeletonLoader className="h-5 w-full" /><SkeletonLoader className="h-5 w-full" /></div>
+              ) : (
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  <li className="flex justify-between"><strong>생성일</strong><span>{note?.createdAt ? new Date(note.createdAt).toLocaleString('ko-KR') : ''}</span></li>
+                  <li className="flex justify-between"><strong>수정일</strong><span>{note?.updatedAt ? new Date(note.updatedAt).toLocaleString('ko-KR') : ''}</span></li>
+                </ul>
+              )}
+            </div>
+
+            <hr className="border-border/60 my-4" />
+
+            {/* Tags Section */}
+            <div>
+              <h3 className="text-lg font-semibold mb-3 text-primary-foreground">태그</h3>
               {isNoteLoading ? (
                 <div className="flex flex-wrap gap-2"><SkeletonLoader className="h-6 w-20" /><SkeletonLoader className="h-6 w-24" /></div>
               ) : note?.tags && note.tags.length > 0 ? (
@@ -185,20 +201,11 @@ export const NoteDetailModal = ({ noteId, isOpen, onClose }: { noteId: string, i
               )}
             </div>
 
-            <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
-              <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">상세 정보</h3>
-              {isNoteLoading ? (
-                <div className="space-y-3"><SkeletonLoader className="h-5 w-full" /><SkeletonLoader className="h-5 w-full" /></div>
-              ) : (
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li className="flex justify-between"><strong>생성일</strong><span>{note?.createdAt ? new Date(note.createdAt).toLocaleString('ko-KR') : ''}</span></li>
-                  <li className="flex justify-between"><strong>수정일</strong><span>{note?.updatedAt ? new Date(note.updatedAt).toLocaleString('ko-KR') : ''}</span></li>
-                </ul>
-              )}
-            </div>
+            <hr className="border-border/60 my-4" />
 
-            <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
-              <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">첨부파일</h3>
+            {/* Attachments Section */}
+            <div>
+              <h3 className="text-lg font-semibold mb-3 text-primary-foreground">첨부파일</h3>
               {isAttachmentsLoading ? (
                 <div className="space-y-2"><SkeletonLoader className="h-10 w-full" /><SkeletonLoader className="h-10 w-full" /></div>
               ) : attachments && attachments.length > 0 ? (
@@ -216,8 +223,12 @@ export const NoteDetailModal = ({ noteId, isOpen, onClose }: { noteId: string, i
               )}
             </div>
 
+            {/* Spacer to push delete button to the bottom */}
+            <div className="flex-grow"></div>
+
+            {/* Delete Button Section */}
             {!isEditing && (
-              <div className="bg-card border border-border rounded-lg p-4 shadow-lg mt-6">
+              <div className="mt-6">
                 <button onClick={() => { if(window.confirm('정말로 이 노트를 삭제하시겠습니까?')) deleteNoteMutation.mutate() }} className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-destructive-foreground bg-destructive rounded-lg hover:bg-destructive/80 disabled:opacity-50 transition-colors" disabled={deleteNoteMutation.isPending}>
                   <TrashIcon className="w-5 h-5" />
                   <span>노트 삭제</span>
