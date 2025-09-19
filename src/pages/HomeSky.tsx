@@ -155,7 +155,7 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
 
           {!draft && (
             <div className="pointer-events-none absolute top-0 left-0 w-full h-full flex items-start justify-center">
-              <div className="w-full max-w-3xl mx-auto px-6 md:px-12 pt-40 text-left" style={{ fontSize: "clamp(18px, 3.4vw, 28px)", lineHeight: 1.6, color: "rgba(220,235,255,0.42)", textShadow: "0 0 0.7rem rgba(150,190,255,0.2)" }}>
+              <div className="w-full max-w-3xl mx-auto px-6 md:px-12 pt-40 text-center" style={{ fontSize: "clamp(18px, 3.4vw, 28px)", lineHeight: 1.6, color: "rgba(220,235,255,0.42)", textShadow: "0 0 0.7rem rgba(150,190,255,0.2)" }}>
                 밤하늘에 오늘의 조각을 새겨보세요.
               </div>
             </div>
