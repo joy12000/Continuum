@@ -11,3 +11,4 @@ api/**/*.d.ts
 tsconfig.tsbuildinfo 
 
 .vercel
+/dist 

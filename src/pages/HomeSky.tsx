@@ -136,7 +136,7 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
         contentEditable
         suppressContentEditableWarning
         spellCheck={false}
-        className="absolute inset-0 z-10 px-6 md:px-12 outline-none focus:outline-none select-text flex items-center justify-center"
+        className="absolute inset-0 z-10 px-6 md:px-12 outline-none focus:outline-none select-text pt-40"
         onInput={handleInput}
         data-placeholder="밤하늘에 오늘의 조각을 새겨보세요."
         style={{
@@ -144,7 +144,7 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
           fontWeight: 500,
           fontSize: "clamp(18px, 3.4vw, 28px)",
           lineHeight: 1.6,
-          textAlign: "center",
+          textAlign: "left",
           color: "rgba(235,243,255,0.92)",
           textShadow: "0 0 0.4rem rgba(180,210,255,0.65), 0 0 1.2rem rgba(140,190,255,0.35)",
           mixBlendMode: "screen",
@@ -152,7 +152,7 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
       />
 
       {!draft && (
-        <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center px-6 md:px-12 text-center" style={{ fontSize: "clamp(18px, 3.4vw, 28px)", lineHeight: 1.6, color: "rgba(220,235,255,0.42)", textShadow: "0 0 0.7rem rgba(150,190,255,0.2)" }}>
+        <div className="pointer-events-none absolute inset-0 z-0 px-6 md:px-12 text-left pt-40" style={{ fontSize: "clamp(18px, 3.4vw, 28px)", lineHeight: 1.6, color: "rgba(220,235,255,0.42)", textShadow: "0 0 0.7rem rgba(150,190,255,0.2)" }}>
           밤하늘에 오늘의 조각을 새겨보세요.
         </div>
       )}

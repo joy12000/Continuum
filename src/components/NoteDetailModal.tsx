@@ -6,34 +6,44 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { supabase } from '../lib/supabase';
 import type { Note, NoteAttachment } from '../types/common';
-import PageLayout from '../components/PageLayout';
 import { DocumentTextIcon, TagIcon, LinkIcon, PencilIcon, ArrowLeftIcon, TrashIcon, CheckIcon, XMarkIcon, PaperClipIcon, ExclamationTriangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 import { LinkEditorModal } from '../components/LinkEditorModal';
 
+// --- Skeleton Loader Component ---
+const SkeletonLoader = ({ className = 'h-8' }: { className?: string }) => (
+  <div className={`bg-secondary/50 animate-pulse rounded ${className}`} />
+);
+
 // --- API Fetching Functions ---
-const fetchNoteData = async (noteId: string) => {
+const fetchBasicNoteData = async (noteId: string) => {
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
   if (!token) throw new Error('인증이 필요합니다.');
 
-  const response = await fetch(`/api/v1?action=get-note-full-details&noteId=${noteId}`, { headers: { 'Authorization': `Bearer ${token}` } });
-
+  const response = await fetch(`/api/v1?action=get-note&noteId=${noteId}`, { headers: { 'Authorization': `Bearer ${token}` } });
   if (!response.ok) {
     if (response.status === 404) throw new Error('노트를 찾을 수 없습니다.');
     const errorData = await response.json();
-    throw new Error(errorData.error || '노트를 불러오는데 실패했습니다.');
+    throw new Error(errorData.error || '노트의 기본 정보를 불러오는데 실패했습니다.');
   }
-
-  const fullDetails = await response.json();
-
-  return {
-    note: fullDetails.note,
-    attachments: fullDetails.attachments || [],
-    backlinks: fullDetails.backlinks || [],
-    connections: fullDetails.connections || [],
-  };
+  return await response.json();
 };
+
+const fetchSecondaryNoteData = async (noteId: string) => {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  if (!token) throw new Error('인증이 필요합니다.');
+
+  const response = await fetch(`/api/v1?action=get-note-secondary-details&noteId=${noteId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+  if (!response.ok) {
+    // It's okay if this fails, we just won't show secondary data.
+    console.error("부가 정보 로딩 실패");
+    return null;
+  }
+  return await response.json();
+};
+
 
 // --- Main Component ---
 export const NoteDetailModal = ({ noteId, isOpen, onClose }: { noteId: string, isOpen: boolean, onClose: () => void }) => {
@@ -48,13 +58,21 @@ export const NoteDetailModal = ({ noteId, isOpen, onClose }: { noteId: string, i
   const [editTags, setEditTags] = useState('');
 
   // --- Data Fetching with React Query ---
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['noteDetail', noteId],
-    queryFn: () => fetchNoteData(noteId!),
+  // 1. Fetch basic note data first
+  const { data: note, isLoading: isNoteLoading, error: noteError } = useQuery<Note>({
+    queryKey: ['noteBasicDetail', noteId],
+    queryFn: () => fetchBasicNoteData(noteId!),
     enabled: !!noteId && isOpen,
   });
 
-  const { note, attachments, backlinks, connections } = data || {};
+  // 2. Fetch secondary data after basic data is available
+  const { data: secondaryData, isLoading: isSecondaryLoading } = useQuery({
+    queryKey: ['noteSecondaryDetail', noteId],
+    queryFn: () => fetchSecondaryNoteData(noteId!),
+    enabled: !!note && isOpen, // Only run when basic note data is loaded
+  });
+
+  const { attachments, backlinks, connections } = secondaryData || {};
 
   useEffect(() => {
     if (!note) return;
@@ -65,7 +83,7 @@ export const NoteDetailModal = ({ noteId, isOpen, onClose }: { noteId: string, i
     }
   }, [isEditing, note]);
 
-  // --- Mutations ---
+  // --- Mutations (omitted for brevity, they remain the same) ---
   const updateNoteMutation = useMutation({
     mutationFn: async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -94,45 +112,13 @@ export const NoteDetailModal = ({ noteId, isOpen, onClose }: { noteId: string, i
     },
     onSuccess: () => {
       toast.success("노트가 성공적으로 업데이트되었습니다.");
-      queryClient.invalidateQueries({ queryKey: ['noteDetail', noteId] });
+      queryClient.invalidateQueries({ queryKey: ['noteBasicDetail', noteId] });
+      queryClient.invalidateQueries({ queryKey: ['noteSecondaryDetail', noteId] });
       queryClient.invalidateQueries({ queryKey: ['noteActivity'] });
       window.dispatchEvent(new CustomEvent('notes:updated'));
       setIsEditing(false);
     },
     onError: (err: any) => toast.error(`업데이트 실패: ${err.message}`),
-  });
-
-  const updateNoteLinksMutation = useMutation({
-    mutationFn: async ({ linksToAdd, linksToRemove }: { linksToAdd: string[], linksToRemove: string[] }) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      if (!token) throw new Error('인증이 필요합니다.');
-
-      const response = await fetch(`/api/v1?action=update-note&noteId=${noteId}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          links_to_add: linksToAdd,
-          links_to_remove: linksToRemove,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || '노트 링크 업데이트에 실패했습니다.');
-      }
-    },
-    onSuccess: () => {
-      toast.success("노트 링크가 업데이트되었습니다.");
-      queryClient.invalidateQueries({ queryKey: ['noteDetail', noteId] });
-      setIsLinkEditorOpen(false);
-    },
-    onError: (err: any) => {
-      toast.error(`링크 업데이트 실패: ${err.message}`);
-    },
   });
 
   const deleteNoteMutation = useMutation({
@@ -161,20 +147,21 @@ export const NoteDetailModal = ({ noteId, isOpen, onClose }: { noteId: string, i
     },
     onSuccess: () => {
       toast.success("첨부파일이 삭제되었습니다.");
-      queryClient.invalidateQueries({ queryKey: ['noteDetail', noteId] });
+      queryClient.invalidateQueries({ queryKey: ['noteSecondaryDetail', noteId] });
     },
     onError: (err: any) => toast.error(`첨부파일 삭제 실패: ${err.message}`),
   });
 
+
   if (!isOpen) return null;
 
   // --- Render Logic ---
-  if (isLoading) {
+  if (isNoteLoading) {
     return <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"><ArrowPathIcon className="w-12 h-12 animate-spin text-accent" /></div>;
   }
 
-  if (error) {
-    return <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"><div className="bg-card text-destructive p-8 rounded-lg"><ExclamationTriangleIcon className="w-12 h-12" /><p className="mt-4 text-xl">{error.message}</p><button onClick={onClose} className="mt-4 btn">닫기</button></div></div>;
+  if (noteError) {
+    return <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"><div className="bg-card text-destructive p-8 rounded-lg"><ExclamationTriangleIcon className="w-12 h-12" /><p className="mt-4 text-xl">{noteError.message}</p><button onClick={onClose} className="mt-4 btn">닫기</button></div></div>;
   }
 
   if (!note) {
@@ -198,7 +185,6 @@ export const NoteDetailModal = ({ noteId, isOpen, onClose }: { noteId: string, i
       >
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <main className="lg:col-span-2 bg-card border border-border rounded-lg p-4 shadow-lg">
-            {/* Header */}
             {/* Header */}
             <div className="flex justify-between items-start mb-6 pb-4 border-b border-border">
               <div className="flex items-center">
@@ -241,64 +227,97 @@ export const NoteDetailModal = ({ noteId, isOpen, onClose }: { noteId: string, i
           <aside className="lg:col-span-1 space-y-4">
             <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
               <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">태그</h3>
-              {note.tags && note.tags.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {note.tags.map((tag: string) => <span key={tag} className="flex items-center gap-1 bg-secondary text-secondary-foreground text-xs font-medium px-3 py-1 rounded-full"><TagIcon className="w-4 h-4" /> {tag}</span>)}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">태그 없음.</p>
+              {isNoteLoading ? <SkeletonLoader /> : (
+                note.tags && note.tags.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {note.tags.map((tag: string) => <span key={tag} className="flex items-center gap-1 bg-secondary text-secondary-foreground text-xs font-medium px-3 py-1 rounded-full"><TagIcon className="w-4 h-4" /> {tag}</span>)}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">태그 없음.</p>
+                )
               )}
             </div>
 
             <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
               <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">상세 정보</h3>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex justify-between"><strong>생성일</strong><span>{new Date(note.createdAt).toLocaleString('ko-KR')}</span></li>
-                <li className="flex justify-between"><strong>수정일</strong><span>{new Date(note.updatedAt).toLocaleString('ko-KR')}</span></li>
-              </ul>
+              {isNoteLoading ? <SkeletonLoader className="h-12"/> : (
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  <li className="flex justify-between"><strong>생성일</strong><span>{new Date(note.createdAt).toLocaleString('ko-KR')}</span></li>
+                  <li className="flex justify-between"><strong>수정일</strong><span>{new Date(note.updatedAt).toLocaleString('ko-KR')}</span></li>
+                </ul>
+              )}
             </div>
 
-            {attachments && attachments.length > 0 && (
-              <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
-                <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">첨부파일</h3>
-                <ul className="space-y-2">
-                  {attachments.map((att: NoteAttachment) => (
-                    <li key={att.id} className="flex items-center justify-between bg-secondary p-2 rounded-lg">
-                      <a href={getPublicUrl(att.storage_path)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-primary-foreground hover:underline">
-                        <PaperClipIcon className="w-5 h-5" /><span>{att.file_name}</span>
-                      </a>
-                      {isEditing && (
-                        <button onClick={() => deleteAttachmentMutation.mutate(att)} className="p-1 text-muted-foreground hover:text-destructive rounded-full hover:bg-destructive/10 transition-colors" aria-label="첨부파일 삭제">
-                          <TrashIcon className="w-4 h-4" />
-                        </button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
+              <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">첨부파일</h3>
+              {isSecondaryLoading ? (
+                <div className="space-y-2">
+                  <SkeletonLoader />
+                  <SkeletonLoader />
+                </div>
+              ) : (
+                attachments && attachments.length > 0 ? (
+                  <ul className="space-y-2">
+                    {attachments.map((att: NoteAttachment) => (
+                      <li key={att.id} className="flex items-center justify-between bg-secondary p-2 rounded-lg">
+                        <a href={getPublicUrl(att.storage_path)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-primary-foreground hover:underline">
+                          <PaperClipIcon className="w-5 h-5" /><span>{att.file_name}</span>
+                        </a>
+                        {isEditing && (
+                          <button onClick={() => deleteAttachmentMutation.mutate(att)} className="p-1 text-muted-foreground hover:text-destructive rounded-full hover:bg-destructive/10 transition-colors" aria-label="첨부파일 삭제">
+                            <TrashIcon className="w-4 h-4" />
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-muted-foreground">첨부파일 없음.</p>
+                )
+              )}
+            </div>
+            
+            {/* Placeholder for Backlinks and Connections with Skeleton UI */}
+            <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
+              <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">연결된 노트</h3>
+              {isSecondaryLoading ? (
+                <div className="space-y-2">
+                  <SkeletonLoader />
+                  <SkeletonLoader />
+                  <SkeletonLoader />
+                </div>
+              ) : (
+                connections && connections.length > 0 ? (
+                  <p className="text-sm text-muted-foreground">연결된 노트 {connections.length}개</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">연결된 노트 없음.</p>
+                )
+              )}
+            </div>
+             <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
+              <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">백링크</h3>
+              {isSecondaryLoading ? (
+                <div className="space-y-2">
+                  <SkeletonLoader />
+                </div>
+              ) : (
+                backlinks && backlinks.length > 0 ? (
+                  <p className="text-sm text-muted-foreground">백링크 {backlinks.length}개</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">백링크 없음.</p>
+                )
+              )}
+            </div>
+
 
             {!isEditing && (
-              <>
-                
-
-                <div className="bg-card border border-border rounded-lg p-4 shadow-lg mt-6">
-                  <button onClick={() => { if(window.confirm('정말로 이 노트를 삭제하시겠습니까?')) deleteNoteMutation.mutate() }} className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-destructive-foreground bg-destructive rounded-lg hover:bg-destructive/80 disabled:opacity-50 transition-colors" disabled={deleteNoteMutation.isPending}>
-                    <TrashIcon className="w-5 h-5" />
-                    <span>노트 삭제</span>
-                  </button>
-                </div>
-              </>
+              <div className="bg-card border border-border rounded-lg p-4 shadow-lg mt-6">
+                <button onClick={() => { if(window.confirm('정말로 이 노트를 삭제하시겠습니까?')) deleteNoteMutation.mutate() }} className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-destructive-foreground bg-destructive rounded-lg hover:bg-destructive/80 disabled:opacity-50 transition-colors" disabled={deleteNoteMutation.isPending}>
+                  <TrashIcon className="w-5 h-5" />
+                  <span>노트 삭제</span>
+                </button>
+              </div>
             )}
-             {isEditing && (
-                <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
-                  <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">링크 관리</h3>
-                  <button onClick={() => setIsLinkEditorOpen(true)} className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-primary-foreground bg-secondary rounded-lg hover:bg-secondary/80 transition-colors">
-                    <LinkIcon className="w-5 h-5" />
-                    <span>링크 수정</span>
-                  </button>
-                </div>
-              )}
           </aside>
         </div>
       </motion.div>

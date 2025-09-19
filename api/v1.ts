@@ -578,7 +578,37 @@ async function handleGetNoteFullDetails(req: VercelRequest, res: VercelResponse)
       .eq('note_id', noteId);
     if (attachmentsError) throw new Error(attachmentsError.message);
 
-    // 3. Fetch Backlinks (reusing logic from handleGetBacklinks)
+    // 3. Combine and Send Response
+    return res.status(200).json({
+      note,
+      attachments: attachments || [],
+    });
+
+  } catch (e: any) {
+    console.error(`handleGetNoteFullDetails failed for note ${noteId}:`, e);
+    return res.status(500).json({ error: e.message || "Failed to fetch full note details." });
+  }
+}
+
+async function handleGetNoteSecondaryDetails(req: VercelRequest, res: VercelResponse) {
+  const auth = await requireUser(req, res);
+  if (!auth) return;
+  const { supabase } = auth;
+  const noteId = req.query.noteId as string;
+
+  if (!noteId) {
+    return res.status(400).json({ error: "Missing noteId" });
+  }
+
+  try {
+    // 1. Fetch Attachments
+    const { data: attachments, error: attachmentsError } = await supabase
+      .from('note_attachments')
+      .select('*')
+      .eq('note_id', noteId);
+    if (attachmentsError) throw new Error(attachmentsError.message);
+
+    // 2. Fetch Backlinks
     const { data: backlinksData, error: backlinksError } = await supabase
       .from("note_links")
       .select("from_note_id,to_note_id,notes!note_links_from_note_id_fkey(id,title)")
@@ -590,7 +620,7 @@ async function handleGetNoteFullDetails(req: VercelRequest, res: VercelResponse)
       title: row.notes?.[0]?.title ?? null
     }));
 
-    // 4. Fetch Connections (reusing logic from handleGetConnections)
+    // 3. Fetch Connections
     const K_ENV   = Number(process.env.CONTINUUM_CONN_K ?? 12);
     const MIN_ENV = Number(process.env.CONTINUUM_CONN_MIN ?? 0.05);
     const kRaw   = Number(req.query.k ?? K_ENV);
@@ -616,17 +646,16 @@ async function handleGetNoteFullDetails(req: VercelRequest, res: VercelResponse)
       .sort((a, b) => b.score - a.score)
       .slice(0, K);
 
-    // 5. Combine and Send Response
+    // 4. Combine and Send Response
     return res.status(200).json({
-      note,
       attachments: attachments || [],
       backlinks: backlinks || [],
       connections: connections || [],
     });
 
   } catch (e: any) {
-    console.error(`handleGetNoteFullDetails failed for note ${noteId}:`, e);
-    return res.status(500).json({ error: e.message || "Failed to fetch full note details." });
+    console.error(`handleGetNoteSecondaryDetails failed for note ${noteId}:`, e);
+    return res.status(500).json({ error: e.message || "Failed to fetch secondary note details." });
   }
 }
 
@@ -880,6 +909,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleGetNote(req, res);
       case 'get-note-full-details':
         return await handleGetNoteFullDetails(req, res);
+      case 'get-note-secondary-details':
+        return await handleGetNoteSecondaryDetails(req, res);
       case 'get-notes-for-date':
         return await handleGetNotesForDate(req, res);
       case 'summarize-day':
