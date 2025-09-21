@@ -103,14 +103,6 @@ const LinksPage = ({ session }: { session: Session | null }) => {
     overscan: 5,
   });
 
-  const columnVirtualizer = useVirtualizer({
-    horizontal: true,
-    count: 2,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 500, // A reasonable estimate for card width
-    overscan: 1,
-  });
-
   const handleJobSuccess = () => {
     console.log("Job completed successfully!");
     alert("인사이트 스레드 분석 완료!");
@@ -187,7 +179,7 @@ const LinksPage = ({ session }: { session: Session | null }) => {
     }
 
     return (
-      <div className="max-w-7xl mx-auto">
+      <div>
         <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
           <span className="text-sm text-muted-foreground text-center sm:text-left">
             마지막 분석: {formatTimeAgo(cachedData?.lastUpdatedAt ?? null)}
@@ -216,34 +208,43 @@ const LinksPage = ({ session }: { session: Session | null }) => {
                     position: 'relative',
                 }}
             >
-                {rowVirtualizer.getVirtualItems().map((virtualRow) =>
-                    columnVirtualizer.getVirtualItems().map((virtualColumn) => {
-                        const index = virtualRow.index * 2 + virtualColumn.index;
-                        const thread = threads[index];
-                        if (!thread) return null;
-                        return (
-                            <div
-                                key={virtualRow.key}
-                                style={{
-                                    position: 'absolute',
-                                    top: 0,
-                                    left: 0,
-                                    width: `${100 / 2}%`,
-                                    height: `400px`,
-                                    transform: `translate(${virtualColumn.start}px, ${virtualRow.start}px)`,
-                                    padding: '1rem',
-                                }}
-                            >
+                {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                    const firstThreadIndex = virtualRow.index * 2;
+                    const secondThreadIndex = firstThreadIndex + 1;
+                    const firstThread = threads[firstThreadIndex];
+                    const secondThread = threads[secondThreadIndex];
+
+                    return (
+                        <div
+                            key={virtualRow.key}
+                            style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                width: '100%',
+                                transform: `translateY(${virtualRow.start}px)`,
+                            }}
+                            className="grid grid-cols-1 md:grid-cols-2 gap-8"
+                        >
+                            {firstThread && (
                                 <InsightThreadCard
-                                    thread={thread}
+                                    thread={firstThread}
                                     onNoteClick={handleNoteClick}
-                                    isExpanded={expandedCardId === thread.threadId}
+                                    isExpanded={expandedCardId === firstThread.threadId}
                                     onToggleExpand={handleToggleExpand}
                                 />
-                            </div>
-                        );
-                    })
-                )}
+                            )}
+                            {secondThread && (
+                                <InsightThreadCard
+                                    thread={secondThread}
+                                    onNoteClick={handleNoteClick}
+                                    isExpanded={expandedCardId === secondThread.threadId}
+                                    onToggleExpand={handleToggleExpand}
+                                />
+                            )}
+                        </div>
+                    );
+                })}
             </div>
         </div>
       </div>
@@ -251,7 +252,7 @@ const LinksPage = ({ session }: { session: Session | null }) => {
   };
 
   return (
-    <PageLayout title="인사이트 스레드" transparent fullWidth className="bg-links-background" hideMoon hideBackButton={true}>
+    <PageLayout title="인사이트 스레드" transparent className="bg-links-background" hideMoon hideBackButton={true}>
       <div className="relative z-10">
         {renderContent()}
       </div>
