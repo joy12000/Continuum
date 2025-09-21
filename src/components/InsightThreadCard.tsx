@@ -26,11 +26,11 @@ const InsightThreadCard: React.FC<InsightThreadCardProps> = ({ thread, onNoteCli
   return (
     <div 
       ref={cardRef}
-      className={`border border-slate-700/50 bg-slate-900/60 backdrop-blur-lg rounded-3xl p-4 shadow-lg flex flex-col h-full transition-max-height duration-700 ease-in-out overflow-hidden ${isExpanded ? 'max-h-full' : 'max-h-96'}`}
+      className={`border border-slate-700/50 bg-slate-900/60 backdrop-blur-lg rounded-3xl p-4 shadow-lg flex flex-col h-full transition-max-height duration-700 ease-in-out overflow-hidden ${isExpanded ? 'max-h-full' : 'max-h-64'}`}
       onClick={() => onToggleExpand(thread.threadId)}
     >
       <h3 className="text-lg font-bold text-primary break-words">{thread.title}</h3>
-      <p className={`mt-2 text-muted-foreground flex-grow text-base`}>{thread.summary}</p>
+      <p className={`mt-2 text-muted-foreground flex-grow text-base ${!isExpanded ? 'line-clamp-3' : ''}`}>{thread.summary}</p>
       
       <div className="mt-4 pt-3 border-t border-slate-700/50">
         <h4 className="text-base font-semibold text-muted-foreground mb-2">Included Notes ({thread.notes.length})</h4>

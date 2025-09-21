@@ -77,8 +77,6 @@ const LinksPage = ({ session }: { session: Session | null }) => {
   const [excludeSingletons, setExcludeSingletons] = useState<boolean>(true);
   const [expandedCardId, setExpandedCardId] = useState<string | number | null>(null);
 
-  const parentRef = React.useRef<HTMLDivElement>(null);
-
   const handleNoteClick = useCallback((note: Note) => {
     setSelectedNoteId(note.id);
     setModalOpen(true);
@@ -92,35 +90,9 @@ const LinksPage = ({ session }: { session: Session | null }) => {
 
   const threads = cachedData?.threads ?? [];
 
-  const rowVirtualizer = useVirtualizer({
-    count: Math.ceil(threads.length / 2),
-    getScrollElement: () => parentRef.current,
-    estimateSize: useCallback((index: number) => {
-      const firstThread = threads[index * 2];
-      const secondThread = threads[index * 2 + 1];
-      const isFirstExpanded = firstThread && expandedCardId === firstThread.threadId;
-      const isSecondExpanded = secondThread && expandedCardId === secondThread.threadId;
-
-      if (isFirstExpanded || isSecondExpanded) {
-        // Return a larger size for expanded cards
-        return 600;
-      }
-      // Return the default size for collapsed cards
-      return 350;
-    }, [expandedCardId, threads]),
-    overscan: 5,
-  });
-
-  const handleToggleExpand = useCallback((threadId: string | number) => {
-    setExpandedCardId(prevId => {
-      const newId = prevId === threadId ? null : threadId;
-      // Schedule a re-measurement after the state update
-      setTimeout(() => {
-        rowVirtualizer.measure();
-      }, 100);
-      return newId;
-    });
-  }, [rowVirtualizer]);
+  const handleToggleExpand = (threadId: string | number) => {
+    setExpandedCardId(prevId => prevId === threadId ? null : threadId);
+  };
 
   const handleJobSuccess = () => {
     console.log("Job completed successfully!");
@@ -219,52 +191,16 @@ const LinksPage = ({ session }: { session: Session | null }) => {
             </button>
           </div>
         </div>
-        <div ref={parentRef} className="h-[calc(100vh-200px)] overflow-y-auto">
-            <div
-                style={{
-                    height: `${rowVirtualizer.getTotalSize()}px`,
-                    width: '100%',
-                    position: 'relative',
-                }}
-            >
-                {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                    const firstThreadIndex = virtualRow.index * 2;
-                    const secondThreadIndex = firstThreadIndex + 1;
-                    const firstThread = threads[firstThreadIndex];
-                    const secondThread = threads[secondThreadIndex];
-
-                    return (
-                        <div
-                            key={virtualRow.key}
-                            style={{
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                width: '100%',
-                                transform: `translateY(${virtualRow.start}px)`,
-                            }}
-                            className="grid grid-cols-1 md:grid-cols-2 gap-8"
-                        >
-                            {firstThread && (
-                                <InsightThreadCard
-                                    thread={firstThread}
-                                    onNoteClick={handleNoteClick}
-                                    isExpanded={expandedCardId === firstThread.threadId}
-                                    onToggleExpand={handleToggleExpand}
-                                />
-                            )}
-                            {secondThread && (
-                                <InsightThreadCard
-                                    thread={secondThread}
-                                    onNoteClick={handleNoteClick}
-                                    isExpanded={expandedCardId === secondThread.threadId}
-                                    onToggleExpand={handleToggleExpand}
-                                />
-                            )}
-                        </div>
-                    );
-                })}
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 overflow-y-auto h-[calc(100vh-200px)]">
+          {threads.map((thread) => (
+            <InsightThreadCard
+              key={thread.threadId}
+              thread={thread}
+              onNoteClick={handleNoteClick}
+              isExpanded={expandedCardId === thread.threadId}
+              onToggleExpand={handleToggleExpand}
+            />
+          ))}
         </div>
       </div>
     );
