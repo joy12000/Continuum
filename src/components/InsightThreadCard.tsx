@@ -18,13 +18,23 @@ const InsightThreadCard: React.FC<InsightThreadCardProps> = ({ thread, onNoteCli
   const displayedNotes = showAllNotes ? thread.notes : thread.notes.slice(0, 3);
 
   useEffect(() => {
-    // No direct DOM manipulation for maxHeight here, rely on CSS classes
+    if (cardRef.current) {
+      if (isExpanded) {
+        requestAnimationFrame(() => {
+          if (cardRef.current) {
+            cardRef.current.style.maxHeight = `${cardRef.current.scrollHeight}px`;
+          }
+        });
+      } else {
+        cardRef.current.style.maxHeight = '16rem'; // 64 * 0.25rem
+      }
+    }
   }, [isExpanded]);
 
   return (
     <div 
       ref={cardRef}
-      className={`border border-slate-700/50 bg-slate-900/60 backdrop-blur-lg rounded-3xl p-4 shadow-lg flex flex-col transition-[height] duration-700 ease-in-out ${isExpanded ? 'h-auto overflow-visible' : 'h-[16rem] overflow-hidden'}`}
+      className={`border border-slate-700/50 bg-slate-900/60 backdrop-blur-lg rounded-3xl p-4 shadow-lg flex flex-col transition-[max-height] duration-700 ease-in-out ${isExpanded ? 'max-h-full overflow-y-auto' : 'max-h-64 overflow-hidden'}`}
       onClick={() => onToggleExpand(thread.threadId)}
     >
       <h3 className="text-lg font-bold text-primary break-words">{thread.title}</h3>
