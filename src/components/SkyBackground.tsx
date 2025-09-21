@@ -26,7 +26,7 @@ function loadPrefs(): Prefs {
   } catch { return defaultPrefs; }
 }
 
-export default function SkyBackground() {
+export default function SkyBackground({ className }: { className?: string }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rafRef = useRef<number | null>(null);
   const starsRef = useRef<Star[]>([]);

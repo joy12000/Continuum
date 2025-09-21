@@ -11,6 +11,7 @@ import type { InsightThread, Note } from '@lib/types';
 import type { Session } from '@supabase/supabase-js';
 import { BeakerIcon, CpuChipIcon } from '@heroicons/react/24/outline';
 import Switch from '@/components/Switch';
+import SkyBackground from '@/components/SkyBackground';
 
 // --- Time Formatting Helper ---
 const formatTimeAgo = (dateString: string | null): string => {
@@ -271,7 +272,8 @@ const LinksPage = ({ session }: { session: Session | null }) => {
   };
 
   return (
-    <PageLayout title="인사이트 스레드" transparent className="bg-links-background" hideMoon hideBackButton={true}>
+    <PageLayout title="인사이트 스레드" transparent hideBackButton={true}>
+      <SkyBackground className="absolute inset-0 z-0" />
       <div className="relative z-10">
         {renderContent()}
       </div>
