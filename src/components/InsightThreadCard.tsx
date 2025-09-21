@@ -19,14 +19,22 @@ const InsightThreadCard: React.FC<InsightThreadCardProps> = ({ thread, onNoteCli
 
   useEffect(() => {
     if (cardRef.current) {
-      cardRef.current.style.maxHeight = isExpanded ? 'none' : '16rem'; // 64 * 0.25rem
+      if (isExpanded) {
+        requestAnimationFrame(() => {
+          if (cardRef.current) {
+            cardRef.current.style.maxHeight = `${cardRef.current.scrollHeight}px`;
+          }
+        });
+      } else {
+        cardRef.current.style.maxHeight = '16rem'; // 64 * 0.25rem
+      }
     }
   }, [isExpanded]);
 
   return (
     <div 
       ref={cardRef}
-      className={`border border-slate-700/50 bg-slate-900/60 backdrop-blur-lg rounded-3xl p-4 shadow-lg flex flex-col h-full transition-max-height duration-700 ease-in-out ${isExpanded ? 'max-h-full overflow-y-auto' : 'max-h-64 overflow-hidden'}`}
+      className={`border border-slate-700/50 bg-slate-900/60 backdrop-blur-lg rounded-3xl p-4 shadow-lg flex flex-col h-full transition-[max-height] duration-700 ease-in-out ${isExpanded ? 'overflow-y-auto' : 'overflow-hidden'}`}
       onClick={() => onToggleExpand(thread.threadId)}
     >
       <h3 className="text-lg font-bold text-primary break-words">{thread.title}</h3>
