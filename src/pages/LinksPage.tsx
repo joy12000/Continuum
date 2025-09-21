@@ -67,6 +67,8 @@ interface CachedThreadsResponse {
   lastUpdatedAt: string | null;
 }
 
+import { useVirtualizer } from '@tanstack/react-virtual';
+
 const LinksPage = ({ session }: { session: Session | null }) => {
   const queryClient = useQueryClient();
   const [jobId, setJobId] = useState<string | null>(localStorage.getItem('momentum_job_id'));
@@ -74,6 +76,8 @@ const LinksPage = ({ session }: { session: Session | null }) => {
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [excludeSingletons, setExcludeSingletons] = useState<boolean>(true);
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
+
+  const parentRef = React.useRef<HTMLDivElement>(null);
 
   const handleToggleExpand = (threadId: string) => {
     setExpandedCardId(prevId => prevId === threadId ? null : threadId);
@@ -88,6 +92,23 @@ const LinksPage = ({ session }: { session: Session | null }) => {
     queryKey: ['cachedThreads'],
     queryFn: fetchCachedThreads,
     enabled: !!session,
+  });
+
+  const threads = cachedData?.threads ?? [];
+
+  const rowVirtualizer = useVirtualizer({
+    count: Math.ceil(threads.length / 2),
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 400, // A reasonable estimate for card height
+    overscan: 5,
+  });
+
+  const columnVirtualizer = useVirtualizer({
+    horizontal: true,
+    count: 2,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 500, // A reasonable estimate for card width
+    overscan: 1,
   });
 
   const handleJobSuccess = () => {
@@ -141,9 +162,7 @@ const LinksPage = ({ session }: { session: Session | null }) => {
       return <div className="flex items-center justify-center h-full text-destructive bg-slate-900/60 backdrop-blur-lg border border-slate-700/50 rounded-lg p-8">오류: {queryError.message}</div>;
     }
 
-    const threads = cachedData?.threads;
-
-    if (!threads || threads.length === 0) {
+    if (threads.length === 0) {
       return (
         <div className="text-center p-8 bg-slate-900/60 backdrop-blur-lg border border-slate-700/50 rounded-lg shadow-lg max-w-md mx-auto">
           <BeakerIcon className="w-16 h-16 mx-auto text-accent mb-4" />
@@ -168,10 +187,10 @@ const LinksPage = ({ session }: { session: Session | null }) => {
     }
 
     return (
-      <div>
+      <div className="max-w-7xl mx-auto">
         <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
           <span className="text-sm text-muted-foreground text-center sm:text-left">
-            마지막 분석: {formatTimeAgo(cachedData.lastUpdatedAt)}
+            마지막 분석: {formatTimeAgo(cachedData?.lastUpdatedAt ?? null)}
           </span>
           <div className="flex items-center gap-4">
             <Switch
@@ -189,16 +208,43 @@ const LinksPage = ({ session }: { session: Session | null }) => {
             </button>
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-8 justify-items-center">
-          {threads.map((thread: InsightThread) => (
-            <InsightThreadCard
-              key={thread.threadId}
-              thread={thread}
-              onNoteClick={handleNoteClick}
-              isExpanded={expandedCardId === thread.threadId}
-              onToggleExpand={handleToggleExpand}
-            />
-          ))}
+        <div ref={parentRef} className="h-[calc(100vh-200px)] overflow-y-auto">
+            <div
+                style={{
+                    height: `${rowVirtualizer.getTotalSize()}px`,
+                    width: '100%',
+                    position: 'relative',
+                }}
+            >
+                {rowVirtualizer.getVirtualItems().map((virtualRow) =>
+                    columnVirtualizer.getVirtualItems().map((virtualColumn) => {
+                        const index = virtualRow.index * 2 + virtualColumn.index;
+                        const thread = threads[index];
+                        if (!thread) return null;
+                        return (
+                            <div
+                                key={virtualRow.key}
+                                style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    width: `${100 / 2}%`,
+                                    height: `400px`,
+                                    transform: `translate(${virtualColumn.start}px, ${virtualRow.start}px)`,
+                                    padding: '1rem',
+                                }}
+                            >
+                                <InsightThreadCard
+                                    thread={thread}
+                                    onNoteClick={handleNoteClick}
+                                    isExpanded={expandedCardId === thread.threadId}
+                                    onToggleExpand={handleToggleExpand}
+                                />
+                            </div>
+                        );
+                    })
+                )}
+            </div>
         </div>
       </div>
     );

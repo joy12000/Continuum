@@ -12,6 +12,9 @@ interface InsightThreadCardProps {
 }
 
 const InsightThreadCard: React.FC<InsightThreadCardProps> = ({ thread, onNoteClick, isExpanded, onToggleExpand }) => {
+  const [showAllNotes, setShowAllNotes] = useState(false);
+
+  const displayedNotes = showAllNotes ? thread.notes : thread.notes.slice(0, 3);
 
   return (
     <div 
@@ -22,9 +25,9 @@ const InsightThreadCard: React.FC<InsightThreadCardProps> = ({ thread, onNoteCli
       <p className={`mt-2 text-muted-foreground flex-grow text-base ${!isExpanded ? 'line-clamp-3' : ''}`}>{thread.summary}</p>
       
       <div className="mt-4 pt-3 border-t border-slate-700/50">
-        <h4 className="text-base font-semibold text-muted-foreground mb-2">Included Notes</h4>
+        <h4 className="text-base font-semibold text-muted-foreground mb-2">Included Notes ({thread.notes.length})</h4>
         <ul className="space-y-2">
-          {thread.notes.map((note: Note) => (
+          {displayedNotes.map((note: Note) => (
             <li key={note.id}>
               <button 
                 onClick={(e) => { e.stopPropagation(); onNoteClick(note); }}
@@ -36,6 +39,14 @@ const InsightThreadCard: React.FC<InsightThreadCardProps> = ({ thread, onNoteCli
             </li>
           ))}
         </ul>
+        {thread.notes.length > 3 && (
+          <button 
+            onClick={(e) => { e.stopPropagation(); setShowAllNotes(!showAllNotes); }}
+            className="text-sm text-accent hover:underline mt-2"
+          >
+            {showAllNotes ? 'Show less' : `Show ${thread.notes.length - 3} more`}
+          </button>
+        )}
       </div>
 
       <div className="mt-3 text-sm text-right text-muted-foreground/80">
