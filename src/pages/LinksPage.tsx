@@ -191,7 +191,7 @@ const LinksPage = ({ session }: { session: Session | null }) => {
             </button>
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 overflow-y-auto h-[calc(100vh-200px)]">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 overflow-y-auto h-[calc(100vh-200px)] items-start">
           {threads.map((thread) => (
             <InsightThreadCard
               key={thread.threadId}
