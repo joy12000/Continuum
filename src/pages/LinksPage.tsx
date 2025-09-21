@@ -75,13 +75,9 @@ const LinksPage = ({ session }: { session: Session | null }) => {
   const [isModalOpen, setModalOpen] = useState(false);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [excludeSingletons, setExcludeSingletons] = useState<boolean>(true);
-  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
+  const [expandedCardId, setExpandedCardId] = useState<string | number | null>(null);
 
   const parentRef = React.useRef<HTMLDivElement>(null);
-
-  const handleToggleExpand = (threadId: string) => {
-    setExpandedCardId(prevId => prevId === threadId ? null : threadId);
-  };
 
   const handleNoteClick = useCallback((note: Note) => {
     setSelectedNoteId(note.id);
@@ -99,9 +95,32 @@ const LinksPage = ({ session }: { session: Session | null }) => {
   const rowVirtualizer = useVirtualizer({
     count: Math.ceil(threads.length / 2),
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 400, // A reasonable estimate for card height
+    estimateSize: useCallback((index: number) => {
+      const firstThread = threads[index * 2];
+      const secondThread = threads[index * 2 + 1];
+      const isFirstExpanded = firstThread && expandedCardId === firstThread.threadId;
+      const isSecondExpanded = secondThread && expandedCardId === secondThread.threadId;
+
+      if (isFirstExpanded || isSecondExpanded) {
+        // Return a larger size for expanded cards
+        return 600;
+      }
+      // Return the default size for collapsed cards
+      return 350;
+    }, [expandedCardId, threads]),
     overscan: 5,
   });
+
+  const handleToggleExpand = useCallback((threadId: string | number) => {
+    setExpandedCardId(prevId => {
+      const newId = prevId === threadId ? null : threadId;
+      // Schedule a re-measurement after the state update
+      setTimeout(() => {
+        rowVirtualizer.measure();
+      }, 100);
+      return newId;
+    });
+  }, [rowVirtualizer]);
 
   const handleJobSuccess = () => {
     console.log("Job completed successfully!");

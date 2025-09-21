@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import type { InsightThread, Note } from '@lib/types';
 import { DocumentTextIcon } from '@heroicons/react/24/outline';
@@ -8,21 +8,29 @@ interface InsightThreadCardProps {
   thread: InsightThread;
   onNoteClick: (note: Note) => void;
   isExpanded: boolean;
-  onToggleExpand: (threadId: string) => void;
+  onToggleExpand: (threadId: string | number) => void;
 }
 
 const InsightThreadCard: React.FC<InsightThreadCardProps> = ({ thread, onNoteClick, isExpanded, onToggleExpand }) => {
   const [showAllNotes, setShowAllNotes] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   const displayedNotes = showAllNotes ? thread.notes : thread.notes.slice(0, 3);
 
+  useEffect(() => {
+    if (cardRef.current) {
+      cardRef.current.style.maxHeight = isExpanded ? `${cardRef.current.scrollHeight}px` : '24rem'; // 96 * 0.25rem
+    }
+  }, [isExpanded]);
+
   return (
     <div 
-      className="border border-slate-700/50 bg-slate-900/60 backdrop-blur-lg rounded-3xl p-4 shadow-lg flex flex-col h-full transition-all duration-300 hover:bg-slate-800/70 hover:shadow-xl cursor-pointer"
+      ref={cardRef}
+      className={`border border-slate-700/50 bg-slate-900/60 backdrop-blur-lg rounded-3xl p-4 shadow-lg flex flex-col h-full transition-max-height duration-700 ease-in-out overflow-hidden ${isExpanded ? 'max-h-full' : 'max-h-96'}`}
       onClick={() => onToggleExpand(thread.threadId)}
     >
       <h3 className="text-lg font-bold text-primary break-words">{thread.title}</h3>
-      <p className={`mt-2 text-muted-foreground flex-grow text-base ${!isExpanded ? 'line-clamp-3' : ''}`}>{thread.summary}</p>
+      <p className={`mt-2 text-muted-foreground flex-grow text-base`}>{thread.summary}</p>
       
       <div className="mt-4 pt-3 border-t border-slate-700/50">
         <h4 className="text-base font-semibold text-muted-foreground mb-2">Included Notes ({thread.notes.length})</h4>
