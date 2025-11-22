@@ -30,6 +30,7 @@ import { SkySettingsProvider } from './contexts/SkySettingsContext';
 import QuickSettingsPanel from './components/QuickSettingsPanel';
 import ChannelService, { BootOption } from './lib/channel';
 import { fetchNoteActivity } from './pages/CalendarPage'; // Import fetchNoteActivity
+import { useAppLifecycle } from './hooks/useAppLifecycle'; // PWA 라이프사이클 훅
 
 async function generateMemberHash(memberId: string): Promise<string> {
   const accessSecret = "6f868414934daf9cbbd7a84eb713eae5";
@@ -60,9 +61,10 @@ const MainLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient(); // Get query client instance
+  useAppLifecycle(); // PWA 라이프사이클 이벤트 처리
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  
+
   const [answerOpen, setAnswerOpen] = useState(false);
   const [answerSignal, setAnswerSignal] = useState(0);
   const [generatedAnswer, setGeneratedAnswer] = useState<{ data: AnswerData | null; isLoading: boolean; error: string | null }>({
@@ -87,7 +89,7 @@ const MainLayout = () => {
         },
       });
       if (!clusterRes.ok) throw new Error("Failed to find context cluster.");
-      
+
       const { contextNoteIds } = await clusterRes.json();
       // If the cluster only contains the new note itself (or is empty),
       // it means no other relevant notes were found to form a meaningful context.
@@ -128,10 +130,10 @@ const MainLayout = () => {
         }),
       });
       if (!generateRes.ok || !generateRes.body) throw new Error("Failed to generate summary.");
-      
+
       // The API now returns a structured JSON object, not a stream.
       const result = await generateRes.json();
-      const summaryText = result?.data?.summary;      
+      const summaryText = result?.data?.summary;
       if (!summaryText) throw new Error("AI response did not contain a valid summary.");
 
       const finalAnswerData: AnswerData = {
@@ -191,7 +193,7 @@ const MainLayout = () => {
     const handleSave = async (e: Event) => {
       const detail = (e as CustomEvent).detail;
       if (!detail || !detail.text) return;
-      
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         toast.error("로그인이 필요합니다.");
@@ -207,21 +209,21 @@ const MainLayout = () => {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
         await fetch(`/api/v1?action=update-note&noteId=${newNote.id}`, {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                ...(token && { Authorization: `Bearer ${token}` })
-            },
-            // The backend `update-note` handler will see the body but no title,
-            // and trigger the `generateTitleAndTags` function.
-            body: JSON.stringify({ body: detail.text }) 
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token && { Authorization: `Bearer ${token}` })
+          },
+          // The backend `update-note` handler will see the body but no title,
+          // and trigger the `generateTitleAndTags` function.
+          body: JSON.stringify({ body: detail.text })
         });
 
         // Step 3: Now that the note is fully set up, start the AI connection process.
         // The delay is kept to allow vector indexes to propagate.
         setTimeout(() => {
           generateSummaryAfterSave(newNote.id, detail.text, user.id);
-        
+
         }, 2000);
       } catch (error) {
         console.error("Failed to save note and generate title:", error);
@@ -320,7 +322,7 @@ const MainLayout = () => {
       <AnswerCardsModal open={answerOpen} onClose={() => setAnswerOpen(false)}>
         {generatedAnswer.isLoading && <div className="p-4 text-center">답변 생성 중...</div>}
         {generatedAnswer.error && <div className="p-4 text-center text-red-500">오류: {generatedAnswer.error}</div>}
-        {generatedAnswer.data && <GeneratedAnswer data={generatedAnswer.data} noteTitlesMap={noteTitlesMap} onNoteClick={(noteId) => setDetailNoteId(noteId)} />} 
+        {generatedAnswer.data && <GeneratedAnswer data={generatedAnswer.data} noteTitlesMap={noteTitlesMap} onNoteClick={(noteId) => setDetailNoteId(noteId)} />}
       </AnswerCardsModal>
       {detailNoteId && (
         <NoteDetailModal

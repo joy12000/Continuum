@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import toast, { Toaster } from 'react-hot-toast';
 import SkyCanvasAnimation from "../components/SkyCanvasAnimation";
 import Moon from "../components/Moon";
+import { useDraftPersistence } from "../hooks/useDraftPersistence";
 
 interface HomeSkyProps {
   answerSignal?: number;
@@ -13,7 +14,7 @@ interface HomeSkyProps {
 export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement | null>(null); // Ref for meteor container
-  const [draft, setDraft] = useState<string>("");
+  const { draft, setDraft, clearDraft } = useDraftPersistence(); // 자동 저장 훅 사용
   const editorRef = useRef<HTMLDivElement | null>(null);
   const [showAnswerStar, setShowAnswerStar] = useState(false);
 
@@ -77,7 +78,7 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
     if (!draft || !draft.trim()) return;
     const payload = { text: draft, createdAt: Date.now() };
     window.dispatchEvent(new CustomEvent("sky:save", { detail: payload }));
-    setDraft("");
+    clearDraft(); // draft 상태와 localStorage 모두 클리어
     if (editorRef.current) editorRef.current.innerText = "";
     toast.success("저장했어요 ✨");
     const count = 2 + Math.floor(Math.random() * 2);

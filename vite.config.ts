@@ -12,7 +12,7 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'prompt',
+      registerType: 'autoUpdate', // 'prompt'에서 변경 - 자동 업데이트 활성화
       strategies: "injectManifest",
       srcDir: "src",
       filename: "sw.ts",
@@ -24,7 +24,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff2,ttf,otf,mp4}"],
-        skipWaiting: false,
+        skipWaiting: true, // false에서 변경 - 즉시 활성화
         clientsClaim: true,
       },
       manifest: {
@@ -64,8 +64,8 @@ export default defineConfig({
     port: 5173,
     proxy: process.env.VITE_API_BASE
       ? {
-          "/api": { target: process.env.VITE_API_BASE, changeOrigin: true },
-        }
+        "/api": { target: process.env.VITE_API_BASE, changeOrigin: true },
+      }
       : undefined,
   },
   worker: {
