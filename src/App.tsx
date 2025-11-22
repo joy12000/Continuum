@@ -13,8 +13,7 @@ const SearchPage = lazy(() => import('./pages/SearchPage'));
 const LinksPage = lazy(() => import('./pages/LinksPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const DeveloperPage = lazy(() => import('./pages/DeveloperPage'));
-
-import NoteDetailPage from './pages/NoteDetailPage'; // Not lazy
+const NoteDetailPage = lazy(() => import('./features/notes/NoteDetailPage'));
 const Diagnostics = lazy(() => import('./components/Diagnostics'));
 
 import NewBottomNav from './components/NewBottomNav';
