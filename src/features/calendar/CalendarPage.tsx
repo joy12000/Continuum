@@ -1,0 +1,137 @@
+import React, { useState, useMemo } from 'react';
+import { ChevronLeftIcon, ChevronRightIcon, CalendarIcon } from '@heroicons/react/24/outline';
+import CalendarMonth from '../../components/CalendarMonth';
+import PageLayout from '../../components/PageLayout';
+import { NoteDetailModal } from '../../components/NoteDetailModal';
+import { CalendarNoteListItem } from '../../components/CalendarNoteListItem';
+import SkyCanvasAnimation from '../../components/SkyCanvasAnimation';
+import type { Note } from '../../types/common';
+import { useNoteActivity, useNotesForDate, useDailySummary } from './hooks/useCalendar';
+
+const WEEK_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
+
+function ymd(d: Date): string {
+    const y = d.getFullYear();
+    const m = (d.getMonth() + 1).toString().padStart(2, '0');
+    const dd = d.getDate().toString().padStart(2, '0');
+    return `${y}-${m}-${dd}`;
+}
+
+const CalendarPage = () => {
+    const [selectedDate, setSelectedDate] = useState<string>(ymd(new Date()));
+    const [displayDate, setDisplayDate] = useState(new Date());
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+
+    const handleNoteClick = (noteId: string) => {
+        setSelectedNoteId(noteId);
+        setIsModalOpen(true);
+    };
+
+    const year = displayDate.getFullYear();
+    const month = displayDate.getMonth(); // 0-indexed
+
+    // Hooks
+    const { data: activityData, isLoading: isActivityLoading, error: activityError } = useNoteActivity(year, month);
+    const { data: notesForSelectedDay, isLoading: areNotesLoading, error: notesError } = useNotesForDate(selectedDate);
+
+    const hasActivity = activityData?.some(a => a.activity_date === selectedDate && a.count > 0) ?? false;
+    const { data: dailySummary, isLoading: isSummaryLoading, error: summaryError } = useDailySummary(selectedDate, hasActivity);
+
+    const notesByDate = useMemo(() => {
+        const map: Record<string, Note[]> = {};
+        if (activityData) {
+            for (const activity of activityData) {
+                map[activity.activity_date] = Array.from({ length: activity.count }, () => ({} as Note));
+            }
+        }
+        return map;
+    }, [activityData]);
+
+    const handleMonthChange = (offset: number) => {
+        setDisplayDate(current => {
+            const newDate = new Date(current);
+            newDate.setDate(1);
+            newDate.setMonth(newDate.getMonth() + offset);
+            return newDate;
+        });
+    };
+
+    const goToToday = () => {
+        const today = new Date();
+        setDisplayDate(today);
+        setSelectedDate(ymd(today));
+    };
+
+    const pageTitle = `${year} ${displayDate.toLocaleString('ko-KR', { month: 'long' })}`;
+
+    return (
+        <PageLayout title="캘린더" hideBackButton={true}>
+            <SkyCanvasAnimation />
+            <div className="relative z-10">
+                <div className="flex justify-between items-center mb-6">
+                    <button onClick={() => handleMonthChange(-1)} className="p-2 rounded-full hover:bg-secondary transition-colors" aria-label="이전 달"><ChevronLeftIcon className="w-6 h-6" /></button>
+                    <div className="flex items-center gap-4">
+                        <h1 className="text-2xl font-bold text-center">{pageTitle}</h1>
+                        <button onClick={goToToday} className="px-4 py-2 text-sm font-medium text-primary-foreground bg-accent rounded-lg hover:bg-accent/80 transition-colors">오늘</button>
+                    </div>
+                    <button onClick={() => handleMonthChange(1)} className="p-2 rounded-full hover:bg-secondary transition-colors" aria-label="다음 달"><ChevronRightIcon className="w-6 h-6" /></button>
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+                    <div className="lg:col-span-3 bg-card border border-border rounded-lg p-4 shadow-lg">
+                        {isActivityLoading ? <div className="text-center p-8 text-muted-foreground">캘린더 로딩 중...</div> : activityError ? <div className="text-center p-8 text-destructive">오류: {activityError.message}</div> : (
+                            <CalendarMonth
+                                year={year}
+                                month={month}
+                                weekLabels={WEEK_LABELS}
+                                notesByDate={notesByDate}
+                                selectedDate={selectedDate}
+                                onSelectDate={setSelectedDate}
+                            />
+                        )}
+                    </div>
+                    <div className="lg:col-span-2">
+                        <h2 className="text-xl font-semibold text-primary mb-4">{selectedDate}</h2>
+                        <div className="space-y-4">
+                            {isSummaryLoading && (
+                                <div className="p-4 rounded-lg bg-secondary text-center text-muted-foreground animate-pulse">일일 요약 생성 중...</div>
+                            )}
+                            {summaryError && (
+                                <div className="p-4 rounded-lg bg-destructive/20 text-destructive">
+                                    <p className="font-bold">요약 오류</p><p className="text-sm mt-1">{summaryError.message}</p>
+                                </div>
+                            )}
+                            {dailySummary && (
+                                <div className="p-4 rounded-lg bg-accent/20 border border-accent/50 mb-4">
+                                    <h3 className="font-bold text-xl text-blue-400">{dailySummary.title}</h3>
+                                    <p className="text-base text-white mt-2 whitespace-pre-line">{dailySummary.summary}</p>
+                                </div>
+                            )}
+
+                            {areNotesLoading && <p className="text-center text-muted-foreground">노트 목록 로딩 중...</p>}
+                            {notesError && <p className="text-center text-destructive">오류: {notesError.message}</p>}
+                            {notesForSelectedDay && notesForSelectedDay.length > 0 ? (
+                                <ul className="space-y-3">
+                                    {notesForSelectedDay.map(note => (
+                                        <CalendarNoteListItem
+                                            key={note.id}
+                                            noteId={note.id}
+                                            title={note.title}
+                                            createdAt={note.createdAt}
+                                            onNoteClick={handleNoteClick}
+                                        />
+                                    ))}
+                                </ul>
+                            ) : (
+                                !areNotesLoading && !isSummaryLoading && <div className="text-center text-muted-foreground p-8 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center"><CalendarIcon className="w-12 h-12 mb-4" /><p>이 날짜에 노트가 없습니다.</p></div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {selectedNoteId && <NoteDetailModal noteId={selectedNoteId} isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />}
+        </PageLayout>
+    );
+};
+
+export default CalendarPage;

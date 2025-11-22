@@ -8,7 +8,7 @@ import toast, { Toaster } from 'react-hot-toast';
 // Lazy load pages
 const HomeSky = lazy(() => import('./pages/HomeSky'));
 const Settings = lazy(() => import('./pages/Settings'));
-const CalendarPage = lazy(() => import('./pages/CalendarPage'));
+const CalendarPage = lazy(() => import('./features/calendar/CalendarPage'));
 const SearchPage = lazy(() => import('./pages/SearchPage'));
 const LinksPage = lazy(() => import('./pages/LinksPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
@@ -28,7 +28,7 @@ import UpdatePrompt from './components/UpdatePrompt';
 import { SkySettingsProvider } from './contexts/SkySettingsContext';
 import QuickSettingsPanel from './components/QuickSettingsPanel';
 import ChannelService, { BootOption } from './lib/channel';
-import { fetchNoteActivity } from './pages/CalendarPage'; // Import fetchNoteActivity
+import { fetchNoteActivity } from './features/calendar/services/calendarService'; // Import fetchNoteActivity
 import { useAppLifecycle } from './hooks/useAppLifecycle'; // PWA 라이프사이클 훅
 import { useAuth } from './contexts/AuthContext'; // Auth context
 import { useAnswerStore } from './store/answerStore'; // Zustand store
