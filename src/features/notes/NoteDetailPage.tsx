@@ -105,7 +105,7 @@ const NoteDetailPage = () => {
 
                         <NoteBody
                             isEditing={isEditing}
-                            body={note.body}
+                            body={note.body || ''}
                             editBody={editBody}
                             onEditBodyChange={setEditBody}
                         />
@@ -115,7 +115,7 @@ const NoteDetailPage = () => {
                         isEditing={isEditing}
                         note={note}
                         attachments={attachments || []}
-                        onDeleteNote={() => deleteNoteMutation.mutate()}
+                        onDeleteNote={() => deleteNoteMutation.mutate(attachments || [])}
                         onDeleteAttachment={(att) => deleteAttachmentMutation.mutate(att)}
                         onOpenLinkEditor={() => setIsLinkEditorOpen(true)}
                         isDeletingNote={deleteNoteMutation.isPending}
