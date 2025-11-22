@@ -9,8 +9,8 @@ import toast, { Toaster } from 'react-hot-toast';
 const HomeSky = lazy(() => import('./pages/HomeSky'));
 const Settings = lazy(() => import('./pages/Settings'));
 const CalendarPage = lazy(() => import('./features/calendar/CalendarPage'));
-const SearchPage = lazy(() => import('./pages/SearchPage'));
-const LinksPage = lazy(() => import('./pages/LinksPage'));
+const SearchPage = lazy(() => import('./features/search/SearchPage'));
+const LinksPage = lazy(() => import('./features/links/LinksPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const DeveloperPage = lazy(() => import('./pages/DeveloperPage'));
 const NoteDetailPage = lazy(() => import('./features/notes/NoteDetailPage'));
@@ -244,9 +244,9 @@ const MainLayout = () => {
                 <>
                   <Route path="/" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}><HomeSky onOpenAnswer={openAnswer} answerSignal={answerSignal} /></motion.div>} />
                   <Route path="/settings" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}><Settings /></motion.div>} />
-                  <Route path="/calendar" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}><CalendarPage session={session} /></motion.div>} />
-                  <Route path="/search" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}><SearchPage session={session} /></motion.div>} />
-                  <Route path="/threads" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}><LinksPage session={session} /></motion.div>} />
+                  <Route path="/calendar" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}><CalendarPage /></motion.div>} />
+                  <Route path="/search" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}><SearchPage /></motion.div>} />
+                  <Route path="/threads" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}><LinksPage /></motion.div>} />
                   <Route path="/notes/:noteId" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}><NoteDetailPage /></motion.div>} />
                   <Route path="/developer" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}><DeveloperPage /></motion.div>} />
                   <Route path="/diagnostics" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}><Diagnostics onBack={() => window.history.back()} /></motion.div>} />
