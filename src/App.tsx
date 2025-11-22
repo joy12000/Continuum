@@ -1,7 +1,7 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Session } from '@supabase/supabase-js';
 import { useQueryClient } from '@tanstack/react-query'; // Import useQueryClient
 
 import toast, { Toaster } from 'react-hot-toast';
@@ -31,6 +31,9 @@ import QuickSettingsPanel from './components/QuickSettingsPanel';
 import ChannelService, { BootOption } from './lib/channel';
 import { fetchNoteActivity } from './pages/CalendarPage'; // Import fetchNoteActivity
 import { useAppLifecycle } from './hooks/useAppLifecycle'; // PWA 라이프사이클 훅
+import { useAuth } from './contexts/AuthContext'; // Auth context
+import { useAnswerStore } from './store/answerStore'; // Zustand store
+import { answerService } from './services/answerGenerationService'; // AI service
 
 async function generateMemberHash(memberId: string): Promise<string> {
   const accessSecret = "6f868414934daf9cbbd7a84eb713eae5";
@@ -60,124 +63,62 @@ function ymd(d: Date): string {
 const MainLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const queryClient = useQueryClient(); // Get query client instance
+  const queryClient = useQueryClient();
   useAppLifecycle(); // PWA 라이프사이클 이벤트 처리
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  const [answerOpen, setAnswerOpen] = useState(false);
-  const [answerSignal, setAnswerSignal] = useState(0);
-  const [generatedAnswer, setGeneratedAnswer] = useState<{ data: AnswerData | null; isLoading: boolean; error: string | null }>({
-    data: null,
-    isLoading: false,
-    error: null,
-  });
-  const [noteTitlesMap, setNoteTitlesMap] = useState<Record<string, string>>({});
-  const [detailNoteId, setDetailNoteId] = useState<string | null>(null);
+  // Use AuthContext instead of local state
+  const { session, loading } = useAuth();
+
+  // Use Zustand store instead of local state
+  const {
+    isOpen: answerOpen,
+    signal: answerSignal,
+    data: answerData,
+    isLoading: answerIsLoading,
+    error: answerError,
+    noteTitlesMap,
+    detailNoteId,
+    openAnswer,
+    closeAnswer,
+    incrementSignal,
+    setAnswer,
+    setLoading,
+    setError,
+    setDetailNoteId
+  } = useAnswerStore();
 
   async function generateSummaryAfterSave(newNoteId: string, noteText: string, userId: string) {
-    toast.loading("과거 노트와 연결하는 중...", { id: 'ai-summary-toast' });
     try {
-      setGeneratedAnswer({ data: null, isLoading: true, error: null });
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-
-      const clusterRes = await fetch(`/api/v1?action=find-context-cluster&noteId=${newNoteId}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { Authorization: `Bearer ${token}` })
-        },
-      });
-      if (!clusterRes.ok) throw new Error("Failed to find context cluster.");
-
-      const { contextNoteIds } = await clusterRes.json();
-      // If the cluster only contains the new note itself (or is empty),
-      // it means no other relevant notes were found to form a meaningful context.
-      if (!contextNoteIds || contextNoteIds.length <= 1) {
-        toast.dismiss('ai-summary-toast');
-        setGeneratedAnswer({ data: null, isLoading: false, error: "관련된 과거가 없습니다." });
-        setAnswerOpen(true);
-        return;
-      }
-
-      const contextNotes = await getNotesByIds(contextNoteIds);
-      if (!contextNotes) throw new Error("Failed to fetch context notes.");
-
-      // Exclude the newly created note itself from the context for the AI
-      const finalContextNotes = contextNotes.filter((n: Note) => n.id !== newNoteId);
-
-      // If no other notes are left in the context, inform the user.
-      if (finalContextNotes.length === 0) {
-        toast.dismiss('ai-summary-toast');
-        setGeneratedAnswer({ data: null, isLoading: false, error: "관련된 과거가 없습니다." });
-        setAnswerOpen(true);
-        return;
-      }
-
-      const newNoteTitlesMap: Record<string, string> = {};
-      contextNotes.forEach((n: Note) => {
-        newNoteTitlesMap[n.id] = n.title || 'Untitled Note';
-      });
-      setNoteTitlesMap(newNoteTitlesMap);
-
-      const generateRes = await fetch('/api/v1?action=generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'rag',
-          input: { query: noteText },
-          context: finalContextNotes.map((n: Note) => ({ id: n.id, body: n.body })),
-        }),
-      });
-      if (!generateRes.ok || !generateRes.body) throw new Error("Failed to generate summary.");
-
-      // The API now returns a structured JSON object, not a stream.
-      const result = await generateRes.json();
-      const summaryText = result?.data?.summary;
-      if (!summaryText) throw new Error("AI response did not contain a valid summary.");
-
-      const finalAnswerData: AnswerData = {
-        answerSegments: [{ sentence: summaryText, sourceNoteId: '' }], // Display the whole summary as one segment
-        sourceNotes: finalContextNotes.map((n: Note) => n.id),
-      };
-
-      toast.success("생각 연결이 완료되었습니다!", { id: 'ai-summary-toast' });
-      setGeneratedAnswer({ data: finalAnswerData, isLoading: false, error: null });
-      setAnswerSignal(s => s + 1);
-      setAnswerOpen(true);
+      setLoading(true);
+      const result = await answerService.generateAnswer(newNoteId, noteText, userId);
+      setAnswer(result.data, result.noteTitlesMap);
+      incrementSignal();
+      openAnswer();
     } catch (error: any) {
-      console.error("Failed to generate summary after save:", error);
-      toast.error(`연결 실패: ${error.message}`, { id: 'ai-summary-toast' });
-      setGeneratedAnswer({ data: null, isLoading: false, error: `오류가 발생했습니다: ${error.message}` });
-      setAnswerOpen(true);
+      setError(error.message);
+      openAnswer();
     }
   }
 
   useEffect(() => {
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      setLoading(false);
+    // Pre-fetch calendar data for the current month if authenticated
+    if (session) {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = today.getMonth(); // 0-indexed
 
-      // Pre-fetch calendar data for the current month if authenticated
-      if (session) {
-        const today = new Date();
-        const year = today.getFullYear();
-        const month = today.getMonth(); // 0-indexed
+      const firstDayOfMonth = new Date(year, month, 1).toISOString().split('T')[0];
+      const lastDayOfMonth = new Date(year, month + 1, 0).toISOString().split('T')[0];
 
-        const firstDayOfMonth = new Date(year, month, 1).toISOString().split('T')[0];
-        const lastDayOfMonth = new Date(year, month + 1, 0).toISOString().split('T')[0];
+      queryClient.prefetchQuery({
+        queryKey: ['noteActivity', year, month],
+        queryFn: () => fetchNoteActivity(firstDayOfMonth, lastDayOfMonth),
+      });
+    }
+  }, [session, queryClient]);
 
-        queryClient.prefetchQuery({
-          queryKey: ['noteActivity', year, month],
-          queryFn: () => fetchNoteActivity(firstDayOfMonth, lastDayOfMonth),
-        });
-      }
-    };
-    getSession();
-
+  useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
       if (_event === 'SIGNED_OUT') {
         navigate('/login');
       }
@@ -302,7 +243,7 @@ const MainLayout = () => {
             <Routes location={location} key={location.pathname}>
               {session ? (
                 <>
-                  <Route path="/" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}><HomeSky onOpenAnswer={() => setAnswerOpen(true)} answerSignal={answerSignal} /></motion.div>} />
+                  <Route path="/" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}><HomeSky onOpenAnswer={openAnswer} answerSignal={answerSignal} /></motion.div>} />
                   <Route path="/settings" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}><Settings /></motion.div>} />
                   <Route path="/calendar" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}><CalendarPage session={session} /></motion.div>} />
                   <Route path="/search" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}><SearchPage session={session} /></motion.div>} />
@@ -319,10 +260,10 @@ const MainLayout = () => {
         </Suspense>
       </main>
       {showNav && <NewBottomNav />}
-      <AnswerCardsModal open={answerOpen} onClose={() => setAnswerOpen(false)}>
-        {generatedAnswer.isLoading && <div className="p-4 text-center">답변 생성 중...</div>}
-        {generatedAnswer.error && <div className="p-4 text-center text-red-500">오류: {generatedAnswer.error}</div>}
-        {generatedAnswer.data && <GeneratedAnswer data={generatedAnswer.data} noteTitlesMap={noteTitlesMap} onNoteClick={(noteId) => setDetailNoteId(noteId)} />}
+      <AnswerCardsModal open={answerOpen} onClose={closeAnswer}>
+        {answerIsLoading && <div className="p-4 text-center">답변 생성 중...</div>}
+        {answerError && <div className="p-4 text-center text-red-500">오류: {answerError}</div>}
+        {answerData && <GeneratedAnswer data={answerData} noteTitlesMap={noteTitlesMap} onNoteClick={(noteId) => setDetailNoteId(noteId)} />}
       </AnswerCardsModal>
       {detailNoteId && (
         <NoteDetailModal
@@ -338,9 +279,11 @@ const MainLayout = () => {
 export default function App() {
   return (
     <Router>
-      <SkySettingsProvider>
-        <MainLayout />
-      </SkySettingsProvider>
+      <AuthProvider>
+        <SkySettingsProvider>
+          <MainLayout />
+        </SkySettingsProvider>
+      </AuthProvider>
     </Router>
   );
 }
