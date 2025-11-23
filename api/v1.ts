@@ -1,27 +1,27 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { handleSearch, handleCreateGeminiEmbedding, handleGenerate } from './routes/searchHandlers.js';
+import { handleSearch, handleCreateGeminiEmbedding, handleGenerate } from './shared-lib/routes/searchHandlers.js';
 import {
   handleCalendar,
   handleGetNotesForDate,
   handleGetFullNotesForDate,
   handleSummarizeDay,
-} from './routes/calendarHandlers.js';
+} from './shared-lib/routes/calendarHandlers.js';
 import {
   handleGetThreads,
   handleGenerateThread,
-} from './routes/threadHandlers.js';
+} from './shared-lib/routes/threadHandlers.js';
 import {
   handleGetNote,
   handleGetNoteAttachments,
   handleUpdateNote,
   handleGetAllNotes,
-} from './routes/noteHandlers.js';
+} from './shared-lib/routes/noteHandlers.js';
 import {
   handleFindContextCluster,
   handleGetBacklinks,
   handleGetConnections,
-} from './routes/connectionHandlers.js';
-import { handleChatBundleSync } from './routes/chatBundleHandler.js';
+} from './shared-lib/routes/connectionHandlers.js';
+import { handleChatBundleSync } from './shared-lib/routes/chatBundleHandler.js';
 
 export const config = { runtime: 'nodejs' };
 

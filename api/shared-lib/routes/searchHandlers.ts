@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { TaskType } from '@google/generative-ai';
-import { connectNewNote } from '../shared-lib/ai.js';
-import { getEmbedding } from '../shared-lib/generativeai.js';
-import { pickSupabase } from '../lib/config.js';
+import { connectNewNote } from '../ai.js';
+import { getEmbedding } from '../generativeai.js';
+import { pickSupabase } from '../config.js';
 
 export async function handleSearch(req: VercelRequest, res: VercelResponse) {
   try {

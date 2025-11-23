@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { requireUser } from '../shared-lib/auth.js';
-import { generateTitleAndTags } from '../shared-lib/ai.js';
-import { MAX_NOTES } from '../lib/config.js';
+import { requireUser } from '../auth.js';
+import { generateTitleAndTags } from '../ai.js';
+import { MAX_NOTES } from '../config.js';
 
 export async function handleGetNote(req: VercelRequest, res: VercelResponse) {
   const auth = await requireUser(req, res);

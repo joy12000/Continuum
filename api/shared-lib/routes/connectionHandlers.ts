@@ -1,15 +1,14 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { requireUser } from '../shared-lib/auth.js';
-import type { Note, NoteChunk } from '../shared-lib/types.js';
+import { requireUser } from '../auth.js';
+import type { Note, NoteChunk } from '../types.js';
 import {
   prepareNotes,
   cluster,
   clusterLPA,
   clusterByAutoThreshold,
   clusterHybrid,
-  normalizeEdges,
-} from '../shared-lib/compute.js';
-import { pickSupabase, envNum, envBool01 } from '../lib/config.js';
+} from '../compute.js';
+import { pickSupabase, envNum, envBool01 } from '../config.js';
 
 export async function handleFindContextCluster(req: VercelRequest, res: VercelResponse) {
   try {
@@ -119,5 +118,5 @@ export async function handleGetConnections(req: VercelRequest, res: VercelRespon
   if (error) {
     return res.status(500).json({ error: "Failed to fetch connections", detail: error.message });
   }
-  res.status(200).json({ connections: normalizeEdges(data ?? []) });
+  res.status(200).json({ connections: data ?? [] });
 }

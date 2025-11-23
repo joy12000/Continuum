@@ -29,7 +29,7 @@ export function getGenerativeModel(purpose: 'default' | 'thread' = 'default') {
 
 export async function getEmbedding(text: string, task: TaskType = TaskType.RETRIEVAL_DOCUMENT): Promise<number[]> {
     const result = await embeddingModel.embedContent({
-        content: { parts: [{ text }] },
+        content: { role: 'user', parts: [{ text }] },
         taskType: task,
         outputDimensionality: 768,
     });

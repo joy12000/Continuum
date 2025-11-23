@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getSupabaseClient } from '../shared-lib/supabaseClient.js';
-import { requireUser } from '../shared-lib/auth.js';
-import type { InsightThread, Note, NoteChunk } from '../shared-lib/types.js';
-import { getInsightThreadsCache, upsertInsightThreadsCache } from '../shared-lib/database.js';
+import { getSupabaseClient } from '../supabaseClient.js';
+import { requireUser } from '../auth.js';
+import type { InsightThread, Note, NoteChunk } from '../types.js';
+import { getInsightThreadsCache, upsertInsightThreadsCache } from '../database.js';
 import {
   prepareNotes,
   cluster,
@@ -10,9 +10,9 @@ import {
   clusterByAutoThreshold,
   clusterHybrid,
   clusterScore,
-} from '../shared-lib/compute.js';
-import { summarizeThread } from '../shared-lib/ai.js';
-import { envNum, envBool01, MAX_NOTES } from '../lib/config.js';
+} from '../compute.js';
+import { summarizeThread } from '../ai.js';
+import { envNum, envBool01, MAX_NOTES } from '../config.js';
 
 const absorbSingletons = (
   clustersIn: number[][],
@@ -135,17 +135,15 @@ async function runThreadGeneration(jobId: string, userId: string, token: string,
     const threads: InsightThread[] = [];
     for (const cluster of filtered) {
       const items = cluster.map((idx) => prepared[idx]);
-      const noteIdsInCluster = items.map((i) => i.note.id);
       const noteObjs = items.map((i) => i.note);
       const { title, summary } = await summarizeThread(noteObjs);
       threads.push({
-        id: `thread-${noteIdsInCluster[0]}-${noteIdsInCluster.length}`,
+        threadId: `thread-${items[0].note.id}-${items.length}`,
         title,
         summary,
+        notes: noteObjs,
+        relevanceScore: clusterScore(items),
         size: noteObjs.length,
-        score: clusterScore(items),
-        note_ids: noteIdsInCluster,
-        updated_at: new Date().toISOString(),
       });
     }
 
@@ -162,11 +160,11 @@ export async function handleGetThreads(req: VercelRequest, res: VercelResponse) 
   if (!auth) return;
   const { supabase, userId } = auth;
 
-  const sanitizeThread = (t: any) => {
-    const score = Number.isFinite(t?.score) ? Number(t.score) : 0;
-    const size  = Number.isFinite(t?.size)  ? Number(t.size)  : Array.isArray(t?.note_ids) ? t.note_ids.length : 0;
-    return { ...t, score, size };
-  };
+  const sanitizeThread = (t: InsightThread) => ({
+    ...t,
+    relevanceScore: Number.isFinite(t?.relevanceScore) ? Number(t.relevanceScore) : 0,
+    size: Number.isFinite(t?.size) ? Number(t.size) : t.notes?.length ?? 0,
+  });
 
   const { threads, lastUpdatedAt } = await getInsightThreadsCache(supabase, userId);
   const safeThreads = (threads ?? []).map(sanitizeThread);

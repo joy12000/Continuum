@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { requireUser } from '../shared-lib/auth.js';
-import { uploadTextToFileSearchStore, generateFileSearchSummary, getFileSearchStoreName } from '../shared-lib/fileSearch.js';
+import { requireUser } from '../auth.js';
+import { uploadTextToFileSearchStore, generateFileSearchSummary, getFileSearchStoreName } from '../fileSearch.js';
 
 export async function handleChatBundleSync(req: VercelRequest, res: VercelResponse) {
   const auth = await requireUser(req, res);

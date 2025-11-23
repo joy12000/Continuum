@@ -1,4 +1,5 @@
 import { getGenerativeModel } from "./generativeai.js";
+import type { Note } from "./types.js";
 
 const MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
 

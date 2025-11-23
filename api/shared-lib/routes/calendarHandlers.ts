@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
-import { requireUser } from '../shared-lib/auth.js';
-import { summarizeDay } from '../shared-lib/ai.js';
+import { requireUser } from '../auth.js';
+import { summarizeDay } from '../ai.js';
 
 export async function handleCalendar(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
