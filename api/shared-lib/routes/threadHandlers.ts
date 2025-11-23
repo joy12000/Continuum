@@ -10,6 +10,7 @@ import {
   clusterByAutoThreshold,
   clusterHybrid,
   clusterScore,
+  normalizeEdges,
 } from '../compute.js';
 import { summarizeThread } from '../ai.js';
 import { envNum, envBool01, MAX_NOTES } from '../config.js';
@@ -82,6 +83,7 @@ async function runThreadGeneration(jobId: string, userId: string, token: string,
       minimum_weight: minEdge
     });
     if (edgesError) throw new Error(`Failed to build edges: ${edgesError.message}`);
+    const normalizedEdges = normalizeEdges(prepared, edges as any);
 
     const { data: chunks, error: cerr } = await supabase
       .from("note_chunks")
@@ -142,7 +144,7 @@ async function runThreadGeneration(jobId: string, userId: string, token: string,
         title,
         summary,
         notes: noteObjs,
-        relevanceScore: clusterScore(items),
+        relevanceScore: clusterScore(cluster, normalizedEdges),
         size: noteObjs.length,
       });
     }
