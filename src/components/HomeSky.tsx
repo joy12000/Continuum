@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast, { Toaster } from 'react-hot-toast';
+import { CHAT_BUNDLE_EVENT } from "../lib/events";
 
 // Type definitions
 type QuickPrefs = {
@@ -208,7 +209,7 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
   const handleSave = () => {
     if (!draft || !draft.trim()) return;
     const payload = { text: draft, createdAt: Date.now() };
-    window.dispatchEvent(new CustomEvent("sky:save", { detail: payload }));
+    window.dispatchEvent(new CustomEvent(CHAT_BUNDLE_EVENT, { detail: payload }));
     setDraft("");
     if (editorRef.current) editorRef.current.innerText = "";
     toast.success("저장했어요 ✨");

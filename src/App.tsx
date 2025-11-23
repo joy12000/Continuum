@@ -6,7 +6,7 @@ import { useQueryClient } from '@tanstack/react-query'; // Import useQueryClient
 
 import toast, { Toaster } from 'react-hot-toast';
 // Lazy load pages
-const HomeSky = lazy(() => import('./pages/HomeSky'));
+const HomeChat = lazy(() => import('./pages/HomeChat'));
 const Settings = lazy(() => import('./pages/Settings'));
 const CalendarPage = lazy(() => import('./features/calendar/CalendarPage'));
 const SearchPage = lazy(() => import('./features/search/SearchPage'));
@@ -32,7 +32,8 @@ import { fetchNoteActivity } from './features/calendar/services/calendarService'
 import { useAppLifecycle } from './hooks/useAppLifecycle'; // PWA 라이프사이클 훅
 import { useAuth } from './contexts/AuthContext'; // Auth context
 import { useAnswerStore } from './store/answerStore'; // Zustand store
-import { answerService } from './services/answerGenerationService'; // AI service
+import { syncChatBundle } from './services/chatBundleService';
+import { CHAT_BUNDLE_EVENT, CHAT_SUMMARY_EVENT } from './lib/events';
 
 async function generateMemberHash(memberId: string): Promise<string> {
   const accessSecret = "6f868414934daf9cbbd7a84eb713eae5";
@@ -86,13 +87,35 @@ const MainLayout = () => {
     setDetailNoteId
   } = useAnswerStore();
 
-  async function generateSummaryAfterSave(newNoteId: string, noteText: string, userId: string) {
+  async function generateSummaryAfterSave(newNoteId: string, noteText: string, userId: string, createdAt?: number) {
     try {
       setLoading(true);
-      const result = await answerService.generateAnswer(newNoteId, noteText, userId);
-      setAnswer(result.data, result.noteTitlesMap);
+      const syncResult = await syncChatBundle({
+        noteId: newNoteId,
+        body: noteText,
+        createdAt: createdAt ?? Date.now(),
+      });
+
+      const summaryText = syncResult.summary?.trim() || 'AI 요약을 생성하지 못했습니다.';
+      const answerData: AnswerData = {
+        answerSegments: [{ sentence: summaryText, sourceNoteId: newNoteId }],
+        sourceNotes: [newNoteId],
+      };
+      const fallbackTitle = noteText.slice(0, 40) || '새 노트';
+      const titles = {
+        [newNoteId]: syncResult.fileMetadata?.display_name || fallbackTitle,
+      };
+      setAnswer(answerData, titles);
       incrementSignal();
-      openAnswer();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent(CHAT_SUMMARY_EVENT, {
+          detail: {
+            summary: summaryText,
+            noteId: newNoteId,
+            createdAt: createdAt ?? Date.now(),
+          },
+        }));
+      }
     } catch (error: any) {
       setError(error.message);
       openAnswer();
@@ -162,16 +185,15 @@ const MainLayout = () => {
         // Step 3: Now that the note is fully set up, start the AI connection process.
         // The delay is kept to allow vector indexes to propagate.
         setTimeout(() => {
-          generateSummaryAfterSave(newNote.id, detail.text, user.id);
-
+          generateSummaryAfterSave(newNote.id, detail.text, user.id, detail.createdAt);
         }, 2000);
       } catch (error) {
         console.error("Failed to save note and generate title:", error);
         toast.error("노트 저장 중 오류가 발생했습니다.");
       }
     };
-    window.addEventListener('sky:save', handleSave);
-    return () => window.removeEventListener('sky:save', handleSave);
+    window.addEventListener(CHAT_BUNDLE_EVENT, handleSave);
+    return () => window.removeEventListener(CHAT_BUNDLE_EVENT, handleSave);
   }, []); // Empty dependency array ensures this runs only once and cleans up on unmount
 
   useEffect(() => {
@@ -242,7 +264,7 @@ const MainLayout = () => {
             <Routes location={location} key={location.pathname}>
               {session ? (
                 <>
-                  <Route path="/" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}><HomeSky onOpenAnswer={openAnswer} answerSignal={answerSignal} /></motion.div>} />
+                  <Route path="/" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}><HomeChat onOpenAnswer={openAnswer} answerSignal={answerSignal} /></motion.div>} />
                   <Route path="/settings" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}><Settings /></motion.div>} />
                   <Route path="/calendar" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}><CalendarPage /></motion.div>} />
                   <Route path="/search" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}><SearchPage /></motion.div>} />

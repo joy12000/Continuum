@@ -1,0 +1,45 @@
+
+@keyframes effect{
+   from{
+    opacity: 0;
+   }
+   to{
+    opacity: 1;
+   }
+}
+
+
+.aa{
+    margin-top: 100px;
+}
+.a{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: greenyellow;
+    padding: 15px 5px;
+}
+.b span{
+    display: flex;
+    display: block;
+    animation: effect 3s ease-in-out forwards;
+}
+
+.b span:first-child{
+    font-size: 20px;
+    display: flex;
+    justify-content: center;
+    font-weight: 800;
+}
+.b span:nth-child(2){
+   margin-top: 50px;
+   font-weight: 600;
+}
+.b span:nth-child(3){
+    margin-top: 50px;
+    font-weight: 600;
+ }
+ .b span:last-child{
+    margin-top: 50px;
+    font-weight: 600;
+ }

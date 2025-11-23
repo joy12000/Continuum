@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { addNoteAndChunks, getNotesByIds } from '../lib/supabaseService';
 import { AnswerData, Note } from '../types/common';
+import { CHAT_BUNDLE_EVENT } from '../lib/events';
 
 export function useGeneratedAnswer() {
   const [answerOpen, setAnswerOpen] = useState(false);
@@ -34,8 +35,8 @@ export function useGeneratedAnswer() {
       }
     };
 
-    window.addEventListener('sky:save', handleSave);
-    return () => window.removeEventListener('sky:save', handleSave);
+    window.addEventListener(CHAT_BUNDLE_EVENT, handleSave);
+    return () => window.removeEventListener(CHAT_BUNDLE_EVENT, handleSave);
   }, []);
 
   async function generateSummaryAfterSave(noteText: string, userId: string) {

@@ -4,6 +4,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import SkyCanvasAnimation from "../components/SkyCanvasAnimation";
 import Moon from "../components/Moon";
 import { useDraftPersistence } from "../hooks/useDraftPersistence";
+import { CHAT_BUNDLE_EVENT, CHAT_SUMMARY_EVENT, ChatSummaryEventDetail } from "../lib/events";
 
 interface HomeSkyProps {
   answerSignal?: number;
@@ -17,12 +18,34 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
   const { draft, setDraft, clearDraft } = useDraftPersistence(); // 자동 저장 훅 사용
   const editorRef = useRef<HTMLDivElement | null>(null);
   const [showAnswerStar, setShowAnswerStar] = useState(false);
+  const [summaryBubble, setSummaryBubble] = useState<string | null>(null);
+  const bubbleTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (answerSignal && answerSignal > 0) {
       setShowAnswerStar(true);
     }
   }, [answerSignal]);
+
+  useEffect(() => {
+    const handleSummary = (event: CustomEvent<ChatSummaryEventDetail>) => {
+      if (!event.detail?.summary) return;
+      setSummaryBubble(event.detail.summary);
+      if (bubbleTimerRef.current) {
+        clearTimeout(bubbleTimerRef.current);
+      }
+      bubbleTimerRef.current = window.setTimeout(() => {
+        setSummaryBubble(null);
+      }, 8000);
+    };
+    window.addEventListener(CHAT_SUMMARY_EVENT, handleSummary as EventListener);
+    return () => {
+      window.removeEventListener(CHAT_SUMMARY_EVENT, handleSummary as EventListener);
+      if (bubbleTimerRef.current) {
+        clearTimeout(bubbleTimerRef.current);
+      }
+    };
+  }, []);
 
   // Listen for paste event from other pages (e.g., Calendar)
   useEffect(() => {
@@ -77,7 +100,7 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
   const handleSave = () => {
     if (!draft || !draft.trim()) return;
     const payload = { text: draft, createdAt: Date.now() };
-    window.dispatchEvent(new CustomEvent("sky:save", { detail: payload }));
+    window.dispatchEvent(new CustomEvent(CHAT_BUNDLE_EVENT, { detail: payload }));
     clearDraft(); // draft 상태와 localStorage 모두 클리어
     if (editorRef.current) editorRef.current.innerText = "";
     toast.success("저장했어요 ✨");
@@ -109,6 +132,16 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
 
       {/* 달 */}
       <Moon onClick={() => navigate("/settings")} />
+
+      {summaryBubble && (
+        <div
+          className="absolute right-6 top-28 z-30 max-w-sm bg-white/90 text-slate-900 px-4 py-3 rounded-2xl shadow-2xl"
+          style={{ borderTopRightRadius: '0.5rem' }}
+        >
+          <p className="text-sm leading-relaxed font-medium">{summaryBubble}</p>
+          <div className="mt-1 text-xs text-slate-500">Continuum • 자동 저장 요약</div>
+        </div>
+      )}
 
       <div className="absolute top-3 left-3 z-30">
         <button className="sky-constellation" onClick={handleSave} aria-label="저장">

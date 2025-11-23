@@ -1,0 +1,42 @@
+.badge{
+    background-color: tomato;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    border-radius: 50%;
+    justify-content: center;
+    align-items: center;
+   color:white;
+   font-weight:600;
+   
+}
+
+@keyframes notificationAnimation3{
+    0%{
+        transform:none;
+    }
+    50%{
+        transform:  rotateZ(360deg);
+    }
+    100%{
+        trnasform:none;
+    }
+}
+#badgeAnimation1{
+    animation: notificationAnimation3 2s ease-in-out infinite;
+}
+
+@keyframes notificationAnimation4{
+    0%{
+        transform:none;
+    }
+    50%{
+        transform: translateY(-20px) rotateY(90deg);
+    }
+    100%{
+        trnasform:none;
+    }
+}
+#badgeAnimation2{
+    animation: notificationAnimation4 2s ease-in-out infinite;
+}
