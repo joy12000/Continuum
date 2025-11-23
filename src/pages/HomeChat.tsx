@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { useChatBundler, ChatMessage } from '../hooks/useChatBundler';
 
@@ -12,7 +12,7 @@ const INITIAL_MESSAGES: ChatMessage[] = [
     id: 'welcome-1',
     role: 'assistant',
     author: 'Continuum',
-    text: 'ë°¤í•˜ëŠ˜ì— ì ì–´ ë‘” ë©”ëª¨ë“¤ì„ ëª¨ì•„ë“œë¦´ê²Œìš”. í¸í•˜ê²Œ ëŒ€í™”ë¥¼ ì‹œì‘í•´ë³´ì„¸ìš”!',
+    text: '¹ãÇÏ´Ã¿¡ ³²±ä ¸Ş¸ğµéÀ» ¿¬°áÇØ µå¸±°Ô¿ä. ÆíÇÏ°Ô ´ëÈ­¸¦ ½ÃÀÛÇØº¸¼¼¿ä!',
     timestamp: Date.now() - 1000 * 60 * 3,
   },
 ];
@@ -52,24 +52,43 @@ export default function HomeChat({ answerSignal, onOpenAnswer }: HomeChatProps) 
     isSaving,
   } = useChatBundler({ initialMessages: INITIAL_MESSAGES });
 
+  const chatBodyRef = useRef<HTMLDivElement | null>(null);
+  const trimmedDraft = draft.trim();
+
   const countdown = useMemo(() => formatCountdown(timeToFlush), [timeToFlush]);
   const hasAnswer = typeof answerSignal === 'number' && answerSignal > 0;
   const dateChip = messages.length ? formatDateChip(messages[0].timestamp) : formatDateChip(Date.now());
 
+  useEffect(() => {
+    const el = chatBodyRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+  }, [messages.length]);
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!draft.trim()) return;
-    enqueueMessage(draft);
+    if (!trimmedDraft) return;
+    enqueueMessage(trimmedDraft);
     setDraft('');
   };
 
-  const handleFlush = () => {
+  const runFlush = () => {
     const flushed = flushNow();
     if (flushed) {
-      toast.success('ëŒ€í™”ë¥¼ ì„ì‹œ ì €ì¥í–ˆì–´ìš”.');
+      toast.success('ÀÓ½Ã ÀúÀåÀ» ¿Ï·áÇß¾î¿ä.');
     } else {
-      toast('ì €ì¥í•  ë©”ì‹œì§€ê°€ ì—†ì–´ìš”.');
+      toast('ÀúÀåÇÒ ¸Ş½ÃÁö°¡ ¾ø¾î¿ä.');
     }
+  };
+
+  const handleFlush = () => {
+    if (trimmedDraft) {
+      enqueueMessage(trimmedDraft);
+      setDraft('');
+      setTimeout(runFlush, 0);
+      return;
+    }
+    runFlush();
   };
 
   return (
@@ -80,25 +99,25 @@ export default function HomeChat({ answerSignal, onOpenAnswer }: HomeChatProps) 
           <div className="chat-header__actions">
             {hasAnswer && (
               <button className="chat-header__button" onClick={onOpenAnswer}>
-                AI ë‹µë³€
+                AI ´äº¯
               </button>
             )}
             <button
               className="chat-header__button chat-header__button--primary"
               onClick={handleFlush}
-              disabled={!hasPending}
+              disabled={!hasPending && !trimmedDraft}
             >
-              ì§€ê¸ˆ ì €ì¥
+              Áö±İ ÀúÀå
             </button>
           </div>
         </div>
         <div className="chat-header__meta">
           <span>{statusLabel}</span>
-          {countdown && hasPending && <span>{countdown}</span>}
+          {countdown && (hasPending || trimmedDraft) && <span>{countdown}</span>}
         </div>
       </header>
 
-      <section className="main-chat">
+      <section className="main-chat" ref={chatBodyRef}>
         <div className="chat__timestamp">{dateChip}</div>
         {messages.map((message) => {
           const isOwn = message.role === 'user';
@@ -119,15 +138,15 @@ export default function HomeChat({ answerSignal, onOpenAnswer }: HomeChatProps) 
             </div>
           );
         })}
-        {hasPending && countdown && (
+        {(hasPending || trimmedDraft) && countdown && (
           <div className="chat-status-banner">
-            {isSaving ? 'ì—…ë°ì´íŠ¸ ì¤‘...' : `ì„ì‹œ ì €ì¥ê¹Œì§€ ${countdown}`}
+            {isSaving ? 'ÀÓ½Ã ÀúÀå Áß...' : `ÀÓ½Ã ÀúÀå±îÁö ${countdown}`}
           </div>
         )}
       </section>
 
       <form className="chat-composer" onSubmit={handleSubmit}>
-        <div className="chat-composer__extra" role="button" tabIndex={0} aria-label="ì¶”ê°€ê¸°ëŠ¥">
+        <div className="chat-composer__extra" role="button" tabIndex={0} aria-label="Ãß°¡±â´É">
           +
         </div>
         <div className="chat-composer__input">
@@ -135,10 +154,10 @@ export default function HomeChat({ answerSignal, onOpenAnswer }: HomeChatProps) 
             type="text"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder="ë©”ì‹œì§€ë¥¼ ì…ë ¥í•˜ì„¸ìš”"
+            placeholder="¸Ş½ÃÁö¸¦ ÀÔ·ÂÇÏ¼¼¿ä"
           />
-          <button type="submit" disabled={!draft.trim()}>
-            â†‘
+          <button type="submit" disabled={!trimmedDraft}>
+            ¡è
           </button>
         </div>
       </form>
