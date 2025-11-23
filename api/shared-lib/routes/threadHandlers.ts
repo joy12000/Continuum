@@ -78,13 +78,6 @@ async function runThreadGeneration(jobId: string, userId: string, token: string,
       return;
     }
 
-    const minEdge = envNum('CONTINUUM_MIN_EDGE', 0.02);
-    const { data: edges, error: edgesError } = await supabase.rpc('get_all_edges', {
-      minimum_weight: minEdge
-    });
-    if (edgesError) throw new Error(`Failed to build edges: ${edgesError.message}`);
-    const normalizedEdges = normalizeEdges(prepared, edges as any);
-
     const { data: chunks, error: cerr } = await supabase
       .from("note_chunks")
       .select("note_id,embedding")
@@ -94,22 +87,30 @@ async function runThreadGeneration(jobId: string, userId: string, token: string,
 
     const prepared = prepareNotes(notes as Note[], (chunks as NoteChunk[]) ?? []);
 
+    const minEdge = envNum('CONTINUUM_MIN_EDGE', 0.02);
+    const { data: edges, error: edgesError } = await supabase.rpc('get_all_edges', {
+      minimum_weight: minEdge
+    });
+    if (edgesError) throw new Error(`Failed to build edges: ${edgesError.message}`);
+    const rawEdges = (edges ?? []) as any;
+    const normalizedEdges = normalizeEdges(prepared, rawEdges);
+
     const CLUSTER_METHOD = process.env.CONTINUUM_CLUSTER_METHOD ?? "hybrid";
     const method = String(CLUSTER_METHOD).toLowerCase();
 
     let clusters: number[][];
 
     if (method === "legacy") {
-      clusters = cluster(prepared, edges as any).clusters;
+      clusters = cluster(prepared, rawEdges).clusters;
     } else if (method === "lpa") {
-      clusters = clusterLPA(prepared, edges as any, {
+      clusters = clusterLPA(prepared, rawEdges, {
         minEdge: 0,
         minClusterSize: 2
       }).clusters;
     } else if (method === "auto") {
       const kMin = envNum('CONTINUUM_KMIN', 3);
       const kMax = envNum('CONTINUUM_KMAX', 12);
-      clusters = clusterByAutoThreshold(prepared, edges as any, {
+      clusters = clusterByAutoThreshold(prepared, rawEdges, {
         kMin,
         kMax
       }).clusters;
@@ -119,7 +120,7 @@ async function runThreadGeneration(jobId: string, userId: string, token: string,
       const knnK    = Math.max(1, Math.min(64, envNum('CONTINUUM_CLUSTER_K', 8)));
       const mutual  = envBool01('CONTINUUM_CLUSTER_MUTUAL', true);
 
-      clusters = clusterHybrid(prepared, edges as any, {
+      clusters = clusterHybrid(prepared, rawEdges, {
         kMin, kMax,
         minEdge: 0,
         minClusterSize: 2,
@@ -128,7 +129,7 @@ async function runThreadGeneration(jobId: string, userId: string, token: string,
       }).clusters;
 
       if (excludeSingletons) {
-        clusters = absorbSingletons(clusters, edges as any);
+        clusters = absorbSingletons(clusters, rawEdges);
       }
     }
 
