@@ -7,6 +7,8 @@ export type SearchResponse = {
     groundingMetadata?: Record<string, any>;
 };
 
+export type { SearchResult };
+
 export const searchNotes = async (query: string): Promise<SearchResponse> => {
     const trimmedQuery = query.trim();
     if (trimmedQuery.length < 2) return { results: [] };
