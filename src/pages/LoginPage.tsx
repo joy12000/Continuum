@@ -11,25 +11,25 @@ const customTheme = {
     ...ThemeSupa.default,
     colors: {
       ...ThemeSupa.default.colors,
-      brand: 'hsl(217, 80%, 60%)', // A more vibrant blue
-      brandAccent: 'hsl(217, 80%, 70%)',
-      brandButtonText: 'white',
-      defaultButtonBackground: 'hsl(217, 30%, 25%)',
-      defaultButtonBackgroundHover: 'hsl(217, 30%, 35%)',
-      defaultButtonBorder: 'hsl(217, 30%, 25%)',
-      defaultButtonText: 'white',
-      dividerBackground: 'hsl(217, 20%, 25%)',
-      inputBackground: 'hsl(220, 30%, 10%)', // Darker input
-      inputBorder: 'hsl(217, 20%, 30%)',
-      inputBorderHover: 'hsl(217, 80%, 60%)',
-      inputBorderFocus: 'hsl(217, 80%, 60%)',
-      inputText: 'white',
-      inputLabelText: 'hsl(215, 20%, 75%)',
-      inputPlaceholder: 'hsl(215, 20%, 55%)',
-      messageText: 'hsl(215, 20%, 75%)',
-      messageTextDanger: 'hsl(0, 70%, 60%)',
-      anchorTextColor: 'hsl(217, 80%, 70%)',
-      anchorTextHoverColor: 'hsl(217, 80%, 80%)',
+      brand: '#0ea5e9',
+      brandAccent: '#38bdf8',
+      brandButtonText: '#ffffff',
+      defaultButtonBackground: '#ffffff',
+      defaultButtonBackgroundHover: '#f1f5f9',
+      defaultButtonBorder: '#e5e7eb',
+      defaultButtonText: '#0f172a',
+      dividerBackground: '#e5e7eb',
+      inputBackground: '#ffffff',
+      inputBorder: '#e5e7eb',
+      inputBorderHover: '#cbd5e1',
+      inputBorderFocus: '#0ea5e9',
+      inputText: '#0f172a',
+      inputLabelText: '#475569',
+      inputPlaceholder: '#94a3b8',
+      messageText: '#475569',
+      messageTextDanger: '#dc2626',
+      anchorTextColor: '#0ea5e9',
+      anchorTextHoverColor: '#0284c7',
     },
     space: {
       ...ThemeSupa.default.space,
@@ -80,27 +80,27 @@ const LoginPage = () => {
   }, []);
 
   return (
-    <div className="flex items-center justify-center h-screen bg-background">
-      <div className="w-full max-w-sm p-8 space-y-6 bg-card rounded-2xl shadow-lg border border-slate-700/50">
+    <div className="flex items-center justify-center min-h-screen bg-[#f6f7fb] px-4">
+      <div className="w-full max-w-sm p-8 space-y-6 bg-white rounded-2xl shadow-sm border border-slate-200">
         <div className="text-center">
-          <video 
+          <video
             ref={videoRef}
-            src="/AIiconmotion.mp4" 
-            autoPlay 
-            muted 
-            playsInline 
-            className="w-24 h-24 mx-auto mb-4 rounded-full shadow-[0_0_16px_rgba(255,255,220,0.35)] object-cover"
+            src="/AIiconmotion.mp4"
+            autoPlay
+            muted
+            playsInline
+            className="w-20 h-20 mx-auto mb-4 rounded-2xl shadow-md object-cover"
             aria-label="Momentum Logo"
           ></video>
-          <h1 className="text-3xl font-bold text-gray-200">Momentum</h1>
-          <p className="text-muted-foreground">로그인하여 계속하세요</p>
+          <h1 className="text-3xl font-bold text-slate-900">Momentum</h1>
+          <p className="text-slate-500">로그인하여 계속하세요</p>
         </div>
         <Auth
           supabaseClient={supabase}
           appearance={{ theme: customTheme }}
           providers={['google']}
           // localization={{ variables: ko }}
-          theme="dark"
+          theme="default"
           redirectTo={window.location.origin}
         />
       </div>
