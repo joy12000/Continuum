@@ -156,10 +156,29 @@ export const useChatBundler = (options?: UseChatBundlerOptions) => {
     const handleSummary = (event: Event) => {
       const detail = (event as CustomEvent<ChatSummaryEventDetail>).detail;
       if (!detail?.summary) return;
+
+      const createdAt = detail.createdAt ?? Date.now();
+      const timeLabel = new Intl.DateTimeFormat('ko-KR', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(new Date(createdAt));
+
+      const formattedSummary = [
+        '저장된 메모를 정리했어요.',
+        `🗒️ 노트: ${detail.noteId}`,
+        `🕒 ${timeLabel}`,
+        '',
+        detail.summary.trim(),
+      ]
+        .filter(Boolean)
+        .join('\n');
+
       appendMessage({
         id: createMessageId(),
         role: 'assistant',
-        text: detail.summary,
+        text: formattedSummary,
         timestamp: Date.now(),
         author: 'Continuum',
         noteId: detail.noteId,

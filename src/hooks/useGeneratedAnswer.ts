@@ -31,7 +31,7 @@ export function useGeneratedAnswer() {
           generateSummaryAfterSave(detail.text, user.id);
         }, 2000);
       } catch (error) {
-        console.error("Failed to save note from HomeSky:", error);
+        console.error("Failed to save note from chat bundle:", error);
       }
     };
 
