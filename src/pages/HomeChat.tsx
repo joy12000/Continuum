@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { useChatBundler, ChatMessage } from '../hooks/useChatBundler';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 interface HomeChatProps {
   answerSignal?: number;
@@ -59,6 +60,23 @@ export default function HomeChat({ answerSignal, onOpenAnswer, resetKey }: HomeC
 
   const chatBodyRef = useRef<HTMLDivElement | null>(null);
   const trimmedDraft = draft.trim();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const navigationOrder = ['/', '/home', '/calendar', '/search', '/threads'];
+  const handleEdgeNavigation = (direction: 'prev' | 'next') => {
+    const currentIndex = navigationOrder.indexOf(location.pathname);
+    if (currentIndex === -1) return;
+    const nextIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
+    const nextPath = navigationOrder[nextIndex];
+    if (nextPath) {
+      navigate(nextPath);
+    }
+  };
+
+  const handleExtraClick = () => {
+    navigate('/home');
+  };
 
   const countdown = useMemo(() => formatCountdown(timeToFlush), [timeToFlush]);
   const hasAnswer = typeof answerSignal === 'number' && answerSignal > 0;
@@ -97,11 +115,17 @@ export default function HomeChat({ answerSignal, onOpenAnswer, resetKey }: HomeC
   };
 
   return (
-    <div className="chat-screen">
-      <header className="chat-header">
-        <div className="chat-header__top">
-          <span>Continuum</span>
-          <div className="chat-header__actions">
+        <div className="chat-navigation-edge chat-navigation-edge--left" role="button" tabIndex={0} aria-label="이전 화면으로 이동" onClick={() => handleEdgeNavigation('prev')}>
+          <span>&lsaquo;</span>
+        </div>
+        <div className="chat-navigation-edge chat-navigation-edge--right" role="button" tabIndex={0} aria-label="다음 화면으로 이동" onClick={() => handleEdgeNavigation('next')}>
+          <span>&rsaquo;</span>
+        </div>
+        <div className="chat-screen">
+          <header className="chat-header">
+            <div className="chat-header__top">
+              <span>Continuum</span>
+              <div className="chat-header__actions">
             {hasAnswer && (
               <button className="chat-header__button" onClick={onOpenAnswer}>
                 AI 답변
@@ -174,8 +198,9 @@ export default function HomeChat({ answerSignal, onOpenAnswer, resetKey }: HomeC
       </section>
 
       <form className="chat-composer" onSubmit={handleSubmit}>
-        <div className="chat-composer__extra" role="button" tabIndex={0} aria-label="추가">
-          +
+        <div className="chat-composer__extra" role="button" tabIndex={0} aria-label="홈으로 이동" onClick={handleExtraClick}>
+          <span className="chat-composer__extra-icon">+</span>
+          <span className="chat-composer__extra-label">Chat</span>
         </div>
         <div className="chat-composer__input">
           <input
