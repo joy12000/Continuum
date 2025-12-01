@@ -53,10 +53,14 @@ export function useGeneratedAnswer() {
         },
       });
       if (!searchRes.ok) throw new Error("Failed to search for similar notes.");
-      const similarChunks = await searchRes.json();
-  
+      const similarResults = await searchRes.json();
+      const similarChunks = (similarResults?.results || []) as Array<{ noteId?: string | null; score?: number | null }>;
+
       // 2. Get top 3 unique note IDs from chunks
-      const uniqueNoteIds = [...new Set(similarChunks.map((c: any) => c.note_id))] as string[];
+      const uniqueNoteIds = [...new Set(similarChunks
+        .filter((c: any) => (c.score ?? 0) >= 0.3)
+        .map((c: any) => c.noteId)
+        .filter(Boolean))] as string[];
       if (uniqueNoteIds.length === 0) {
         setGeneratedAnswer({ data: null, isLoading: false, error: "유사한 노트를 찾지 못했습니다." });
         setAnswerOpen(true); // Open the modal to show this message

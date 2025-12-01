@@ -14,6 +14,15 @@ const DEFAULT_STORE_NAME = () => requireEnv('GEMINI_FILE_SEARCH_STORE');
 const NAMESPACE_STRATEGY = () => process.env.GEMINI_FILE_SEARCH_NAMESPACE_STRATEGY || 'metadata';
 const DEFAULT_MODEL = () => process.env.GEMINI_FILE_SEARCH_MODEL || process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
+type FileSearchResult = {
+  noteId: string | null;
+  content: string;
+  score?: number | null;
+  uri?: string;
+  fileName?: string;
+  chunkId?: string;
+};
+
 type MetadataEntry = { key: string; value: string | number };
 
 function asMetadataPayload(entries: MetadataEntry[] = []) {
@@ -180,6 +189,108 @@ export async function generateFileSearchSummary(options: RagSummaryOptions) {
     groundingMetadata,
     raw: data,
   };
+}
+
+interface SearchOptions {
+  query: string;
+  userId: string;
+  limit?: number;
+  storeName?: string;
+}
+
+export async function searchFileSearchStore(options: SearchOptions) {
+  const { query, userId, limit = 12, storeName = DEFAULT_STORE_NAME() } = options;
+  const apiKey = GEMINI_API_KEY();
+  const model = DEFAULT_MODEL();
+
+  const systemInstruction = {
+    role: 'system',
+    parts: [
+      {
+        text: [
+          'You are a retrieval-only assistant.',
+          `Return the top ${limit} relevant passages for the user query.`,
+          'Use the File Search tool and respond with JSON only.',
+          'Each array item must include: noteId (from metadata.note_id if present, otherwise null), content (<=500 chars), score (0-1 if available),',
+          'fileName, chunkId, and uri. Do not add any explanations.',
+        ].join(' '),
+      },
+    ],
+  };
+
+  const body = {
+    system_instruction: systemInstruction,
+    contents: [
+      {
+        role: 'user',
+        parts: [
+          { text: query },
+        ],
+      },
+    ],
+    tools: [
+      {
+        file_search: {
+          file_search_store_names: [storeName],
+          metadata_filter: `user_id = "${userId}"`,
+        },
+      },
+    ],
+    generationConfig: {
+      temperature: 0,
+      maxOutputTokens: 1024,
+    },
+  };
+
+  const resp = await fetch(`${API_BASE}/models/${encodeURIComponent(model)}:generateContent?key=${apiKey}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!resp.ok) {
+    const textResp = await resp.text();
+    throw new Error(`Failed to search File Search store: ${textResp}`);
+  }
+
+  const data = await resp.json();
+  const candidate = data?.candidates?.[0] || {};
+  const parts = candidate?.content?.parts || [];
+  const rawText = parts
+    .map((part: any) => (typeof part?.text === 'string' ? part.text : ''))
+    .join('\n')
+    .trim();
+
+  let parsed: any[] = [];
+  if (rawText) {
+    try {
+      const json = JSON.parse(rawText);
+      if (Array.isArray(json)) {
+        parsed = json;
+      } else if (Array.isArray((json as any).results)) {
+        parsed = (json as any).results;
+      }
+    } catch (e) {
+      console.warn('Failed to parse File Search response as JSON:', e);
+    }
+  }
+
+  const groundingMetadata = candidate?.groundingMetadata || candidate?.grounding_metadata || null;
+
+  const normalizeResult = (item: any): FileSearchResult => ({
+    noteId: item.noteId ?? item.note_id ?? null,
+    content: item.content || item.text || '',
+    score: item.score ?? item.similarity ?? null,
+    uri: item.uri || item.url,
+    fileName: item.fileName || item.file_name,
+    chunkId: item.chunkId || item.chunk_id,
+  });
+
+  const results: FileSearchResult[] = parsed.map(normalizeResult).filter((r) => r.content);
+
+  return { results, groundingMetadata, raw: data };
 }
 
 export function getFileSearchStoreName() {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { SearchResult } from '../hooks/useSearch';
+import { SearchResult } from '../types/common';
 import Highlight from './Highlight';
 import { HandThumbUpIcon, HandThumbDownIcon } from '@heroicons/react/24/solid';
 import { HandThumbUpIcon as ThumbUpIconOutline, HandThumbDownIcon as ThumbDownIconOutline } from '@heroicons/react/24/outline';
@@ -24,27 +24,26 @@ const SearchResultsList: React.FC<SearchResultsListProps> = ({ results, loading,
   }
 
   const handleFeedback = (result: SearchResult, newFeedback: 'like' | 'dislike') => {
-    const key = `${result.document_id || result.note_id}_${result.chunk_index}`;
+    const key = `${result.noteId || 'unknown'}_${result.chunkId || result.uri || result.content.slice(0, 20)}`;
     setFeedback(prev => ({
       ...prev,
       [key]: prev[key] === newFeedback ? null : newFeedback
     }));
-    // Here you would typically store this feedback, e.g., in your database
-    console.log(`Feedback for note ${result.note_id}: ${newFeedback}`);
+    console.log(`Feedback for note ${result.noteId || 'unknown'}: ${newFeedback}`);
   };
 
   return (
     <ul className="space-y-4">
-      {results.map(result => {
-        const key = `${result.document_id || result.note_id}_${result.chunk_index}`;
+      {results.map((result, idx) => {
+        const key = `${result.noteId || 'unknown'}_${result.chunkId || idx}`;
         const currentFeedback = feedback[key];
 
         return (
           <li key={key}>
             <div className="block w-full text-left border border-slate-700/50 bg-slate-900/60 backdrop-blur-lg rounded-3xl p-4 transition-all duration-300 hover:bg-slate-800/70 hover:shadow-xl">
               <div className="flex justify-between items-start gap-4">
-                <button onClick={() => onNoteClick(result.note_id)} className="flex-grow text-left">
-                  <h3 className="text-lg font-semibold text-primary hover:underline">{noteTitlesMap[result.document_id] || noteTitlesMap[result.note_id] || '제목 없는 노트'}</h3>
+                <button onClick={() => result.noteId && onNoteClick(result.noteId)} className="flex-grow text-left" disabled={!result.noteId}>
+                  <h3 className="text-lg font-semibold text-primary hover:underline">{(result.noteId && noteTitlesMap[result.noteId]) || '제목 없는 노트'}</h3>
                   <div className="text-sm text-slate-300 mt-2 snippet">
                     <Highlight text={result.content} query={query} />
                   </div>
@@ -58,7 +57,10 @@ const SearchResultsList: React.FC<SearchResultsListProps> = ({ results, loading,
                   </button>
                 </div>
               </div>
-              <div className="text-xs text-muted-foreground/80 mt-3 pt-2 border-t border-slate-800">유사도: {result.similarity.toFixed(3)}</div>
+              <div className="text-xs text-muted-foreground/80 mt-3 pt-2 border-t border-slate-800">
+                {result.fileName && <span className="mr-2">파일: {result.fileName}</span>}
+                <span>점수: {(result.score ?? 0).toFixed(3)}</span>
+              </div>
             </div>
           </li>
         );

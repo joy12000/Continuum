@@ -1,66 +1,24 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { TaskType } from '@google/generative-ai';
 import { connectNewNote } from '../ai.js';
+import { requireUser } from '../auth.js';
+import { searchFileSearchStore } from '../fileSearch.js';
 import { getEmbedding } from '../generativeai.js';
-import { pickSupabase } from '../config.js';
-import { withFileSearchContext } from '../fileSearchContext.js';
-import { getUserFileSearchStoreName, getFileSearchStoreName, listUserFiles } from '../fileSearch.js';
 
 export async function handleSearch(req: VercelRequest, res: VercelResponse) {
   try {
-    const rawQ = Array.isArray(req.query.q) ? req.query.q[0] : req.query.q;
-    const q = (rawQ ?? '').toString().trim();
-    if (!q) return res.status(200).json([]);
-
-    const auth = await withFileSearchContext(req, res);
+    const auth = await requireUser(req, res);
     if (!auth) return;
 
-    const finalUid = auth.userId;
+    const rawQ = Array.isArray(req.query.q) ? req.query.q[0] : req.query.q;
+    const q = (rawQ ?? '').toString().trim();
+    if (!q) return res.status(200).json({ results: [] });
 
-    const sb = pickSupabase(req);
-    if (!sb) return res.status(401).json({ error: 'Authentication required.' });
-
-    const qEmb = await getEmbedding(q, TaskType.RETRIEVAL_QUERY);
     const limit_k = Number(Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit) || 12;
 
-    const args: any = {
-      limit_k,
-      q_emb: qEmb,
-      uid: finalUid,
-    };
-    const { data, error } = await sb.rpc('search_chunks', args);
+    const search = await searchFileSearchStore({ query: q, userId: auth.userId, limit: limit_k });
 
-    if (error) return res.status(500).json({ error: `[supabase] ${error.message}` });
-
-    const results = data || [];
-
-    let docMap: Record<string, string> = {};
-    try {
-      const storeName = auth.storeName || getUserFileSearchStoreName(finalUid) || getFileSearchStoreName();
-      const files = await listUserFiles({ storeName, userId: finalUid });
-      if (Array.isArray(files)) {
-        docMap = files.reduce((acc: Record<string, string>, file: any) => {
-          const meta = file?.customMetadata || file?.custom_metadata || [];
-          const noteIdMeta = meta.find((m: any) => m.key === 'note_id');
-          const userIdMeta = meta.find((m: any) => m.key === 'user_id');
-          const noteId = noteIdMeta?.stringValue || noteIdMeta?.string_value;
-          const userId = userIdMeta?.stringValue || userIdMeta?.string_value;
-          if (noteId && userId === finalUid && file.name) {
-            acc[noteId] = file.name;
-          }
-          return acc;
-        }, {});
-      }
-    } catch (e) {
-      console.warn('Failed to map File Search documents to notes:', e);
-    }
-
-    const mapped = results.map((row: any) => ({
-      ...row,
-      document_id: docMap[row.note_id] || row.note_id,
-    }));
-
-    return res.status(200).json(mapped);
+    return res.status(200).json({ results: search.results, groundingMetadata: search.groundingMetadata });
   } catch (e: any) {
     const msg = e?.message || 'v1 failed';
     const tag = /^\^\[(supabase|google|openai|config)\]/.test(msg) ? '' : '[unknown] ';
