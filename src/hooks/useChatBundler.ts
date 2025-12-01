@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import toast from 'react-hot-toast';
+import { supabase } from '../lib/supabase';
 import { useDraftPersistence } from './useDraftPersistence';
 import { CHAT_BUNDLE_EVENT, CHAT_SUMMARY_EVENT, ChatSummaryEventDetail } from '../lib/events';
 
@@ -36,6 +38,9 @@ export const useChatBundler = (options?: UseChatBundlerOptions) => {
   const [timeToFlush, setTimeToFlush] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+  const [isResponding, setIsResponding] = useState(false);
+  const [responseError, setResponseError] = useState<string | null>(null);
+  const [failedMessage, setFailedMessage] = useState<ChatMessage | null>(null);
 
   const { draft, setDraft, clearDraft } = useDraftPersistence();
 
@@ -51,6 +56,64 @@ export const useChatBundler = (options?: UseChatBundlerOptions) => {
     setMessages((prev) => [...prev, message]);
   }, []);
 
+  const sendMessageToAI = useCallback(
+    async (message: ChatMessage) => {
+      setIsResponding(true);
+      setResponseError(null);
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        const token = session?.access_token;
+        const userId = session?.user?.id;
+
+        const resp = await fetch('/api/v1?action=chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token && { Authorization: `Bearer ${token}` }),
+            ...(userId && { 'X-User-Id': userId }),
+          },
+          body: JSON.stringify({
+            message: message.text,
+            role: message.role,
+            userId,
+          }),
+        });
+
+        if (!resp.ok) {
+          const errorBody = await resp.text();
+          throw new Error(errorBody || 'AI 호출에 실패했습니다.');
+        }
+
+        const data = await resp.json();
+        const assistantText = data?.reply ?? data?.text ?? data?.message;
+
+        if (!assistantText) {
+          throw new Error('AI 응답이 비어 있습니다.');
+        }
+
+        appendMessage({
+          id: createMessageId(),
+          role: 'assistant',
+          text: assistantText,
+          timestamp: Date.now(),
+          author: data?.author || 'Continuum',
+        });
+        setFailedMessage(null);
+      } catch (error) {
+        const messageText = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
+        setResponseError(messageText);
+        setFailedMessage(message);
+        toast.error('AI 응답을 가져오지 못했어요. 다시 시도해 주세요.');
+      } finally {
+        setIsResponding(false);
+      }
+    },
+    [appendMessage]
+  );
+
   const enqueueMessage = useCallback(
     (text: string, role: ChatMessageRole = 'user', author?: string) => {
       const trimmed = text.trim();
@@ -65,10 +128,17 @@ export const useChatBundler = (options?: UseChatBundlerOptions) => {
       appendMessage(message);
       if (role === 'user') {
         setPendingIds((prev) => [...prev, message.id]);
+        sendMessageToAI(message);
       }
     },
-    [appendMessage]
+    [appendMessage, sendMessageToAI]
   );
+
+  const retryLastUserMessage = useCallback(() => {
+    if (failedMessage) {
+      sendMessageToAI(failedMessage);
+    }
+  }, [failedMessage, sendMessageToAI]);
 
   const flush = useCallback(() => {
     const pendingSet = new Set(pendingIdsRef.current);
@@ -141,6 +211,7 @@ export const useChatBundler = (options?: UseChatBundlerOptions) => {
   const hasPending = pendingIds.length > 0;
 
   const statusLabel = useMemo(() => {
+    if (isResponding) return 'AI 응답 생성 중...';
     if (isSaving) return '임시 저장 중...';
     if (hasPending && timeToFlush !== null) {
       const seconds = Math.max(0, Math.ceil(timeToFlush / 1000));
@@ -150,7 +221,7 @@ export const useChatBundler = (options?: UseChatBundlerOptions) => {
       return `마지막 저장 ${new Date(lastSavedAt).toLocaleTimeString()}`;
     }
     return '대기 중';
-  }, [hasPending, isSaving, timeToFlush, lastSavedAt]);
+  }, [hasPending, isResponding, isSaving, timeToFlush, lastSavedAt]);
 
   useEffect(() => {
     const handleSummary = (event: Event) => {
@@ -202,5 +273,8 @@ export const useChatBundler = (options?: UseChatBundlerOptions) => {
     timeToFlush,
     statusLabel,
     lastSavedAt,
+    isResponding,
+    responseError,
+    retryLastUserMessage,
   };
 };
