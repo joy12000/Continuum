@@ -14,7 +14,7 @@ const createInitialMessages = (): ChatMessage[] => [
     id: 'welcome-1',
     role: 'assistant',
     author: 'Continuum',
-    text: '안녕하세요! Continuum에서 편하게 생각을 남겨 보세요.',
+    text: '안녕하세요! Continuum이 기억을 정리하는 일을 도와드릴게요.',
     timestamp: Date.now() - 1000 * 60 * 3,
   },
 ];
@@ -98,9 +98,9 @@ export default function HomeChat({ answerSignal, onOpenAnswer, resetKey }: HomeC
   const runFlush = () => {
     const flushed = flushNow();
     if (flushed) {
-      toast.success('임시 저장했어요.');
+      toast.success('임시 저장했습니다.');
     } else {
-      toast('저장할 메시지가 없어요.');
+      toast('아직 정리할 메시지가 없습니다.');
     }
   };
 
@@ -115,105 +115,121 @@ export default function HomeChat({ answerSignal, onOpenAnswer, resetKey }: HomeC
   };
 
   return (
-        <div className="chat-navigation-edge chat-navigation-edge--left" role="button" tabIndex={0} aria-label="이전 화면으로 이동" onClick={() => handleEdgeNavigation('prev')}>
-          <span>&lsaquo;</span>
-        </div>
-        <div className="chat-navigation-edge chat-navigation-edge--right" role="button" tabIndex={0} aria-label="다음 화면으로 이동" onClick={() => handleEdgeNavigation('next')}>
-          <span>&rsaquo;</span>
-        </div>
-        <div className="chat-screen">
-          <header className="chat-header">
-            <div className="chat-header__top">
-              <span>Continuum</span>
-              <div className="chat-header__actions">
-            {hasAnswer && (
-              <button className="chat-header__button" onClick={onOpenAnswer}>
-                AI 답변
-              </button>
-            )}
-            <button
-              className="chat-header__button chat-header__button--primary"
-              onClick={handleFlush}
-              disabled={!hasPending && !trimmedDraft}
-            >
-              지금 저장
-            </button>
-          </div>
-        </div>
-        <div className="chat-header__meta">
-          <span>{statusLabel}</span>
-          {countdown && (hasPending || trimmedDraft) && <span>{countdown}</span>}
-        </div>
-      </header>
+    <div className="home-chat-page">
+      <div
+        className="chat-navigation-edge chat-navigation-edge--left"
+        role="button"
+        tabIndex={0}
+        aria-label="이전 화면으로 이동"
+        onClick={() => handleEdgeNavigation('prev')}
+      >
+        <span>&lsaquo;</span>
+      </div>
+      <div
+        className="chat-navigation-edge chat-navigation-edge--right"
+        role="button"
+        tabIndex={0}
+        aria-label="다음 화면으로 이동"
+        onClick={() => handleEdgeNavigation('next')}
+      >
+        <span>&rsaquo;</span>
+      </div>
 
-      <section className="main-chat" ref={chatBodyRef}>
-        <div className="chat__timestamp">{dateChip}</div>
-        {messages.map((message) => {
-          const isOwn = message.role === 'user';
-          return (
-            <div key={message.id} className={`message-row ${isOwn ? 'message-row--own' : ''}`}>
-              {!isOwn && (
-                <div className="message__avatar" aria-hidden>
-                  {(message.author || 'C').charAt(0)}
-                </div>
+      <div className="chat-screen">
+        <header className="chat-header">
+          <div className="chat-header__top">
+            <span>Continuum</span>
+            <div className="chat-header__actions">
+              {hasAnswer && (
+                <button className="chat-header__button" onClick={onOpenAnswer}>
+                  AI 요약
+                </button>
               )}
+              <button
+                className="chat-header__button chat-header__button--primary"
+                onClick={handleFlush}
+                disabled={!hasPending && !trimmedDraft}
+              >
+                정리 시작
+              </button>
+            </div>
+          </div>
+          <div className="chat-header__meta">
+            <span>{statusLabel}</span>
+            {countdown && (hasPending || trimmedDraft) && <span>{countdown}</span>}
+          </div>
+        </header>
+
+        <section className="main-chat" ref={chatBodyRef}>
+          <div className="chat__timestamp">{dateChip}</div>
+          {messages.map((message) => {
+            const isOwn = message.role === 'user';
+            return (
+              <div key={message.id} className={`message-row ${isOwn ? 'message-row--own' : ''}`}>
+                {!isOwn && (
+                  <div className="message__avatar" aria-hidden>
+                    {(message.author || 'C').charAt(0)}
+                  </div>
+                )}
+                <div className="message__body">
+                  {!isOwn && message.author && <span className="message__author">{message.author}</span>}
+                  <div className="message__bubble">{message.text}</div>
+                  <div className="message__info">
+                    <span>{formatTime(message.timestamp)}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          {isResponding && (
+            <div className="message-row" aria-live="polite">
+              <div className="message__avatar" aria-hidden>
+                C
+              </div>
               <div className="message__body">
-                {!isOwn && message.author && <span className="message__author">{message.author}</span>}
-                <div className="message__bubble">{message.text}</div>
-                <div className="message__info">
-                  <span>{formatTime(message.timestamp)}</span>
+                <span className="message__author">Continuum</span>
+                <div className="message__bubble message__bubble--typing" aria-label="응답 생성 중">
+                  <span className="typing-dot" />
+                  <span className="typing-dot" />
+                  <span className="typing-dot" />
                 </div>
               </div>
             </div>
-          );
-        })}
-        {isResponding && (
-          <div className="message-row" aria-live="polite">
-            <div className="message__avatar" aria-hidden>
-              C
+          )}
+          {(hasPending || trimmedDraft) && countdown && (
+            <div className="chat-status-banner">
+              {isSaving ? '임시 저장 중…' : `임시 저장까지 ${countdown}`}
             </div>
-            <div className="message__body">
-              <span className="message__author">Continuum</span>
-              <div className="message__bubble message__bubble--typing" aria-label="응답 생성 중">
-                <span className="typing-dot" />
-                <span className="typing-dot" />
-                <span className="typing-dot" />
-              </div>
+          )}
+          {responseError && (
+            <div className="chat-status-banner chat-status-banner--error">
+              <div className="chat-status-banner__text">{responseError}</div>
+              <button className="chat-header__button" onClick={retryLastUserMessage}>
+                다시 시도
+              </button>
             </div>
+          )}
+        </section>
+
+        <form className="chat-composer" onSubmit={handleSubmit}>
+          <div
+            className="chat-composer__extra"
+            role="button"
+            tabIndex={0}
+            aria-label="홈으로 이동"
+            onClick={handleExtraClick}
+          >
+            <span className="chat-composer__extra-icon">+</span>
+            <span className="chat-composer__extra-label">Chat</span>
           </div>
-        )}
-        {(hasPending || trimmedDraft) && countdown && (
-          <div className="chat-status-banner">
-            {isSaving ? '임시 저장 중...' : `임시 저장까지 ${countdown}`}
-          </div>
-        )}
-        {responseError && (
-          <div className="chat-status-banner chat-status-banner--error">
-            <div className="chat-status-banner__text">{responseError}</div>
-            <button className="chat-header__button" onClick={retryLastUserMessage}>
-              다시 시도
+          <div className="chat-composer__input">
+            <input type="text" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="메모를 입력하세요" />
+            <button type="submit" disabled={!trimmedDraft}>
+              전송
             </button>
           </div>
-        )}
-      </section>
-
-      <form className="chat-composer" onSubmit={handleSubmit}>
-        <div className="chat-composer__extra" role="button" tabIndex={0} aria-label="홈으로 이동" onClick={handleExtraClick}>
-          <span className="chat-composer__extra-icon">+</span>
-          <span className="chat-composer__extra-label">Chat</span>
-        </div>
-        <div className="chat-composer__input">
-          <input
-            type="text"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder="메시지를 입력하세요"
-          />
-          <button type="submit" disabled={!trimmedDraft}>
-            전송
-          </button>
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   );
 }
