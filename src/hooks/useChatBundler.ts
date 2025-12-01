@@ -17,6 +17,7 @@ export interface ChatMessage {
 
 interface UseChatBundlerOptions {
   initialMessages?: ChatMessage[];
+  resetKey?: string | number;
 }
 
 const createMessageId = () => {
@@ -27,7 +28,7 @@ const createMessageId = () => {
 };
 
 export const useChatBundler = (options?: UseChatBundlerOptions) => {
-  const { initialMessages = [] } = options || {};
+  const { initialMessages = [], resetKey } = options || {};
   const [messages, setMessages] = useState<ChatMessage[]>(() => initialMessages);
   const messagesRef = useRef<ChatMessage[]>(messages);
   const [pendingIds, setPendingIds] = useState<string[]>([]);
@@ -46,6 +47,19 @@ export const useChatBundler = (options?: UseChatBundlerOptions) => {
   useEffect(() => {
     pendingIdsRef.current = pendingIds;
   }, [pendingIds]);
+
+  useEffect(() => {
+    if (resetKey === undefined) return;
+    setMessages(initialMessages);
+    messagesRef.current = initialMessages;
+    setPendingIds([]);
+    pendingIdsRef.current = [];
+    setTargetFlushAt(null);
+    setTimeToFlush(null);
+    setIsSaving(false);
+    setLastSavedAt(null);
+    clearDraft();
+  }, [resetKey, initialMessages, clearDraft]);
 
   const appendMessage = useCallback((message: ChatMessage) => {
     setMessages((prev) => [...prev, message]);

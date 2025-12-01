@@ -5,9 +5,10 @@ import { useChatBundler, ChatMessage } from '../hooks/useChatBundler';
 interface HomeChatProps {
   answerSignal?: number;
   onOpenAnswer?: () => void;
+  resetKey?: string | number;
 }
 
-const INITIAL_MESSAGES: ChatMessage[] = [
+const createInitialMessages = (): ChatMessage[] => [
   {
     id: 'welcome-1',
     role: 'assistant',
@@ -39,7 +40,8 @@ const formatCountdown = (ms: number | null) => {
   return `${String(minutes).padStart(2, '0')}:${String(remainSeconds).padStart(2, '0')}`;
 };
 
-export default function HomeChat({ answerSignal, onOpenAnswer }: HomeChatProps) {
+export default function HomeChat({ answerSignal, onOpenAnswer, resetKey }: HomeChatProps) {
+  const initialMessages = useMemo(() => createInitialMessages(), [resetKey]);
   const {
     messages,
     draft,
@@ -50,7 +52,7 @@ export default function HomeChat({ answerSignal, onOpenAnswer }: HomeChatProps) 
     statusLabel,
     timeToFlush,
     isSaving,
-  } = useChatBundler({ initialMessages: INITIAL_MESSAGES });
+  } = useChatBundler({ initialMessages, resetKey });
 
   const chatBodyRef = useRef<HTMLDivElement | null>(null);
   const trimmedDraft = draft.trim();
