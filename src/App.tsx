@@ -1,4 +1,4 @@
-import React, { useEffect, Suspense, lazy } from 'react';
+import React, { useEffect, Suspense, lazy, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -16,7 +16,6 @@ const DeveloperPage = lazy(() => import('./pages/DeveloperPage'));
 const NoteDetailPage = lazy(() => import('./features/notes/NoteDetailPage'));
 const Diagnostics = lazy(() => import('./components/Diagnostics'));
 
-import NewBottomNav from './components/NewBottomNav';
 import { supabase } from './lib/supabase';
 import AnswerCardsModal from './components/AnswerCardsModal';
 import { GeneratedAnswer } from './components/GeneratedAnswer';
@@ -64,6 +63,9 @@ const MainLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const mainContentRef = useRef<HTMLDivElement>(null);
+  const lastNavigationRef = useRef(0);
+  const touchStartRef = useRef({ x: 0, y: 0, time: 0 });
   useAppLifecycle(); // PWA 라이프사이클 이벤트 처리
 
   // Use AuthContext instead of local state
@@ -224,15 +226,65 @@ const MainLayout = () => {
     }
   }, [location.pathname]);
 
+  useEffect(() => {
+    const navigationOrder = ['/', '/calendar', '/search', '/threads'];
+
+    const navigateByDelta = (direction: 'next' | 'prev') => {
+      const currentIndex = navigationOrder.indexOf(location.pathname);
+      if (currentIndex === -1) return;
+      const nextPath = direction === 'next' ? navigationOrder[currentIndex + 1] : navigationOrder[currentIndex - 1];
+      if (nextPath) {
+        navigate(nextPath);
+      }
+    };
+
+    const handleWheel = (event: WheelEvent) => {
+      const now = Date.now();
+      if (now - lastNavigationRef.current < 700) return;
+      if (Math.abs(event.deltaX) < 35 || Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
+      if (!session || !navigationOrder.includes(location.pathname)) return;
+      lastNavigationRef.current = now;
+      navigateByDelta(event.deltaX > 0 ? 'next' : 'prev');
+    };
+
+    const handleTouchStart = (event: TouchEvent) => {
+      const touch = event.touches[0];
+      touchStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
+    };
+
+    const handleTouchEnd = (event: TouchEvent) => {
+      const touch = event.changedTouches[0];
+      const deltaX = touch.clientX - touchStartRef.current.x;
+      const deltaY = touch.clientY - touchStartRef.current.y;
+      const elapsed = Date.now() - touchStartRef.current.time;
+
+      if (elapsed > 500 || Math.abs(deltaX) < 60 || Math.abs(deltaX) <= Math.abs(deltaY)) return;
+      if (!session || !navigationOrder.includes(location.pathname)) return;
+
+      lastNavigationRef.current = Date.now();
+      navigateByDelta(deltaX < 0 ? 'next' : 'prev');
+    };
+
+    const node = mainContentRef.current;
+    if (!node) return;
+
+    node.addEventListener('wheel', handleWheel, { passive: true });
+    node.addEventListener('touchstart', handleTouchStart, { passive: true });
+    node.addEventListener('touchend', handleTouchEnd, { passive: true });
+
+    return () => {
+      node.removeEventListener('wheel', handleWheel);
+      node.removeEventListener('touchstart', handleTouchStart);
+      node.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [location.pathname, navigate, session]);
+
   if (loading) {
     return <div className="flex justify-center items-center h-screen">Loading...</div>; // Or a splash screen
   }
 
-  const noNavPaths = ['/settings', '/diagnostics', '/login'];
-  const showNav = !noNavPaths.includes(location.pathname) && session;
-
   return (
-    <div className="flex flex-col h-screen bg-surface text-text-primary">
+    <div className="flex flex-col h-screen bg-[#f6f7fb] text-slate-900">
       <Toaster
         position="top-center"
         toastOptions={{
@@ -258,7 +310,7 @@ const MainLayout = () => {
       />
       <UpdatePrompt />
       <QuickSettingsPanel />
-      <main className="flex-grow overflow-y-auto hide-scrollbar overflow-x-hidden">
+      <main ref={mainContentRef} className="flex-grow overflow-y-auto hide-scrollbar overflow-x-hidden">
         <Suspense fallback={<div className="flex justify-center items-center h-full">Loading Page...</div>}>
           <AnimatePresence mode="wait">
             <Routes location={location} key={location.pathname}>
@@ -280,7 +332,6 @@ const MainLayout = () => {
           </AnimatePresence>
         </Suspense>
       </main>
-      {showNav && <NewBottomNav />}
       <AnswerCardsModal open={answerOpen} onClose={closeAnswer}>
         {answerIsLoading && <div className="p-4 text-center">답변 생성 중...</div>}
         {answerError && <div className="p-4 text-center text-red-500">오류: {answerError}</div>}

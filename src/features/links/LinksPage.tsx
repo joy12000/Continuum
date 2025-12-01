@@ -8,7 +8,6 @@ import InsightThreadCard from '../../components/InsightThreadCard';
 import GenerationProgress from '../../components/GenerationProgress';
 import { NoteDetailModal } from '../../components/NoteDetailModal';
 import Switch from '../../components/Switch';
-import SkyBackground from '../../components/SkyBackground';
 
 import { useCachedThreads } from './hooks/useLinks';
 import { useJobStatus } from './hooks/useJobStatus';
@@ -121,23 +120,23 @@ const LinksPage = () => {
         }
 
         if (isLoadingInitial) {
-            return <div className="flex items-center justify-center h-full text-muted-foreground bg-slate-900/60 backdrop-blur-lg border border-slate-700/50 rounded-lg p-8">캐시된 데이터 확인 중...</div>;
+            return <div className="flex items-center justify-center h-full text-slate-500 bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">캐시된 데이터 확인 중...</div>;
         }
 
         if (queryError) {
-            return <div className="flex items-center justify-center h-full text-destructive bg-slate-900/60 backdrop-blur-lg border border-slate-700/50 rounded-lg p-8">오류: {queryError.message}</div>;
+            return <div className="flex items-center justify-center h-full text-red-600 bg-white border border-red-100 rounded-2xl p-8 shadow-sm">오류: {queryError.message}</div>;
         }
 
         if (threads.length === 0) {
             return (
-                <div className="text-center p-8 bg-slate-900/60 backdrop-blur-lg border border-slate-700/50 rounded-lg shadow-lg max-w-md mx-auto">
-                    <BeakerIcon className="w-16 h-16 mx-auto text-accent mb-4" />
-                    <h3 className="text-xl font-bold mb-4">아직 연결된 생각 없음</h3>
-                    <p className="text-muted-foreground mb-6">노트를 분석하여 새로운 인사이트를 발견하세요.</p>
+                <div className="text-center p-8 bg-white border border-slate-200 rounded-2xl shadow-sm max-w-md mx-auto">
+                    <BeakerIcon className="w-16 h-16 mx-auto text-sky-500 mb-4" />
+                    <h3 className="text-xl font-bold mb-4 text-slate-900">아직 연결된 생각 없음</h3>
+                    <p className="text-slate-500 mb-6">노트를 분석하여 새로운 인사이트를 발견하세요.</p>
                     <div className="flex flex-col items-center gap-4">
                         <button
                             onClick={handleGenerateClick}
-                            className="px-6 py-3 font-bold text-white bg-accent rounded-lg hover:bg-accent/80 transition-colors disabled:bg-muted"
+                            className="px-6 py-3 font-semibold text-white bg-slate-900 rounded-xl hover:bg-slate-800 transition-colors disabled:bg-slate-200"
                         >
                             생각 연결하기
                         </button>
@@ -155,7 +154,7 @@ const LinksPage = () => {
         return (
             <div>
                 <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-                    <span className="text-sm text-muted-foreground text-center sm:text-left">
+                    <span className="text-sm text-slate-500 text-center sm:text-left">
                         마지막 분석: {formatTimeAgo(cachedData?.lastUpdatedAt ?? null)}
                     </span>
                     <div className="flex items-center gap-4">
@@ -167,7 +166,7 @@ const LinksPage = () => {
                         />
                         <button
                             onClick={handleGenerateClick}
-                            className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-accent-foreground bg-accent/80 rounded-lg hover:bg-accent disabled:bg-muted transition-colors"
+                            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-slate-900 rounded-xl hover:bg-slate-800 disabled:bg-slate-200 transition-colors"
                         >
                             <CpuChipIcon className="w-5 h-5" />
                             다시 분석
@@ -227,7 +226,6 @@ const LinksPage = () => {
 
     return (
         <PageLayout title="인사이트 스레드" transparent hideBackButton={true}>
-            <SkyBackground className="absolute inset-0 z-0" />
             <div className="relative z-10">
                 {renderContent()}
             </div>
