@@ -28,10 +28,19 @@ export interface NoteAttachment {
 }
 
 export interface SearchResult {
-  id: string;
-  score: number;
-  text: string;
-  noteId: string;
+  document_id?: string | null;
+  note_id: string | null;
+  chunk_index?: number | null;
+  content: string;
+  similarity?: number | null;
+  score?: number | null;
+  uri?: string;
+  fileName?: string;
+}
+
+export interface SearchResponse {
+  results: SearchResult[];
+  groundingMetadata?: Record<string, any>;
 }
 
 export interface SearchQuery {

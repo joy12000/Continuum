@@ -1,27 +1,18 @@
 import { supabase } from '../../../lib/supabase';
-import type { Note, AnswerData } from '../../../types/common';
+import type { Note, AnswerData, SearchResult, SearchResponse } from '../../../types/common';
 import { getNotesByIds } from '../../../lib/supabaseService';
 
-export type SearchResult = {
-    note_id: string;
-    chunk_index: number;
-    content: string;
-    similarity: number;
-};
+export type { SearchResult };
 
-export const searchNotes = async (query: string): Promise<SearchResult[]> => {
+export const searchNotes = async (query: string): Promise<SearchResponse> => {
     const trimmedQuery = query.trim();
-    if (trimmedQuery.length < 2) return [];
+    if (trimmedQuery.length < 2) return { results: [] };
 
     const { data: { session } } = await supabase.auth.getSession();
     const token = session?.access_token;
     if (!token) throw new Error('인증이 필요합니다.');
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not found.');
-    const userId = user.id;
-
-    const res = await fetch(`/api/v1?action=search&q=${encodeURIComponent(trimmedQuery)}&uid=${userId}&timestamp=${new Date().getTime()}`, {
+    const res = await fetch(`/api/v1?action=search&q=${encodeURIComponent(trimmedQuery)}&timestamp=${new Date().getTime()}`, {
         headers: { 'Authorization': `Bearer ${token}` },
     });
 
@@ -29,7 +20,11 @@ export const searchNotes = async (query: string): Promise<SearchResult[]> => {
         const errorBody = await res.json().catch(() => ({ error: 'Could not parse error body' }));
         throw new Error(`Search failed with status ${res.status}${errorBody.error ? `: ${errorBody.error}` : ''}`);
     }
-    return res.json();
+    const data = await res.json();
+    return {
+        results: data?.results || [],
+        groundingMetadata: data?.groundingMetadata,
+    };
 };
 
 export const generateSearchAnswer = async (query: string, searchResults: SearchResult[]): Promise<{ answerData: AnswerData, noteTitlesMap: Record<string, string> } | null> => {
@@ -41,8 +36,8 @@ export const generateSearchAnswer = async (query: string, searchResults: SearchR
     const token = session?.access_token;
     if (!token) throw new Error('인증이 필요합니다.');
 
-    const filteredResults = searchResults.filter(r => r.similarity >= 0.7);
-    const topNoteIds = [...new Set(filteredResults.map(r => r.note_id))].slice(0, 5);
+    const filteredResults = searchResults.filter(r => (r.similarity ?? r.score ?? 0) >= 0.5);
+    const topNoteIds = [...new Set(filteredResults.map(r => r.note_id).filter(Boolean))].slice(0, 5) as string[];
 
     if (topNoteIds.length === 0) return null;
 

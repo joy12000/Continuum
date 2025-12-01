@@ -1,11 +1,12 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { searchNotes, generateSearchAnswer, SearchResult } from '../services/searchService';
+import { searchNotes, generateSearchAnswer, SearchResponse } from '../services/searchService';
+import type { SearchResult } from '../../../types/common';
 import { useAuth } from '../../../contexts/AuthContext';
 
 export const useSearchQuery = (query: string) => {
     const { session } = useAuth();
 
-    return useQuery<SearchResult[], Error>({
+    return useQuery<SearchResponse, Error>({
         queryKey: ['search', query],
         queryFn: () => searchNotes(query),
         enabled: !!session && query.trim().length >= 2,
