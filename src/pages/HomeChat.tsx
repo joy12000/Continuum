@@ -103,7 +103,7 @@ export default function HomeChat({ answerSignal, onOpenAnswer, resetKey }: HomeC
 
 
   return (
-
+    <div className="home-chat-page">
       <div className="chat-screen">
         <header className="chat-header">
           <div className="chat-header__top">
