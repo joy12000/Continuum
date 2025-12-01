@@ -15,6 +15,7 @@ import {
   handleGetNoteAttachments,
   handleUpdateNote,
   handleGetAllNotes,
+  handleDeleteNote,
 } from '../server/routes/noteHandlers.js';
 import {
   handleFindContextCluster,
@@ -62,6 +63,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleSummarizeDay(req, res);
       case 'update-note':
         return await handleUpdateNote(req, res);
+      case 'delete-note':
+        return await handleDeleteNote(req, res);
       case 'chat-bundle-sync':
         return await handleChatBundleSync(req, res);
       default:

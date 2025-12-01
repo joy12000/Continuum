@@ -24,7 +24,7 @@ const SearchResultsList: React.FC<SearchResultsListProps> = ({ results, loading,
   }
 
   const handleFeedback = (result: SearchResult, newFeedback: 'like' | 'dislike') => {
-    const key = `${result.note_id}_${result.chunk_index}`;
+    const key = `${result.document_id || result.note_id}_${result.chunk_index}`;
     setFeedback(prev => ({
       ...prev,
       [key]: prev[key] === newFeedback ? null : newFeedback
@@ -36,7 +36,7 @@ const SearchResultsList: React.FC<SearchResultsListProps> = ({ results, loading,
   return (
     <ul className="space-y-4">
       {results.map(result => {
-        const key = `${result.note_id}_${result.chunk_index}`;
+        const key = `${result.document_id || result.note_id}_${result.chunk_index}`;
         const currentFeedback = feedback[key];
 
         return (
@@ -44,7 +44,7 @@ const SearchResultsList: React.FC<SearchResultsListProps> = ({ results, loading,
             <div className="block w-full text-left border border-slate-700/50 bg-slate-900/60 backdrop-blur-lg rounded-3xl p-4 transition-all duration-300 hover:bg-slate-800/70 hover:shadow-xl">
               <div className="flex justify-between items-start gap-4">
                 <button onClick={() => onNoteClick(result.note_id)} className="flex-grow text-left">
-                  <h3 className="text-lg font-semibold text-primary hover:underline">{noteTitlesMap[result.note_id] || '제목 없는 노트'}</h3>
+                  <h3 className="text-lg font-semibold text-primary hover:underline">{noteTitlesMap[result.document_id] || noteTitlesMap[result.note_id] || '제목 없는 노트'}</h3>
                   <div className="text-sm text-slate-300 mt-2 snippet">
                     <Highlight text={result.content} query={query} />
                   </div>

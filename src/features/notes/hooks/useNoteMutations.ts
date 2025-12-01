@@ -79,8 +79,21 @@ export const useNoteMutations = (noteId: string | undefined) => {
                 const paths = attachments.map(a => a.storage_path);
                 await supabase.storage.from('notes-attachments').remove(paths);
             }
-            const { error } = await supabase.from('notes').delete().eq('id', noteId!);
-            if (error) throw error;
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
+            if (!token) throw new Error('인증이 필요합니다.');
+
+            const response = await fetch(`/api/v1?action=delete-note&noteId=${noteId}`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || '노트 삭제에 실패했습니다.');
+            }
         },
         onSuccess: () => {
             toast.success('노트가 삭제되었습니다.');

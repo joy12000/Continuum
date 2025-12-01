@@ -66,15 +66,27 @@ export default function OverlayEditor() {
     if (!editingNote) return;
     setIsLoading(true);
     try {
-      // 1. Update the note content
-      const { error: updateError } = await supabase.rpc('update_note', {
-        note_id_to_update: editingNote.id,
-        new_title: title,
-        new_body: content,
-      });
-      if (updateError) throw updateError;
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error('인증이 필요합니다.');
 
-      // 2. Recalculate chunks and embeddings
+      const response = await fetch(`/api/v1?action=update-note&noteId=${editingNote.id}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title,
+          body: content,
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err?.error || '노트 업데이트 실패');
+      }
+
       await recalculateChunksAndEmbeddings(editingNote.id, content);
 
       toast.success('노트가 저장되었습니다.');
@@ -92,8 +104,20 @@ export default function OverlayEditor() {
     if (!editingNote) return;
     setIsLoading(true);
     try {
-      const { error } = await supabase.rpc('delete_note', { note_id_to_delete: editingNote.id });
-      if (error) throw error;
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error('인증이 필요합니다.');
+
+      const response = await fetch(`/api/v1?action=delete-note&noteId=${editingNote.id}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err?.error || '노트 삭제 실패');
+      }
 
       toast.success('노트가 삭제되었습니다.');
       setShowDeleteConfirm(false);

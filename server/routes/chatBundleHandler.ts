@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { requireUser } from '../auth.js';
-import { uploadTextToFileSearchStore, generateFileSearchSummary, getFileSearchStoreName } from '../fileSearch.js';
+import { uploadTextToFileSearchStore, generateFileSearchSummary } from '../fileSearch.js';
+import { withFileSearchContext } from '../fileSearchContext.js';
 
 export async function handleChatBundleSync(req: VercelRequest, res: VercelResponse) {
-  const auth = await requireUser(req, res);
+  const auth = await withFileSearchContext(req, res);
   if (!auth) return;
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
@@ -18,7 +18,7 @@ export async function handleChatBundleSync(req: VercelRequest, res: VercelRespon
   }
 
   try {
-    const storeName = getFileSearchStoreName();
+    const storeName = auth.storeName;
     const created = createdAt ? new Date(createdAt) : new Date();
     const displayName = `note-${created.toISOString().slice(0, 10)}-${noteId.slice(0, 8)}`;
 
