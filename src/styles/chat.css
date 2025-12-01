@@ -286,37 +286,6 @@
   word-break: break-word;
 }
 
-.chat-navigation-edge {
-  position: fixed;
-  top: 0;
-  bottom: 0;
-  width: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  color: rgba(15, 23, 42, 0.6);
-  background: rgba(15, 23, 42, 0.04);
-  backdrop-filter: blur(6px);
-  cursor: pointer;
-  z-index: 30;
-  transition: background 0.2s ease;
-}
-
-.chat-navigation-edge:hover {
-  background: rgba(15, 23, 42, 0.12);
-}
-
-.chat-navigation-edge--left {
-  left: 0;
-  border-right: 1px solid rgba(148, 163, 184, 0.3);
-}
-
-.chat-navigation-edge--right {
-  right: 0;
-  border-left: 1px solid rgba(148, 163, 184, 0.3);
-}
-
 @keyframes chat-receive {
   from {
     opacity: 0;

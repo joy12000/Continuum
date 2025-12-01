@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { useChatBundler, ChatMessage } from '../hooks/useChatBundler';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 interface HomeChatProps {
   answerSignal?: number;
@@ -61,19 +61,6 @@ export default function HomeChat({ answerSignal, onOpenAnswer, resetKey }: HomeC
   const chatBodyRef = useRef<HTMLDivElement | null>(null);
   const trimmedDraft = draft.trim();
   const navigate = useNavigate();
-  const location = useLocation();
-
-  const navigationOrder = ['/', '/home', '/calendar', '/search', '/threads'];
-  const handleEdgeNavigation = (direction: 'prev' | 'next') => {
-    const currentIndex = navigationOrder.indexOf(location.pathname);
-    if (currentIndex === -1) return;
-    const nextIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
-    const nextPath = navigationOrder[nextIndex];
-    if (nextPath) {
-      navigate(nextPath);
-    }
-  };
-
   const handleExtraClick = () => {
     navigate('/home');
   };
@@ -114,26 +101,8 @@ export default function HomeChat({ answerSignal, onOpenAnswer, resetKey }: HomeC
     runFlush();
   };
 
+
   return (
-    <div className="home-chat-page">
-      <div
-        className="chat-navigation-edge chat-navigation-edge--left"
-        role="button"
-        tabIndex={0}
-        aria-label="이전 화면으로 이동"
-        onClick={() => handleEdgeNavigation('prev')}
-      >
-        <span>&lsaquo;</span>
-      </div>
-      <div
-        className="chat-navigation-edge chat-navigation-edge--right"
-        role="button"
-        tabIndex={0}
-        aria-label="다음 화면으로 이동"
-        onClick={() => handleEdgeNavigation('next')}
-      >
-        <span>&rsaquo;</span>
-      </div>
 
       <div className="chat-screen">
         <header className="chat-header">
