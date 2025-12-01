@@ -6,7 +6,7 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { color-scheme: light dark; }
+:root { color-scheme: only light; }
 html {
   position: fixed;
   height: 100%;
@@ -14,8 +14,8 @@ html {
   overflow: hidden;
 }
 
-body { 
-  @apply bg-[#04060b] text-slate-100;
+body {
+  @apply bg-[#f6f7fb] text-slate-900;
   height: 100%;
   width: 100%;
   overflow: hidden;

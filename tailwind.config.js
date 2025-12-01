@@ -5,34 +5,34 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: 'hsl(222, 47%, 11%)', // Dark blue, almost black
-        'links-background': 'hsl(222, 47%, 15%)',
-        foreground: 'hsl(210, 40%, 98%)', // Almost white
-        
-        card: 'hsl(222, 47%, 15%)',
-        'card-foreground': 'hsl(210, 40%, 98%)',
+        background: '#f6f7fb',
+        'links-background': '#eef2f7',
+        foreground: '#0f172a',
 
-        popover: 'hsl(222, 47%, 15%)',
-        'popover-foreground': 'hsl(210, 40%, 98%)',
+        card: '#ffffff',
+        'card-foreground': '#0f172a',
 
-        primary: 'hsl(210, 40%, 98%)',
-        'primary-foreground': 'hsl(217, 39%, 11%)',
+        popover: '#ffffff',
+        'popover-foreground': '#0f172a',
 
-        secondary: 'hsl(217, 39%, 25%)',
-        'secondary-foreground': 'hsl(210, 40%, 98%)',
+        primary: '#0f172a',
+        'primary-foreground': '#ffffff',
 
-        muted: 'hsl(217, 39%, 25%)',
-        'muted-foreground': 'hsl(215, 20%, 65%)',
+        secondary: '#f1f5f9',
+        'secondary-foreground': '#0f172a',
 
-        accent: 'hsl(217, 39%, 40%)',
-        'accent-foreground': 'hsl(210, 40%, 98%)',
+        muted: '#f3f4f6',
+        'muted-foreground': '#6b7280',
 
-        destructive: 'hsl(0, 84%, 60%)',
-        'destructive-foreground': 'hsl(210, 40%, 98%)',
+        accent: '#0ea5e9',
+        'accent-foreground': '#ffffff',
 
-        border: 'hsl(217, 39%, 25%)',
-        input: 'hsl(217, 39%, 25%)',
-        ring: 'hsl(217, 39%, 40%)',
+        destructive: '#ef4444',
+        'destructive-foreground': '#ffffff',
+
+        border: '#e5e7eb',
+        input: '#e5e7eb',
+        ring: '#0ea5e9',
       },
       textShadow: {
         glow: '0 0 0.4rem rgba(180,210,255,0.65), 0 0 1.2rem rgba(140,190,255,0.35)',

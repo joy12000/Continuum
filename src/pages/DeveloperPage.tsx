@@ -51,7 +51,7 @@ const DeveloperPage = () => {
     <button
       onClick={onClick}
       disabled={loading}
-      className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+      className="bg-slate-900 hover:bg-slate-800 text-white font-semibold py-2 px-4 rounded-xl shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {name}
     </button>
@@ -59,15 +59,15 @@ const DeveloperPage = () => {
 
   return (
     <PageLayout title="Developer API Tests">
-      <div className="space-y-4">
+      <div className="space-y-4 bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
         <div className="flex space-x-4">
           <TestButton name="Test Search" onClick={() => runTest(testSearch)} />
           <TestButton name="Test Create Embedding" onClick={() => runTest(testCreateEmbedding)} />
           <TestButton name="Test Generate (RAG)" onClick={() => runTest(testGenerate)} />
         </div>
         <div>
-          <h3 className="text-lg font-semibold mb-2">Output:</h3>
-          <pre className="bg-gray-900 text-green-300 p-4 rounded-lg whitespace-pre-wrap font-mono text-sm h-96 overflow-y-auto">
+          <h3 className="text-lg font-semibold mb-2 text-slate-900">Output:</h3>
+          <pre className="bg-slate-50 text-slate-800 border border-slate-200 p-4 rounded-xl whitespace-pre-wrap font-mono text-sm h-96 overflow-y-auto">
             {loading ? 'Loading...' : output}
           </pre>
         </div>

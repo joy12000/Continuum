@@ -232,7 +232,7 @@ const MainLayout = () => {
   const showNav = !noNavPaths.includes(location.pathname) && session;
 
   return (
-    <div className="flex flex-col h-screen bg-surface text-text-primary">
+    <div className="flex flex-col h-screen bg-[#f6f7fb] text-slate-900">
       <Toaster
         position="top-center"
         toastOptions={{
