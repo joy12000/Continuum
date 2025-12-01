@@ -1,11 +1,7 @@
-export type SearchResult = {
-    note_id: string;
-    title: string;
-    snippet_html: string;
-    score: number;
-};
-export declare function useSearch(query: string, token: string | undefined): {
+import type { SearchResult } from '../types/common';
+export declare function useSearch(token: string | undefined): {
     results: SearchResult[];
     loading: boolean;
+    search: (query: string) => Promise<SearchResult[]>;
 };
 //# sourceMappingURL=useSearch.d.ts.map

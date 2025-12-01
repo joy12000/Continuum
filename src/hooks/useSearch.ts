@@ -1,12 +1,10 @@
-
 import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import type { SearchResult } from '../types/common';
 
-export type SearchResult = {
-  note_id: string;
-  chunk_index: number;
-  content: string;
-  similarity: number;
+export type SearchResponse = {
+  results: SearchResult[];
+  groundingMetadata?: Record<string, any>;
 };
 
 export function useSearch(token: string | undefined) {
@@ -42,9 +40,9 @@ export function useSearch(token: string | undefined) {
         const errorBody = await res.json().catch(() => ({ error: 'Could not parse error body' }));
         throw new Error(`Search failed with status ${res.status}${errorBody.error ? `: ${errorBody.error}` : ''}`);
       }
-      const data = await res.json();
-      setResults(data);
-      return data;
+      const data: SearchResponse = await res.json();
+      setResults(data.results || []);
+      return data.results || [];
     } catch (error) {
       console.error('Search failed:', error);
       setResults([]);

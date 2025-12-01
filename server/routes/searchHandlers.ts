@@ -1,39 +1,24 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { TaskType } from '@google/generative-ai';
 import { connectNewNote } from '../ai.js';
+import { requireUser } from '../auth.js';
+import { searchFileSearchStore } from '../fileSearch.js';
 import { getEmbedding } from '../generativeai.js';
-import { pickSupabase } from '../config.js';
 
 export async function handleSearch(req: VercelRequest, res: VercelResponse) {
   try {
+    const auth = await requireUser(req, res);
+    if (!auth) return;
+
     const rawQ = Array.isArray(req.query.q) ? req.query.q[0] : req.query.q;
     const q = (rawQ ?? '').toString().trim();
-    if (!q) return res.status(200).json([]);
+    if (!q) return res.status(200).json({ results: [] });
 
-    const qUid = Array.isArray(req.query.uid) ? req.query.uid[0] : req.query.uid;
-    const hUid = (req.headers['x-user-id'] as string | undefined) || '';
-    const uid = (qUid || hUid || '').toString().trim();
-    const finalUid = uid === '' ? null : uid;
-
-    if (!finalUid) {
-      return res.status(400).json({ error: 'User ID is required for search.' });
-    }
-
-    const sb = pickSupabase(req);
-    if (!sb) return res.status(401).json({ error: 'Authentication required.' });
-
-    const qEmb = await getEmbedding(q, TaskType.RETRIEVAL_QUERY);
     const limit_k = Number(Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit) || 12;
 
-    const args: any = {
-      limit_k,
-      q_emb: qEmb,
-      uid: finalUid,
-    };
-    const { data, error } = await sb.rpc('search_chunks', args);
+    const search = await searchFileSearchStore({ query: q, userId: auth.userId, limit: limit_k });
 
-    if (error) return res.status(500).json({ error: `[supabase] ${error.message}` });
-    return res.status(200).json(data || []);
+    return res.status(200).json({ results: search.results, groundingMetadata: search.groundingMetadata });
   } catch (e: any) {
     const msg = e?.message || 'v1 failed';
     const tag = /^\^\[(supabase|google|openai|config)\]/.test(msg) ? '' : '[unknown] ';
