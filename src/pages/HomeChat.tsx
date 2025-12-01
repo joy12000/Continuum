@@ -12,7 +12,7 @@ const INITIAL_MESSAGES: ChatMessage[] = [
     id: 'welcome-1',
     role: 'assistant',
     author: 'Continuum',
-    text: '¹ãÇÏ´Ã¿¡ ³²±ä ¸Þ¸ðµéÀ» ¿¬°áÇØ µå¸±°Ô¿ä. ÆíÇÏ°Ô ´ëÈ­¸¦ ½ÃÀÛÇØº¸¼¼¿ä!',
+    text: 'ì•ˆë…•í•˜ì„¸ìš”! Continuumì—ì„œ íŽ¸í•˜ê²Œ ìƒê°ì„ ë‚¨ê²¨ ë³´ì„¸ìš”.',
     timestamp: Date.now() - 1000 * 60 * 3,
   },
 ];
@@ -75,9 +75,9 @@ export default function HomeChat({ answerSignal, onOpenAnswer }: HomeChatProps) 
   const runFlush = () => {
     const flushed = flushNow();
     if (flushed) {
-      toast.success('ÀÓ½Ã ÀúÀåÀ» ¿Ï·áÇß¾î¿ä.');
+      toast.success('ìž„ì‹œ ì €ìž¥í–ˆì–´ìš”.');
     } else {
-      toast('ÀúÀåÇÒ ¸Þ½ÃÁö°¡ ¾ø¾î¿ä.');
+      toast('ì €ìž¥í•  ë©”ì‹œì§€ê°€ ì—†ì–´ìš”.');
     }
   };
 
@@ -99,7 +99,7 @@ export default function HomeChat({ answerSignal, onOpenAnswer }: HomeChatProps) 
           <div className="chat-header__actions">
             {hasAnswer && (
               <button className="chat-header__button" onClick={onOpenAnswer}>
-                AI ´äº¯
+                AI ë‹µë³€
               </button>
             )}
             <button
@@ -107,7 +107,7 @@ export default function HomeChat({ answerSignal, onOpenAnswer }: HomeChatProps) 
               onClick={handleFlush}
               disabled={!hasPending && !trimmedDraft}
             >
-              Áö±Ý ÀúÀå
+              ì§€ê¸ˆ ì €ìž¥
             </button>
           </div>
         </div>
@@ -140,13 +140,13 @@ export default function HomeChat({ answerSignal, onOpenAnswer }: HomeChatProps) 
         })}
         {(hasPending || trimmedDraft) && countdown && (
           <div className="chat-status-banner">
-            {isSaving ? 'ÀÓ½Ã ÀúÀå Áß...' : `ÀÓ½Ã ÀúÀå±îÁö ${countdown}`}
+            {isSaving ? 'ìž„ì‹œ ì €ìž¥ ì¤‘...' : `ìž„ì‹œ ì €ìž¥ê¹Œì§€ ${countdown}`}
           </div>
         )}
       </section>
 
       <form className="chat-composer" onSubmit={handleSubmit}>
-        <div className="chat-composer__extra" role="button" tabIndex={0} aria-label="Ãß°¡±â´É">
+        <div className="chat-composer__extra" role="button" tabIndex={0} aria-label="ì¶”ê°€">
           +
         </div>
         <div className="chat-composer__input">
@@ -154,10 +154,10 @@ export default function HomeChat({ answerSignal, onOpenAnswer }: HomeChatProps) 
             type="text"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder="¸Þ½ÃÁö¸¦ ÀÔ·ÂÇÏ¼¼¿ä"
+            placeholder="ë©”ì‹œì§€ë¥¼ ìž…ë ¥í•˜ì„¸ìš”"
           />
           <button type="submit" disabled={!trimmedDraft}>
-            ¡è
+            ì „ì†¡
           </button>
         </div>
       </form>
