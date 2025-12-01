@@ -1,5 +1,5 @@
 import React, { useEffect, Suspense, lazy, useRef } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQueryClient } from '@tanstack/react-query'; // Import useQueryClient
@@ -228,7 +228,7 @@ const MainLayout = () => {
   }, [location.pathname]);
 
   useEffect(() => {
-    const navigationOrder = ['/chat', '/calendar', '/search', '/threads'];
+    const navigationOrder = ['/', '/calendar', '/search', '/threads'];
 
     const navigateByDelta = (direction: 'next' | 'prev') => {
       const currentIndex = navigationOrder.indexOf(location.pathname);
@@ -321,15 +321,16 @@ const MainLayout = () => {
                     path="/"
                     element={
                       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
-                        <Home />
+                        <HomeChat resetKey={location.key} onOpenAnswer={openAnswer} answerSignal={answerSignal} />
                       </motion.div>
                     }
                   />
+                  <Route path="/chat" element={<Navigate to="/" replace />} />
                   <Route
-                    path="/chat"
+                    path="/home"
                     element={
                       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
-                        <HomeChat resetKey={location.key} onOpenAnswer={openAnswer} answerSignal={answerSignal} />
+                        <Home />
                       </motion.div>
                     }
                   />

@@ -52,6 +52,9 @@ export default function HomeChat({ answerSignal, onOpenAnswer, resetKey }: HomeC
     statusLabel,
     timeToFlush,
     isSaving,
+    isResponding,
+    responseError,
+    retryLastUserMessage,
   } = useChatBundler({ initialMessages, resetKey });
 
   const chatBodyRef = useRef<HTMLDivElement | null>(null);
@@ -140,9 +143,32 @@ export default function HomeChat({ answerSignal, onOpenAnswer, resetKey }: HomeC
             </div>
           );
         })}
+        {isResponding && (
+          <div className="message-row" aria-live="polite">
+            <div className="message__avatar" aria-hidden>
+              C
+            </div>
+            <div className="message__body">
+              <span className="message__author">Continuum</span>
+              <div className="message__bubble message__bubble--typing" aria-label="응답 생성 중">
+                <span className="typing-dot" />
+                <span className="typing-dot" />
+                <span className="typing-dot" />
+              </div>
+            </div>
+          </div>
+        )}
         {(hasPending || trimmedDraft) && countdown && (
           <div className="chat-status-banner">
             {isSaving ? '임시 저장 중...' : `임시 저장까지 ${countdown}`}
+          </div>
+        )}
+        {responseError && (
+          <div className="chat-status-banner chat-status-banner--error">
+            <div className="chat-status-banner__text">{responseError}</div>
+            <button className="chat-header__button" onClick={retryLastUserMessage}>
+              다시 시도
+            </button>
           </div>
         )}
       </section>

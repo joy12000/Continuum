@@ -10,7 +10,7 @@ export default function Home() {
         <div className="chat-header__top">
           <span>기록 홈</span>
           <div className="chat-header__actions">
-            <button className="chat-header__button" onClick={() => navigate('/chat')}>
+            <button className="chat-header__button" onClick={() => navigate('/') }>
               Chat
             </button>
             <button className="chat-header__button chat-header__button--primary" onClick={() => navigate('/calendar')}>
@@ -30,7 +30,7 @@ export default function Home() {
             Chat 모드에서 작성한 메시지는 자동으로 묶여 저장돼요. 버튼을 눌러 바로 이동해 보세요.
           </p>
           <div className="flex justify-end">
-            <button className="chat-header__button chat-header__button--primary" onClick={() => navigate('/chat')}>
+            <button className="chat-header__button chat-header__button--primary" onClick={() => navigate('/') }>
               Chat으로 이동
             </button>
           </div>
