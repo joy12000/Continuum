@@ -1,15 +1,6 @@
 import { supabase } from '../../../lib/supabase';
-import type { Note, AnswerData } from '../../../types/common';
+import type { Note, AnswerData, SearchResult } from '../../../types/common';
 import { getNotesByIds } from '../../../lib/supabaseService';
-
-export type SearchResult = {
-    noteId: string | null;
-    content: string;
-    score?: number | null;
-    uri?: string;
-    fileName?: string;
-    chunkId?: string;
-};
 
 export type SearchResponse = {
     results: SearchResult[];

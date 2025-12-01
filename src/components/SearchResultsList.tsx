@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { SearchResult } from '../hooks/useSearch';
+import { SearchResult } from '../types/common';
 import Highlight from './Highlight';
 import { HandThumbUpIcon, HandThumbDownIcon } from '@heroicons/react/24/solid';
 import { HandThumbUpIcon as ThumbUpIconOutline, HandThumbDownIcon as ThumbDownIconOutline } from '@heroicons/react/24/outline';

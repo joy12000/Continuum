@@ -1,15 +1,6 @@
-
 import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-
-export type SearchResult = {
-  noteId: string | null;
-  content: string;
-  score?: number | null;
-  uri?: string;
-  fileName?: string;
-  chunkId?: string;
-};
+import type { SearchResult } from '../types/common';
 
 export type SearchResponse = {
   results: SearchResult[];
