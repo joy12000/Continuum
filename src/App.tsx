@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query'; // Import useQueryClient
 
 import toast, { Toaster } from 'react-hot-toast';
 // Lazy load pages
+const Home = lazy(() => import('./pages/Home'));
 const HomeChat = lazy(() => import('./pages/HomeChat'));
 const Settings = lazy(() => import('./pages/Settings'));
 const CalendarPage = lazy(() => import('./features/calendar/CalendarPage'));
@@ -227,7 +228,7 @@ const MainLayout = () => {
   }, [location.pathname]);
 
   useEffect(() => {
-    const navigationOrder = ['/', '/calendar', '/search', '/threads'];
+    const navigationOrder = ['/chat', '/calendar', '/search', '/threads'];
 
     const navigateByDelta = (direction: 'next' | 'prev') => {
       const currentIndex = navigationOrder.indexOf(location.pathname);
@@ -316,7 +317,22 @@ const MainLayout = () => {
             <Routes location={location} key={location.pathname}>
               {session ? (
                 <>
-                  <Route path="/" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}><HomeChat onOpenAnswer={openAnswer} answerSignal={answerSignal} /></motion.div>} />
+                  <Route
+                    path="/"
+                    element={
+                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+                        <Home />
+                      </motion.div>
+                    }
+                  />
+                  <Route
+                    path="/chat"
+                    element={
+                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+                        <HomeChat resetKey={location.key} onOpenAnswer={openAnswer} answerSignal={answerSignal} />
+                      </motion.div>
+                    }
+                  />
                   <Route path="/settings" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}><Settings /></motion.div>} />
                   <Route path="/calendar" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}><CalendarPage /></motion.div>} />
                   <Route path="/search" element={<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}><SearchPage /></motion.div>} />
