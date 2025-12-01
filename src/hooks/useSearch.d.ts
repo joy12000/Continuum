@@ -1,8 +1,10 @@
 export type SearchResult = {
-    note_id: string;
-    title: string;
-    snippet_html: string;
-    score: number;
+    noteId: string | null;
+    content: string;
+    score?: number | null;
+    uri?: string;
+    fileName?: string;
+    chunkId?: string;
 };
 export declare function useSearch(query: string, token: string | undefined): {
     results: SearchResult[];

@@ -15,12 +15,15 @@ export declare function listNotes(userId: string): Promise<{
 }[]>;
 export declare function getNoteById(noteId: string, userId: string): Promise<any>;
 export declare function getNotesByIds(noteIds: string[]): Promise<any>;
-export declare function searchChunks(query: string, userId: string): Promise<{
-    note_id: string;
-    chunk_index: number;
-    body: string;
-    distance: number;
-}[]>;
+export type FileSearchResult = {
+    noteId: string | null;
+    content: string;
+    score?: number | null;
+    uri?: string;
+    fileName?: string;
+    chunkId?: string;
+};
+export declare function searchChunks(query: string, userId: string): Promise<FileSearchResult[]>;
 export declare function deleteAllUserData(userId: string): Promise<void>;
 export declare function bulkAddNotes(notes: {
     title?: string;

@@ -16,7 +16,8 @@ const SearchPage = () => {
     const [answerData, setAnswerData] = useState<AnswerData | null>(null);
 
     // Hooks
-    const { data: results, isLoading: isSearchLoading, error: searchError } = useSearchQuery(searchQuery);
+    const { data: searchResponse, isLoading: isSearchLoading, error: searchError } = useSearchQuery(searchQuery);
+    const searchResults = searchResponse?.results || [];
     const { mutate: generateAnswer, isPending: isAnswerLoading, error: answerError } = useSearchAnswer();
 
     const handleNoteClick = useCallback((noteId: string) => {
@@ -36,8 +37,8 @@ const SearchPage = () => {
 
     // Trigger answer generation when results change and searchQuery is valid
     React.useEffect(() => {
-        if (results && results.length > 0 && searchQuery) {
-            generateAnswer({ query: searchQuery, results }, {
+        if (searchResults && searchResults.length > 0 && searchQuery) {
+            generateAnswer({ query: searchQuery, results: searchResults }, {
                 onSuccess: (data) => {
                     if (data) {
                         setAnswerData(data.answerData);
@@ -46,7 +47,7 @@ const SearchPage = () => {
                 }
             });
         }
-    }, [results, searchQuery, generateAnswer]);
+    }, [searchResults, searchQuery, generateAnswer]);
 
     const GeneratedAnswerCard = () => (
         <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
@@ -84,7 +85,7 @@ const SearchPage = () => {
                                 )}
                                 <div>
                                     <h2 className="text-xl font-semibold mb-4 text-slate-900">검색 결과</h2>
-                                    <SearchResultsList results={results || []} loading={isSearchLoading} noteTitlesMap={noteTitlesMap} query={searchQuery} onNoteClick={handleNoteClick} />
+                                    <SearchResultsList results={searchResults} loading={isSearchLoading} noteTitlesMap={noteTitlesMap} query={searchQuery} onNoteClick={handleNoteClick} />
                                 </div>
                             </div>
 
@@ -92,7 +93,7 @@ const SearchPage = () => {
                             <div className="hidden lg:grid lg:grid-cols-3 lg:gap-8">
                                 <div className="lg:col-span-2">
                                     <h2 className="text-xl font-semibold mb-4 text-slate-900">검색 결과</h2>
-                                    <SearchResultsList results={results || []} loading={isSearchLoading} noteTitlesMap={noteTitlesMap} query={searchQuery} onNoteClick={handleNoteClick} />
+                                    <SearchResultsList results={searchResults} loading={isSearchLoading} noteTitlesMap={noteTitlesMap} query={searchQuery} onNoteClick={handleNoteClick} />
                                 </div>
                                 <div className="lg:col-span-1">
                                     <h2 className="text-xl font-semibold mb-4 text-slate-900">생성된 답변</h2>
