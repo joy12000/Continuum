@@ -22,6 +22,11 @@ export declare function searchChunks(query: string, userId: string): Promise<{
     distance: number;
 }[]>;
 export declare function deleteAllUserData(userId: string): Promise<void>;
+export declare function updateNote(noteId: string, newContent: {
+    title?: string;
+    body: string;
+}): Promise<any>;
+export declare function deleteNote(noteId: string): Promise<void>;
 export declare function bulkAddNotes(notes: {
     title?: string;
     body: string;

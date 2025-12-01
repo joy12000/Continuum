@@ -3,6 +3,7 @@ import type { Note, AnswerData } from '../../../types/common';
 import { getNotesByIds } from '../../../lib/supabaseService';
 
 export type SearchResult = {
+    document_id: string;
     note_id: string;
     chunk_index: number;
     content: string;
@@ -17,11 +18,7 @@ export const searchNotes = async (query: string): Promise<SearchResult[]> => {
     const token = session?.access_token;
     if (!token) throw new Error('인증이 필요합니다.');
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not found.');
-    const userId = user.id;
-
-    const res = await fetch(`/api/v1?action=search&q=${encodeURIComponent(trimmedQuery)}&uid=${userId}&timestamp=${new Date().getTime()}`, {
+    const res = await fetch(`/api/v1?action=search&q=${encodeURIComponent(trimmedQuery)}&timestamp=${new Date().getTime()}`, {
         headers: { 'Authorization': `Bearer ${token}` },
     });
 

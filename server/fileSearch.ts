@@ -11,6 +11,7 @@ function requireEnv(key: string): string {
 
 const GEMINI_API_KEY = () => requireEnv('GEMINI_API_KEY');
 const DEFAULT_STORE_NAME = () => requireEnv('GEMINI_FILE_SEARCH_STORE');
+const NAMESPACE_STRATEGY = () => process.env.GEMINI_FILE_SEARCH_NAMESPACE_STRATEGY || 'metadata';
 const DEFAULT_MODEL = () => process.env.GEMINI_FILE_SEARCH_MODEL || process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
 type MetadataEntry = { key: string; value: string | number };
@@ -183,5 +184,89 @@ export async function generateFileSearchSummary(options: RagSummaryOptions) {
 
 export function getFileSearchStoreName() {
   return DEFAULT_STORE_NAME();
+}
+
+export function getUserFileSearchStoreName(userId: string) {
+  const baseStore = DEFAULT_STORE_NAME();
+  const strategy = NAMESPACE_STRATEGY();
+  if (strategy === 'store-per-user') {
+    return `${baseStore}-${userId}`;
+  }
+  return baseStore;
+}
+
+function extractMetadata(file: any, key: string) {
+  const meta = file?.customMetadata || file?.custom_metadata || [];
+  const entry = meta.find((m: any) => m.key === key);
+  return entry?.stringValue || entry?.string_value || entry?.numericValue || entry?.numeric_value;
+}
+
+async function listStoreFiles(storeName: string) {
+  const apiKey = GEMINI_API_KEY();
+  const resp = await fetch(`${API_BASE}/${storeName}/files?key=${apiKey}`);
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`Failed to list File Search files: ${text}`);
+  }
+  const data = await resp.json();
+  return data.files || [];
+}
+
+export async function listUserFiles({ storeName = DEFAULT_STORE_NAME(), userId }: { storeName?: string; userId: string }) {
+  const files = await listStoreFiles(storeName);
+  return files.filter((file: any) => extractMetadata(file, 'user_id') === userId);
+}
+
+async function deleteFileByName(name: string) {
+  const apiKey = GEMINI_API_KEY();
+  const resp = await fetch(`${API_BASE}/${name}?key=${apiKey}`, { method: 'DELETE' });
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`Failed to delete File Search document ${name}: ${text}`);
+  }
+}
+
+export async function deleteNoteFilesFromStore({ noteId, userId, storeName = DEFAULT_STORE_NAME() }: { noteId: string; userId: string; storeName?: string; }) {
+  const files = await listStoreFiles(storeName);
+  const matches = files.filter((file: any) => extractMetadata(file, 'note_id') === noteId && extractMetadata(file, 'user_id') === userId);
+  await Promise.all(matches.map((file: any) => deleteFileByName(file.name)));
+  return matches.map((file: any) => file.name);
+}
+
+export async function upsertNoteFileSearchDocument({
+  noteId,
+  userId,
+  title,
+  body,
+  storeName = DEFAULT_STORE_NAME(),
+}: {
+  noteId: string;
+  userId: string;
+  title?: string | null;
+  body: string;
+  storeName?: string;
+}) {
+  await deleteNoteFilesFromStore({ noteId, userId, storeName });
+
+  const displayName = `note-${noteId.slice(0, 8)}`;
+  const filePayload = [
+    `note_id: ${noteId}`,
+    `user_id: ${userId}`,
+    title ? `title: ${title}` : '',
+    '',
+    body,
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  return uploadTextToFileSearchStore({
+    text: filePayload,
+    displayName,
+    storeName,
+    metadata: [
+      { key: 'user_id', value: userId },
+      { key: 'note_id', value: noteId },
+    ],
+  });
 }
 import { Buffer } from 'node:buffer';

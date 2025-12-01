@@ -47,7 +47,7 @@ export function useGeneratedAnswer() {
       const token = session?.access_token;
 
       // 1. Search for similar notes
-      const searchRes = await fetch(`/api/v1?action=search&q=${encodeURIComponent(noteText)}&uid=${userId}`, {
+      const searchRes = await fetch(`/api/v1?action=search&q=${encodeURIComponent(noteText)}`, {
         headers: {
           ...(token && { Authorization: `Bearer ${token}` }),
         },

@@ -3,6 +3,7 @@ import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
 export type SearchResult = {
+  document_id: string;
   note_id: string;
   chunk_index: number;
   content: string;
@@ -28,13 +29,7 @@ export function useSearch(token: string | undefined) {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('User not found. Please log in.');
-      }
-      const userId = user.id;
-
-      const res = await fetch(`/api/v1?action=search&q=${encodeURIComponent(trimmedQuery)}&uid=${userId}&timestamp=${new Date().getTime()}`, {
+      const res = await fetch(`/api/v1?action=search&q=${encodeURIComponent(trimmedQuery)}&timestamp=${new Date().getTime()}`, {
         headers,
       });
 

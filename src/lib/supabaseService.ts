@@ -174,24 +174,48 @@ export async function deleteAllUserData(userId: string) {
 }
 
 export async function updateNote(noteId: string, newContent: { title?: string; body: string }) {
-  const { data, error } = await supabase
-    .from("notes")
-    .update({ title: newContent.title, body: newContent.body, updated_at: new Date().toISOString() })
-    .eq("id", noteId)
-    .select()
-    .single();
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  if (!token) throw new Error('Authentication required.');
 
-  if (error) throw error;
+  const resp = await fetch(`/api/v1?action=update-note&noteId=${noteId}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(newContent),
+  });
 
-  // After updating the note, recalculate its chunks and embeddings
-  await recalculateChunksAndEmbeddings(noteId, newContent.body);
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err?.error || 'Failed to update note');
+  }
 
-  return data;
+  const payload = await resp.json();
+  if (newContent.body) {
+    await recalculateChunksAndEmbeddings(noteId, newContent.body);
+  }
+
+  return payload.note;
 }
 
 export async function deleteNote(noteId: string) {
-  const { error } = await supabase.from("notes").delete().eq("id", noteId);
-  if (error) throw error;
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  if (!token) throw new Error('Authentication required.');
+
+  const resp = await fetch(`/api/v1?action=delete-note&noteId=${noteId}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err?.error || 'Failed to delete note');
+  }
 }
 
 export async function bulkAddNotes(notes: { title?: string; body: string }[], user_id: string) {

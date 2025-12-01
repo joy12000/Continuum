@@ -2,11 +2,13 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireUser } from '../auth.js';
 import { generateTitleAndTags } from '../ai.js';
 import { MAX_NOTES } from '../config.js';
+import { withFileSearchContext } from '../fileSearchContext.js';
+import { deleteNoteFilesFromStore, upsertNoteFileSearchDocument } from '../fileSearch.js';
 
 export async function handleGetNote(req: VercelRequest, res: VercelResponse) {
-  const auth = await requireUser(req, res);
+  const auth = await withFileSearchContext(req, res);
   if (!auth) return;
-  const { supabase } = auth;
+  const { supabase, userId, storeName } = auth;
   const noteId = req.query.noteId as string;
 
   if (!noteId) {
@@ -63,9 +65,9 @@ export async function handleGetNoteAttachments(req: VercelRequest, res: VercelRe
 }
 
 export async function handleUpdateNote(req: VercelRequest, res: VercelResponse) {
-  const auth = await requireUser(req, res);
+  const auth = await withFileSearchContext(req, res);
   if (!auth) return;
-  const { supabase } = auth;
+  const { supabase, userId, storeName } = auth;
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
@@ -107,7 +109,32 @@ export async function handleUpdateNote(req: VercelRequest, res: VercelResponse) 
       return res.status(500).json({ error: 'Failed to update note', detail: error.message });
     }
 
-    return res.status(200).json({ message: 'Note updated successfully', generatedData });
+    const { data: updatedNote, error: fetchError } = await supabase
+      .from('notes')
+      .select('id, title, body')
+      .eq('id', noteId)
+      .eq('user_id', userId)
+      .single();
+
+    if (fetchError) {
+      console.error('Failed to fetch updated note after update:', fetchError);
+    }
+
+    if (updatedNote?.body) {
+      try {
+        await upsertNoteFileSearchDocument({
+          noteId,
+          userId,
+          title: updatedNote.title,
+          body: updatedNote.body,
+          storeName,
+        });
+      } catch (e) {
+        console.error('Failed to sync File Search after update:', e);
+      }
+    }
+
+    return res.status(200).json({ message: 'Note updated successfully', generatedData, note: updatedNote });
   } catch (e: any) {
     return res.status(500).json({ error: 'An unexpected error occurred', detail: e.message });
   }
@@ -129,4 +156,36 @@ export async function handleGetAllNotes(req: VercelRequest, res: VercelResponse)
   }
 
   res.status(200).json({ notes: data ?? [] });
+}
+
+export async function handleDeleteNote(req: VercelRequest, res: VercelResponse) {
+  const auth = await withFileSearchContext(req, res);
+  if (!auth) return;
+  const { supabase, userId, storeName } = auth;
+
+  if (req.method !== 'POST' && req.method !== 'DELETE') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
+
+  const noteId = req.query.noteId as string;
+  if (!noteId) {
+    return res.status(400).json({ error: 'Missing noteId' });
+  }
+
+  try {
+    const { error } = await supabase.from('notes').delete().eq('id', noteId).eq('user_id', userId);
+    if (error) {
+      return res.status(500).json({ error: 'Failed to delete note', detail: error.message });
+    }
+
+    try {
+      await deleteNoteFilesFromStore({ noteId, userId, storeName });
+    } catch (e) {
+      console.error('Failed to remove File Search documents for deleted note', e);
+    }
+
+    return res.status(200).json({ message: 'Note deleted successfully' });
+  } catch (e: any) {
+    return res.status(500).json({ error: 'An unexpected error occurred', detail: e.message });
+  }
 }

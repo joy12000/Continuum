@@ -3,6 +3,8 @@ import { TaskType } from '@google/generative-ai';
 import { connectNewNote } from '../ai.js';
 import { getEmbedding } from '../generativeai.js';
 import { pickSupabase } from '../config.js';
+import { withFileSearchContext } from '../fileSearchContext.js';
+import { getUserFileSearchStoreName, getFileSearchStoreName, listUserFiles } from '../fileSearch.js';
 
 export async function handleSearch(req: VercelRequest, res: VercelResponse) {
   try {
@@ -10,14 +12,10 @@ export async function handleSearch(req: VercelRequest, res: VercelResponse) {
     const q = (rawQ ?? '').toString().trim();
     if (!q) return res.status(200).json([]);
 
-    const qUid = Array.isArray(req.query.uid) ? req.query.uid[0] : req.query.uid;
-    const hUid = (req.headers['x-user-id'] as string | undefined) || '';
-    const uid = (qUid || hUid || '').toString().trim();
-    const finalUid = uid === '' ? null : uid;
+    const auth = await withFileSearchContext(req, res);
+    if (!auth) return;
 
-    if (!finalUid) {
-      return res.status(400).json({ error: 'User ID is required for search.' });
-    }
+    const finalUid = auth.userId;
 
     const sb = pickSupabase(req);
     if (!sb) return res.status(401).json({ error: 'Authentication required.' });
@@ -33,7 +31,36 @@ export async function handleSearch(req: VercelRequest, res: VercelResponse) {
     const { data, error } = await sb.rpc('search_chunks', args);
 
     if (error) return res.status(500).json({ error: `[supabase] ${error.message}` });
-    return res.status(200).json(data || []);
+
+    const results = data || [];
+
+    let docMap: Record<string, string> = {};
+    try {
+      const storeName = auth.storeName || getUserFileSearchStoreName(finalUid) || getFileSearchStoreName();
+      const files = await listUserFiles({ storeName, userId: finalUid });
+      if (Array.isArray(files)) {
+        docMap = files.reduce((acc: Record<string, string>, file: any) => {
+          const meta = file?.customMetadata || file?.custom_metadata || [];
+          const noteIdMeta = meta.find((m: any) => m.key === 'note_id');
+          const userIdMeta = meta.find((m: any) => m.key === 'user_id');
+          const noteId = noteIdMeta?.stringValue || noteIdMeta?.string_value;
+          const userId = userIdMeta?.stringValue || userIdMeta?.string_value;
+          if (noteId && userId === finalUid && file.name) {
+            acc[noteId] = file.name;
+          }
+          return acc;
+        }, {});
+      }
+    } catch (e) {
+      console.warn('Failed to map File Search documents to notes:', e);
+    }
+
+    const mapped = results.map((row: any) => ({
+      ...row,
+      document_id: docMap[row.note_id] || row.note_id,
+    }));
+
+    return res.status(200).json(mapped);
   } catch (e: any) {
     const msg = e?.message || 'v1 failed';
     const tag = /^\^\[(supabase|google|openai|config)\]/.test(msg) ? '' : '[unknown] ';
