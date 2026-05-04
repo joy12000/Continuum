@@ -5,6 +5,6 @@ build/
 /dist
 
 *.log
-.env
+.env*
 .DS_Store
 node_modules/
