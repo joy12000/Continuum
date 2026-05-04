@@ -1,218 +1,262 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+'use client';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '../lib/supabase';
-import ConfirmModal from '../components/ConfirmModal';
-import { toast } from 'react-hot-toast';
-import { ArrowDownOnSquareIcon, ArrowLeftOnRectangleIcon, CodeBracketIcon, ExclamationTriangleIcon, TrashIcon } from '@heroicons/react/24/outline';
-import { SettingsCard } from '../components/SettingsCard';
-import SkyCanvasAnimation from '../components/SkyCanvasAnimation';
 import PageLayout from '../components/PageLayout';
-import { usePWAInstall } from '../hooks/usePWAInstall';
+import toast from 'react-hot-toast';
 
-const Settings: React.FC = () => {
-  const { canInstall, triggerInstall } = usePWAInstall();
-  const navigate = useNavigate();
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [confirmText, setConfirmText] = useState("");
-  const [name, setName] = useState("");
-  const [gender, setGender] = useState("");
-  const [age, setAge] = useState("");
-  const videoRef = useRef<HTMLVideoElement>(null);
+const SettingsCard: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
+  <div className="bg-white rounded-[12px] p-6 border border-[#e5e8eb] shadow-[0_1px_3px_rgba(25,31,40,0.04)] mb-6">
+    <h2 className="text-[17px] font-semibold mb-6 text-[#191f28]" style={{ fontFamily: `'Pretendard Variable', sans-serif` }}>
+      {title}
+    </h2>
+    {children}
+  </div>
+);
 
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const handleEnded = () => {
-      video.playbackRate = -1;
-      video.play();
-    };
-
-    const handleTimeUpdate = () => {
-      if (video.playbackRate < 0 && video.currentTime < 0.1) {
-        video.playbackRate = 1;
-        video.play();
-      }
-    };
-    
-    video.addEventListener('ended', handleEnded);
-    video.addEventListener('timeupdate', handleTimeUpdate);
-
-    return () => {
-      video.removeEventListener('ended', handleEnded);
-      video.removeEventListener('timeupdate', handleTimeUpdate);
-    };
-  }, []);
+const Settings = () => {
+  const router = useRouter();
+  const [name, setName] = useState('');
+  const [gender, setGender] = useState('');
+  const [age, setAge] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setName(user.user_metadata.full_name || "");
-        setGender(user.user_metadata.gender || "");
-        setAge(user.user_metadata.age || "");
+    async function getProfile() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          router.push('/login');
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('full_name, gender, age_range, avatar_url')
+          .eq('id', session.user.id)
+          .single();
+
+        if (error && error.code !== 'PGRST116') throw error;
+        if (data) {
+          setName(data.full_name || '');
+          setGender(data.gender || '');
+          setAge(data.age_range || '');
+          setAvatarUrl(data.avatar_url || null);
+        }
+      } catch (error: any) {
+        toast.error('프로필 정보를 불러오는 데 실패했습니다.');
+      } finally {
+        setLoading(false);
       }
-    };
-    fetchProfile();
-  }, []);
+    }
+
+    getProfile();
+  }, [router]);
+
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      setIsUploading(true);
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('No session');
+
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${session.user.id}/avatar.${fileExt}`;
+
+      // 1. Upload the file (upsert: true will overwrite if it exists)
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // 2. Get the public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      // 3. Update the profile with the new URL (add a timestamp to bust cache)
+      const urlWithTimestamp = `${publicUrl}?t=${Date.now()}`;
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: urlWithTimestamp })
+        .eq('id', session.user.id);
+
+      if (updateError) throw updateError;
+
+      setAvatarUrl(urlWithTimestamp);
+      toast.success('프로필 이미지가 변경되었습니다.');
+    } catch (error: any) {
+      console.error(error);
+      toast.error('이미지 업로드에 실패했습니다.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('No session');
+
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({
+          id: session.user.id,
+          full_name: name,
+          gender,
+          age_range: age,
+          updated_at: new Date().toISOString(),
+        });
+
+      if (error) throw error;
+      toast.success('설정이 저장되었습니다.');
+    } catch (error: any) {
+      toast.error('설정 저장에 실패했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    navigate('/login');
+    router.push('/login');
   };
 
-  const handleDeleteAllNotes = async () => {
-    if (confirmText !== "delete all my notes") {
-      toast.error('정확하게 입력해주세요.');
-      return;
-    }
-
-    try {
-      const { error } = await supabase.rpc('delete_all_my_notes');
-      if (error) throw error;
-      toast.success('모든 노트가 삭제되었습니다.');
-      setShowDeleteConfirm(false);
-      setConfirmText("");
-      navigate('/');
-    } catch (error: any) {
-      toast.error(`노트 삭제 실패: ${error.message}`);
-    }
-  };
-
-  const handleProfileUpdate = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { error } = await supabase.auth.updateUser({
-        data: {
-          full_name: name,
-          gender,
-          age,
-        }
-      });
-      if (error) {
-        toast.error("프로필 업데이트에 실패했습니다.");
-      } else {
-        toast.success("프로필이 업데이트되었습니다.");
-      }
-    }
-  };
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen bg-[#f9fafb] text-[#6b7684]" style={{ fontFamily: `'Pretendard Variable', sans-serif` }}>
+        정보를 불러오고 있습니다..
+      </div>
+    );
+  }
 
   return (
-    <PageLayout title="설정" transparent>
-      <SkyCanvasAnimation />
-      <div className="relative z-10">
-        <div className="text-center mb-6 pt-4">
-          <video
-            ref={videoRef}
-            src="/AIiconmotion.mp4"
-            autoPlay
-            muted
-            playsInline
-            className="w-24 h-24 mx-auto mb-4 rounded-full shadow-[0_0_16px_rgba(255,255,220,0.35)] object-cover"
-            aria-label="Momentum Logo"
-          ></video>
-          <h1 className="text-3xl font-bold text-gray-200">Momentum</h1>
-        </div>
-        <div className="space-y-8">
+    <PageLayout title="설정">
+      <div className="min-h-screen bg-[#f9fafb] pt-8 pb-20 px-4">
+        {/* Mobile-first constraints: 480px max width centered */}
+        <div className="max-w-[480px] mx-auto space-y-6">
+          <div className="text-left mb-8 px-2">
+            <h1 className="text-3xl font-bold text-[#191f28] tracking-[-0.01em]" style={{ fontFamily: `'Pretendard Variable', sans-serif` }}>
+              설정
+            </h1>
+          </div>
+
           <SettingsCard title="프로필">
-            <div className="space-y-4 p-4 bg-gray-800/50 rounded-lg max-w-sm mx-auto">
-              <h3 className="text-lg font-semibold text-sky-300 mb-4">내 정보</h3>
-              <div className="flex flex-col space-y-2">
-                <label htmlFor="profile-name" className="text-sm text-gray-400">이름</label>
-                <input id="profile-name" type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full p-2 bg-gray-900 border border-gray-700 rounded-xl focus:ring-sky-500 focus:border-sky-500 transition-colors text-white" />
+            <div className="flex flex-col items-center mb-8">
+              <div className="relative group">
+                <div className="w-24 h-24 rounded-full bg-[#f2f4f6] overflow-hidden flex items-center justify-center border-2 border-white shadow-sm">
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="text-[32px] text-[#8b95a1] font-bold">
+                      {name ? name[0] : '?'}
+                    </div>
+                  )}
+                  {isUploading && (
+                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                      <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  )}
+                </div>
+                <label className="absolute bottom-0 right-0 w-8 h-8 bg-[#3182f6] rounded-full flex items-center justify-center cursor-pointer shadow-md hover:bg-[#1b64da] transition-all">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                    <circle cx="12" cy="13" r="4" />
+                  </svg>
+                  <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} disabled={isUploading} />
+                </label>
               </div>
+              <p className="mt-3 text-[13px] text-[#8b95a1]">이미지를 터치하여 변경</p>
+            </div>
+
+            <div className="space-y-6">
               <div className="flex flex-col space-y-2">
-                <label htmlFor="profile-gender" className="text-sm text-gray-400">성별</label>
-                <select id="profile-gender" value={gender} onChange={(e) => setGender(e.target.value)} className="w-full p-2 bg-gray-900 border border-gray-700 rounded-xl focus:ring-sky-500 focus:border-sky-500 transition-colors text-white">
-                  <option value="">선택 안 함</option>
+                <label htmlFor="profile-name" className="text-[14px] font-medium text-[#6b7684] ml-1" style={{ fontFamily: `'Pretendard Variable', sans-serif` }}>
+                  이름
+                </label>
+                <input 
+                  id="profile-name" 
+                  type="text" 
+                  value={name} 
+                  onChange={(e) => setName(e.target.value)} 
+                  placeholder="이름을 입력하세요"
+                  className="w-full p-[16px_20px] bg-[#f2f4f6] border-none rounded-[12px] text-[#191f28] placeholder-[#8b95a1] focus:ring-2 focus:ring-[#3182f6] outline-none transition-all"
+                  style={{ fontFamily: `'Pretendard Variable', sans-serif` }}
+                />
+              </div>
+
+              <div className="flex flex-col space-y-2">
+                <label htmlFor="profile-gender" className="text-[14px] font-medium text-[#6b7684] ml-1" style={{ fontFamily: `'Pretendard Variable', sans-serif` }}>
+                  성별
+                </label>
+                <select 
+                  id="profile-gender" 
+                  value={gender} 
+                  onChange={(e) => setGender(e.target.value)} 
+                  className="w-full p-[16px_20px] bg-[#f2f4f6] border-none rounded-[12px] text-[#191f28] focus:ring-2 focus:ring-[#3182f6] outline-none transition-all appearance-none cursor-pointer"
+                  style={{ fontFamily: `'Pretendard Variable', sans-serif` }}
+                >
+                  <option value="">선택 안함</option>
                   <option value="male">남성</option>
                   <option value="female">여성</option>
                 </select>
               </div>
+
               <div className="flex flex-col space-y-2">
-                <label htmlFor="profile-age" className="text-sm text-gray-400">나이</label>
-                <select id="profile-age" value={age} onChange={(e) => setAge(e.target.value)} className="w-full p-2 bg-gray-900 border border-gray-700 rounded-xl focus:ring-sky-500 focus:border-sky-500 transition-colors text-white">
-                  <option value="">선택 안 함</option>
+                <label htmlFor="profile-age" className="text-[14px] font-medium text-[#6b7684] ml-1" style={{ fontFamily: `'Pretendard Variable', sans-serif` }}>
+                  나이
+                </label>
+                <select 
+                  id="profile-age" 
+                  value={age} 
+                  onChange={(e) => setAge(e.target.value)} 
+                  className="w-full p-[16px_20px] bg-[#f2f4f6] border-none rounded-[12px] text-[#191f28] focus:ring-2 focus:ring-[#3182f6] outline-none transition-all appearance-none cursor-pointer"
+                  style={{ fontFamily: `'Pretendard Variable', sans-serif` }}
+                >
+                  <option value="">선택 안함</option>
                   <option value="10s">10대</option>
                   <option value="20s">20대</option>
                   <option value="30s">30대</option>
                   <option value="40s">40대</option>
-                  <option value="50s">50대</option>
-                  <option value="60s_plus">60대 이상</option>
+                  <option value="50s">50대 이상</option>
                 </select>
               </div>
-              <button onClick={handleProfileUpdate} className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-lg transition-colors mt-4">
-                프로필 저장
-              </button>
-            </div>
-          </SettingsCard>
 
-          <SettingsCard title="개발자">
-            <button onClick={() => navigate('/developer')} className="w-full flex items-center justify-between p-4 bg-black/20 rounded-lg hover:bg-black/30 transition-colors">
-              <span>개발자 페이지</span>
-              <CodeBracketIcon className="w-6 h-6" />
-            </button>
-          </SettingsCard>
-
-          <SettingsCard title="앱 설치">
-            <button
-              onClick={canInstall ? triggerInstall : undefined}
-              disabled={!canInstall}
-              className="w-full flex items-center justify-between p-4 bg-black/20 rounded-lg hover:bg-black/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <span>{canInstall ? "앱 설치" : "앱이 이미 설치되었거나 설치할 수 없습니다"}</span>
-              <ArrowDownOnSquareIcon className="w-6 h-6" />
-            </button>
-          </SettingsCard>
-
-          <SettingsCard title="계정">
-            <button onClick={handleLogout} className="w-full flex items-center justify-between p-4 bg-black/20 rounded-lg hover:bg-black/30 transition-colors">
-              <span>로그아웃</span>
-              <ArrowLeftOnRectangleIcon className="w-6 h-6" />
-            </button>
-          </SettingsCard>
-
-          <SettingsCard title="위험 구역" titleClassName="text-red-400">
-            <div className="p-4 border border-red-500/50 rounded-lg bg-red-500/10">
-              <div className="flex items-start">
-                <ExclamationTriangleIcon className="w-8 h-8 text-red-400 mr-4 flex-shrink-0" />
-                <div>
-                  <h2 className="text-lg font-bold text-red-200">모든 노트 삭제</h2>
-                  <p className="text-sm text-red-300/80 mt-1 mb-4">
-                    이 작업은 되돌릴 수 없습니다. 신중하게 진행해주세요.
-                  </p>
-                </div>
-              </div>
               <button 
-                onClick={() => setShowDeleteConfirm(true)} 
-                className="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+                onClick={handleSave} 
+                disabled={isSaving} 
+                className="w-full mt-4 py-[14px] bg-[#3182f6] hover:bg-[#1b64da] disabled:bg-[#d1d6db] text-white rounded-[7px] font-semibold transition-all active:scale-[0.98]"
+                style={{ fontFamily: `'Pretendard Variable', sans-serif` }}
               >
-                <TrashIcon className="w-5 h-5" />
-                <span>모든 노트 삭제...</span>
+                {isSaving ? '저장 중..' : '설정 저장하기'}
               </button>
             </div>
           </SettingsCard>
+
+          <SettingsCard title="계정 관리">
+            <button
+              onClick={handleLogout}
+              className="w-full p-[16px] bg-[#f04452]/10 text-[#f04452] rounded-[12px] hover:bg-[#f04452]/20 transition-all font-semibold active:scale-[0.98]"
+              style={{ fontFamily: `'Pretendard Variable', sans-serif` }}
+            >
+              로그아웃
+            </button>
+          </SettingsCard>
+
+          <div className="px-4 py-8 text-center">
+            <div className="text-[13px] text-[#8b95a1]" style={{ fontFamily: `'Pretendard Variable', sans-serif` }}>
+              앱 버전 v1.2.0-next
+            </div>
+          </div>
         </div>
       </div>
-
-      {showDeleteConfirm && (
-        <ConfirmModal
-          title="정말로 모든 노트를 삭제하시겠습니까?"
-          onClose={() => setShowDeleteConfirm(false)}
-          onConfirm={handleDeleteAllNotes}
-        >
-          <p className="text-sm text-gray-300 mb-4">
-            이 작업은 되돌릴 수 없으며 모든 노트와 관련 데이터를 영구적으로 삭제합니다. 계속하려면 아래에 "<strong className='text-red-400'>delete all my notes</strong>"를 입력하세요.
-          </p>
-          <input 
-            type="text"
-            value={confirmText}
-            onChange={(e) => setConfirmText(e.target.value)}
-            className="w-full p-2 bg-gray-900 border border-gray-700 rounded-md focus:ring-red-500 focus:border-red-500 transition-colors text-white"
-            placeholder='delete all my notes'
-          />
-        </ConfirmModal>
-      )}
     </PageLayout>
   );
 };

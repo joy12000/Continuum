@@ -2,6 +2,8 @@ import { supabase } from "./supabase";
 import { db } from "../store/db";
 import { toSentences } from "./rag/chunker";
 
+export const CHAT_HISTORY_MARKER = '--- 대화 원문 ---';
+
 async function generateEmbeddings(chunks: string[]): Promise<number[][]> {
   const resp = await fetch("/api/v1?action=create-gemini-embedding", {
     method: "POST",
@@ -48,6 +50,10 @@ export async function addNoteAndChunks(note: { title?: string; body: string; use
   if (noteError) throw noteError;
   if (!noteData) throw new Error("Failed to insert note");
 
+  // Determine what content to chunk for embeddings
+  // If the body contains the chat history marker, only chunk the content BEFORE it
+  const bodyForEmbedding = note.body.split(CHAT_HISTORY_MARKER)[0];
+
   // Add to local DB as well for caching
   await db.notes.put({
     id: noteData.id,
@@ -58,13 +64,14 @@ export async function addNoteAndChunks(note: { title?: string; body: string; use
     tags: [],
   });
 
-  const chunks = chunkBySentence(note.body, 512, 50).filter(c => c.trim().length > 0);
+  const chunks = chunkBySentence(bodyForEmbedding, 512, 50).filter(c => c.trim().length > 0);
 
   if (chunks.length === 0) {
     return noteData;
   }
 
-  const embeddings = await generateEmbeddings(chunks);
+  const formattedChunks = chunks.map(c => `title: ${note.title || 'none'} | text: ${c}`);
+  const embeddings = await generateEmbeddings(formattedChunks);
 
   const rows = chunks.map((content, i) => ({
     note_id: noteData.id,
@@ -84,16 +91,18 @@ export async function addNoteAndChunks(note: { title?: string; body: string; use
   return noteData;
 }
 
-export async function recalculateChunksAndEmbeddings(noteId: string, newBody: string) {
+export async function recalculateChunksAndEmbeddings(noteId: string, title: string | undefined, newBody: string) {
   // 1. Delete old chunks
   const { error: deleteError } = await supabase.from("note_chunks").delete().eq("note_id", noteId);
   if (deleteError) throw deleteError;
 
   // 2. Create new chunks and embeddings
-  const chunks = chunkBySentence(newBody, 512, 50).filter(c => c.trim().length > 0);
+  const bodyForEmbedding = newBody.split(CHAT_HISTORY_MARKER)[0];
+  const chunks = chunkBySentence(bodyForEmbedding, 512, 50).filter(c => c.trim().length > 0);
   if (chunks.length === 0) return; // Nothing to do
 
-  const embeddings = await generateEmbeddings(chunks);
+  const formattedChunks = chunks.map(c => `title: ${title || 'none'} | text: ${c}`);
+  const embeddings = await generateEmbeddings(formattedChunks);
 
   // 3. Insert new chunks
   const rows = chunks.map((content, i) => ({
@@ -138,7 +147,8 @@ export async function getNotesByIds(noteIds: string[]) {
 }
 
 export async function searchChunks(query: string, userId: string) {
-  const [q] = await generateEmbeddings([query]);
+  const formattedQuery = `task: search result | query: ${query}`;
+  const [q] = await generateEmbeddings([formattedQuery]);
   const { data, error } = await supabase.rpc("search_chunks", {
     q_emb: q,
     uid: userId,
@@ -184,7 +194,7 @@ export async function updateNote(noteId: string, newContent: { title?: string; b
   if (error) throw error;
 
   // After updating the note, recalculate its chunks and embeddings
-  await recalculateChunksAndEmbeddings(noteId, newContent.body);
+  await recalculateChunksAndEmbeddings(noteId, newContent.title, newContent.body);
 
   return data;
 }

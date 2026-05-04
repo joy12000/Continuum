@@ -1,8 +1,8 @@
 import React from 'react';
 /**
  * AnswerCardsModal
- * - 그냥 그 자리에서 기존 AnswerCard/GeneratedAnswer 컴포넌트를 children으로 렌더합니다.
- * - 접근성: role="dialog", aria-modal, 포커스 트랩, ESC 닫기
+ * - 域밸챶源?域??癒?봺?癒?퐣 疫꿸퀣??AnswerCard/GeneratedAnswer ?뚮똾猷??곕뱜??children??곗쨮 ???쐭??몃빍??
+ * - ?臾롫젏?? role="dialog", aria-modal, ??鍮???紐껋삫, ESC ??る┛
  */
 export default function AnswerCardsModal({ open, onClose, children }: {
     open: boolean;

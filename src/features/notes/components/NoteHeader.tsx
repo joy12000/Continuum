@@ -1,3 +1,4 @@
+'use client';
 import React from 'react';
 import { ArrowLeftIcon, CheckIcon, XMarkIcon, PencilIcon } from '@heroicons/react/24/outline';
 

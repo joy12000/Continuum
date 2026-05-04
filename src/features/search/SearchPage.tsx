@@ -1,3 +1,4 @@
+'use client';
 import React, { useState, useCallback } from 'react';
 import { SearchBar } from '../../components/SearchBar';
 import PageLayout from '../../components/PageLayout';
@@ -50,16 +51,16 @@ const SearchPage = () => {
     }, [results, searchQuery, generateAnswer]);
 
     const GeneratedAnswerCard = () => (
-        <div className="bg-slate-900/60 backdrop-blur-lg border border-slate-700/50 rounded-lg p-4 shadow-lg">
-            {isAnswerLoading && <div className="p-4 text-center text-muted-foreground">답변 생성 중...</div>}
-            {answerError && <div className="p-4 text-center text-destructive">오류: {answerError.message}</div>}
+        <div className="bg-card border border-border rounded-[20px] p-6 shadow-[0_1px_3px_rgba(25,31,40,0.04)]">
+            {isAnswerLoading && <div className="p-4 text-center text-muted font-medium">AI 답변 생성 중...</div>}
+            {answerError && <div className="p-4 text-center text-destructive font-medium">오류 발생: {answerError.message}</div>}
             {answerData && <GeneratedAnswer data={answerData} noteTitlesMap={noteTitlesMap} onNoteClick={handleNoteClick} />}
         </div>
     );
 
     return (
-        <PageLayout title="노트 검색" hideBackButton={true}>
-            <SkyCanvasAnimation />
+        <PageLayout title="노트 검색" hideBackButton={true} hideMoon={true}>
+            {/* <SkyCanvasAnimation /> */}
             <div className="relative z-10">
                 <SearchBar
                     q={query}
@@ -71,41 +72,40 @@ const SearchPage = () => {
                     suggestionError={null}
                     isModelReady={true}
                     modelStatus="Ready"
-                    className="bg-slate-900/60 backdrop-blur-lg border border-slate-700/50 text-primary placeholder-muted-foreground focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/80"
+                    className=""
                 />
-                <div className="mt-6">
+                <div className="mt-8">
                     {searchQuery.trim() !== '' ? (
                         <>
                             {/* Mobile layout: Generated answer first */}
                             <div className="lg:hidden">
                                 {(answerData || isAnswerLoading || answerError) && (
-                                    <div className="mb-6">
-                                        <h2 className="text-xl font-semibold mb-4">생성된 답변</h2>
+                                    <div className="mb-8">
+                                        <h2 className="text-[20px] font-bold mb-4 tracking-tight text-foreground">생성된 답변</h2>
                                         <GeneratedAnswerCard />
                                     </div>
                                 )}
                                 <div>
-                                    <h2 className="text-xl font-semibold mb-4">검색 결과</h2>
+                                    <h2 className="text-[20px] font-bold mb-4 tracking-tight text-foreground">검색 결과</h2>
                                     <SearchResultsList results={results || []} loading={isSearchLoading} noteTitlesMap={noteTitlesMap} query={searchQuery} onNoteClick={handleNoteClick} />
                                 </div>
                             </div>
 
-                            {/* Desktop layout: Two columns */}
                             <div className="hidden lg:grid lg:grid-cols-3 lg:gap-8">
                                 <div className="lg:col-span-2">
-                                    <h2 className="text-xl font-semibold mb-4">검색 결과</h2>
+                                    <h2 className="text-[20px] font-bold mb-4 tracking-tight text-foreground">검색 결과</h2>
                                     <SearchResultsList results={results || []} loading={isSearchLoading} noteTitlesMap={noteTitlesMap} query={searchQuery} onNoteClick={handleNoteClick} />
                                 </div>
                                 <div className="lg:col-span-1">
-                                    <h2 className="text-xl font-semibold mb-4">생성된 답변</h2>
+                                    <h2 className="text-[20px] font-bold mb-4 tracking-tight text-foreground">생성된 답변</h2>
                                     <GeneratedAnswerCard />
                                 </div>
                             </div>
                         </>
                     ) : (
-                        <div className="text-center p-12 text-muted-foreground">
-                            <h2 className="text-2xl font-semibold mb-2">무엇이든 물어보세요.</h2>
-                            <p>당신의 기억 속에서 답을 찾아드립니다.</p>
+                        <div className="text-center p-12 text-secondary-text mt-12">
+                            <h2 className="text-[24px] font-bold mb-3 tracking-tight text-foreground">무엇을 찾으시나요?</h2>
+                            <p className="font-medium">과거의 기록에서 새로운 조각을 발견할 수 있습니다.</p>
                         </div>
                     )}
                 </div>

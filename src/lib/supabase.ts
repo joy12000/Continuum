@@ -1,19 +1,15 @@
-// PATCH: Vite/Browser-safe Supabase client (works on Vercel too)
 import { createClient } from "@supabase/supabase-js";
 
-const fromProcess = (typeof process !== "undefined" && process.env) ? process.env : undefined;
-
-const supabaseUrl =
-  (fromProcess && (fromProcess.NEXT_PUBLIC_SUPABASE_URL as string | undefined)) ||
-  ((import.meta as any)?.env?.VITE_SUPABASE_URL as string | undefined);
-
-const supabaseAnonKey =
-  (fromProcess && (fromProcess.NEXT_PUBLIC_SUPABASE_ANON_KEY as string | undefined)) ||
-  ((import.meta as any)?.env?.VITE_SUPABASE_ANON_KEY as string | undefined);
+// Standard Next.js environment variable access
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  // Avoid hard crash in production; still visible in console
-  console.error("[supabase] Missing env: VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY (or NEXT_PUBLIC_*)");
+  // Visible in development/console but avoids hard crash if possible during build/initialization
+  console.error("[supabase] Missing env: NEXT_PUBLIC_SUPABASE_URL and/or NEXT_PUBLIC_SUPABASE_ANON_KEY");
 }
 
-export const supabase = createClient(supabaseUrl!, supabaseAnonKey!);
+export const supabase = createClient(
+  supabaseUrl || "https://placeholder-url.supabase.co", 
+  supabaseAnonKey || "placeholder-key"
+);

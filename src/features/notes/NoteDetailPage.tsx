@@ -1,5 +1,6 @@
+'use client';
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useRouter } from 'next/navigation';
 import PageLayout from '../../components/PageLayout';
 import { ArrowPathIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { LinkEditorModal } from '../../components/LinkEditorModal';
@@ -11,8 +12,9 @@ import { NoteBody } from './components/NoteBody';
 import { NoteSidebar } from './components/NoteSidebar';
 
 const NoteDetailPage = () => {
-    const { noteId } = useParams<{ noteId: string }>();
-    const navigate = useNavigate();
+    const params = useParams();
+    const noteId = params?.noteId as string;
+    const router = useRouter();
 
     const [isEditing, setIsEditing] = useState(false);
     const [isLinkEditorOpen, setIsLinkEditorOpen] = useState(false);
@@ -56,7 +58,7 @@ const NoteDetailPage = () => {
 
     if (isLoading) {
         return (
-            <PageLayout title="로딩 중...">
+            <PageLayout title="濡쒕뵫 以?..">
                 <div className="flex justify-center items-center h-full">
                     <ArrowPathIcon className="w-12 h-12 animate-spin text-accent" />
                 </div>
@@ -66,7 +68,7 @@ const NoteDetailPage = () => {
 
     if (error) {
         return (
-            <PageLayout title="오류">
+            <PageLayout title="?ㅻ쪟">
                 <div className="flex flex-col justify-center items-center h-full text-destructive">
                     <ExclamationTriangleIcon className="w-12 h-12" />
                     <p className="mt-4 text-xl">{error.message}</p>
@@ -77,17 +79,17 @@ const NoteDetailPage = () => {
 
     if (!note) {
         return (
-            <PageLayout title="오류">
+            <PageLayout title="?ㅻ쪟">
                 <div className="flex flex-col justify-center items-center h-full text-destructive">
                     <ExclamationTriangleIcon className="w-12 h-12" />
-                    <p className="mt-4 text-xl">노트를 찾을 수 없습니다.</p>
+                    <p className="mt-4 text-xl">?명듃瑜?李얠쓣 ???놁뒿?덈떎.</p>
                 </div>
             </PageLayout>
         );
     }
 
     return (
-        <PageLayout title={isEditing ? '노트 수정' : ''}>
+        <PageLayout title={isEditing ? '?명듃 ?섏젙' : ''}>
             <div className="p-2 sm:p-4">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                     <main className="lg:col-span-2 bg-card border border-border rounded-lg p-4 shadow-lg">
@@ -96,7 +98,7 @@ const NoteDetailPage = () => {
                             title={note.title || ''}
                             editTitle={editTitle}
                             onEditTitleChange={setEditTitle}
-                            onBack={() => navigate(-1)}
+                            onBack={() => router.back()}
                             onEdit={() => setIsEditing(true)}
                             onSave={handleSave}
                             onCancel={() => setIsEditing(false)}

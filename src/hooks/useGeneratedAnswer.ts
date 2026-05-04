@@ -1,17 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { addNoteAndChunks, getNotesByIds } from '../lib/supabaseService';
+import { addNoteAndChunks, getNotesByIds, CHAT_HISTORY_MARKER } from '../lib/supabaseService';
 import { AnswerData, Note } from '../types/common';
 import { CHAT_BUNDLE_EVENT } from '../lib/events';
+import { useAnswerStore } from '../store/answerStore';
 
 export function useGeneratedAnswer() {
-  const [answerOpen, setAnswerOpen] = useState(false);
-  const [answerSignal, setAnswerSignal] = useState(0);
-  const [generatedAnswer, setGeneratedAnswer] = useState<{ data: AnswerData | null; isLoading: boolean; error: string | null }>({
-    data: null,
-    isLoading: false,
-    error: null,
-  });
+  const {
+    openAnswer,
+    setAnswer,
+    setLoading,
+    setError,
+    incrementSignal
+  } = useAnswerStore();
 
   useEffect(() => {
     const handleSave = async (e: Event) => {
@@ -19,16 +20,45 @@ export function useGeneratedAnswer() {
       if (!detail || !detail.text) return;
 
       const { data: { user } } = await supabase.auth.getUser();
+      const { data: sessionData } = await supabase.auth.getSession();
       if (!user) {
         console.error("User not logged in, cannot save note.");
         return;
       }
 
       try {
-        await addNoteAndChunks({ title: detail.text.slice(0, 50), body: detail.text, user_id: user.id });
+        let noteTitle = detail.text.slice(0, 50);
+        let noteBody = detail.text;
+
+        // Attempt to summarize the conversation if it contains multiple messages
+        if (detail.text.includes('User: ') || detail.text.includes('Momentum: ')) {
+          try {
+            const token = sessionData.session?.access_token;
+            const summarizeRes = await fetch('/api/v1?action=summarize-conversation', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token && { Authorization: `Bearer ${token}` }),
+              },
+              body: JSON.stringify({ text: detail.text })
+            });
+
+            if (summarizeRes.ok) {
+              const summaryData = await summarizeRes.json();
+              if (summaryData.title && summaryData.summary) {
+                noteTitle = summaryData.title;
+                noteBody = summaryData.summary + '\n\n' + CHAT_HISTORY_MARKER + '\n\n' + detail.text; 
+              }
+            }
+          } catch (sumErr) {
+            console.error("Failed to summarize conversation, saving raw text:", sumErr);
+          }
+        }
+
+        await addNoteAndChunks({ title: noteTitle, body: noteBody, user_id: user.id });
         // Add a 2-second delay to allow the database index to update
         setTimeout(() => {
-          generateSummaryAfterSave(detail.text, user.id);
+          generateSummaryAfterSave(noteBody, user.id);
         }, 2000);
       } catch (error) {
         console.error("Failed to save note from HomeSky:", error);
@@ -41,7 +71,8 @@ export function useGeneratedAnswer() {
 
   async function generateSummaryAfterSave(noteText: string, userId: string) {
     try {
-      setGeneratedAnswer({ data: null, isLoading: true, error: null });
+      setLoading(true);
+      setError(null);
   
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
@@ -58,8 +89,9 @@ export function useGeneratedAnswer() {
       // 2. Get top 3 unique note IDs from chunks
       const uniqueNoteIds = [...new Set(similarChunks.map((c: any) => c.note_id))] as string[];
       if (uniqueNoteIds.length === 0) {
-        setGeneratedAnswer({ data: null, isLoading: false, error: "유사한 노트를 찾지 못했습니다." });
-        setAnswerOpen(true); // Open the modal to show this message
+        setLoading(false);
+        setError("연결된 다른 노트를 찾지 못했습니다.");
+        openAnswer();
         return;
       }
       
@@ -91,22 +123,39 @@ export function useGeneratedAnswer() {
         if (done) break;
         fullAnswer += decoder.decode(value, { stream: true });
       }
+      
+      let parsedAnswer = fullAnswer;
+      try {
+        const json = JSON.parse(fullAnswer);
+        if (json.data && json.data.summary) {
+          parsedAnswer = json.data.summary;
+        } else if (json.summary) {
+          parsedAnswer = json.summary;
+        }
+      } catch (e) {
+        // If it's not valid JSON, just fallback to using the raw text
+        console.warn("Could not parse response as JSON, using raw text", e);
+      }
   
       const finalAnswerData: AnswerData = {
-        answerSegments: [{ sentence: fullAnswer, sourceNoteId: '' }], // Simplified for now
+        answerSegments: [{ sentence: parsedAnswer, sourceNoteId: '' }], // Simplified for now
         sourceNotes: contextNotes.map((n: Note) => n.id),
       };
   
-      setGeneratedAnswer({ data: finalAnswerData, isLoading: false, error: null });
-      setAnswerSignal(s => s + 1);
-      setAnswerOpen(true); // Open the modal to show the result
+      // Build titles map
+      const titlesMap: Record<string, string> = {};
+      contextNotes.forEach((n: Note) => {
+        titlesMap[n.id] = n.title || '제목 없는 메모';
+      });
+
+      setAnswer(finalAnswerData, titlesMap);
+      incrementSignal();
+      openAnswer();
   
     } catch (error) {
       console.error("Failed to generate summary after save:", error);
-      setGeneratedAnswer({ data: null, isLoading: false, error: (error as Error).message });
-      setAnswerOpen(true); // Open the modal to show the error
+      setError((error as Error).message);
+      openAnswer();
     }
   }
-
-  return { answerOpen, setAnswerOpen, generatedAnswer, answerSignal };
 }

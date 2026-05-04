@@ -1,3 +1,4 @@
+'use client';
 import { useMemo, useRef, useState } from "react";
 import { AnswerCard } from "./AnswerCard";
 import { GeneratedAnswer } from "./GeneratedAnswer";
@@ -114,11 +115,11 @@ export function AskPanel({ engine, setQuery, notes }: { engine: "auto" | "remote
         </div>
         <div className="flex items-center space-x-4 text-sm mt-2">
           <label className="label cursor-pointer flex-1">
-            <span className="label-text">의미론적 가중치: {alpha.toFixed(2)}</span>
+            <span className="label-text">의미적 유사성: {alpha.toFixed(2)}</span>
             <input type="range" min={0} max={1} step={0.05} value={alpha} onChange={(e) => setAlpha(parseFloat(e.target.value))} className="range range-xs" />
           </label>
           <label className="label cursor-pointer flex-1">
-            <span className="label-text">MMR λ: {lambda.toFixed(2)}</span>
+            <span className="label-text">MMR 다양성: {lambda.toFixed(2)}</span>
             <input type="range" min={0} max={1} step={0.05} value={lambda} onChange={(e) => setLambda(parseFloat(e.target.value))} className="range range-xs" />
           </label>
         </div>

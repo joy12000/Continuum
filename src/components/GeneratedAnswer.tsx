@@ -1,3 +1,4 @@
+'use client';
 import React from 'react';
 import { AnswerData } from '../types/common';
 
@@ -24,10 +25,10 @@ export function GeneratedAnswer({ data, noteTitlesMap, onNoteClick }: GeneratedA
 
   return (
     <div className="bg-slate-800/50 dark:bg-slate-900/50 backdrop-blur-lg border border-slate-700/50 rounded-2xl p-5 shadow-lg animate-fadeIn">
-      <h3 className="text-xl font-bold text-white/90 mb-4">AI 요약</h3>
+      <h3 className="text-xl font-bold text-white/90 mb-4">AI 답변</h3>
       
       <div className="text-sky-50/90 text-base leading-relaxed space-y-3">
-        <p>
+        <div className="whitespace-pre-wrap">
           {data.answerSegments.map((segment, index) => {
             const sourceNumber = sourceIdToNumberMap.get(segment.sourceNoteId);
             return (
@@ -37,7 +38,7 @@ export function GeneratedAnswer({ data, noteTitlesMap, onNoteClick }: GeneratedA
                   <a 
                     href={`#source-${sourceNumber}`}
                     className="ml-1.5 text-cyan-300 font-semibold no-underline hover:text-cyan-100 hover:underline transition-colors duration-200"
-                    title={`출처 ${sourceNumber}로 이동`}
+                    title={`출처 ${sourceNumber}번으로 이동`}
                   >
                     [{sourceNumber}]
                   </a>
@@ -46,12 +47,12 @@ export function GeneratedAnswer({ data, noteTitlesMap, onNoteClick }: GeneratedA
               </React.Fragment>
             );
           })}
-        </p>
+        </div>
       </div>
 
       {data.sourceNotes.length > 0 && (
         <div className="mt-6 border-t border-white/10 pt-4">
-          <h4 className="text-lg font-semibold text-white/80 mb-3">참고 자료</h4>
+          <h4 className="text-lg font-semibold text-white/80 mb-3">참고한 메모</h4>
           <ul className="space-y-2">
             {data.sourceNotes.map((noteId) => {
               const sourceNumber = sourceIdToNumberMap.get(noteId);

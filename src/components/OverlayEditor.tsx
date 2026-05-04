@@ -1,3 +1,4 @@
+'use client';
 import React, { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { getNoteById, recalculateChunksAndEmbeddings } from '../lib/supabaseService';
@@ -34,7 +35,7 @@ export default function OverlayEditor() {
             throw new Error("Note not found.");
           }
         } catch (error: any) {
-          toast.error(`노트를 불러오는 데 실패했습니다: ${error.message}`);
+          toast.error(`노트를 불러오는 중 오류가 발생했습니다: ${error.message}`);
           setIsOpen(false);
         } finally {
           setIsLoading(false);
@@ -75,14 +76,14 @@ export default function OverlayEditor() {
       if (updateError) throw updateError;
 
       // 2. Recalculate chunks and embeddings
-      await recalculateChunksAndEmbeddings(editingNote.id, content);
+      await recalculateChunksAndEmbeddings(editingNote.id, title, content);
 
       toast.success('노트가 저장되었습니다.');
       handleClose();
       // Optional: dispatch a global event to notify other components to refresh data
       window.dispatchEvent(new CustomEvent('notes:updated'));
     } catch (error: any) {
-      toast.error(`저장에 실패했습니다: ${error.message}`);
+      toast.error(`저장 중 오류가 발생했습니다: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -101,7 +102,7 @@ export default function OverlayEditor() {
       // Optional: dispatch a global event to notify other components to refresh data
       window.dispatchEvent(new CustomEvent('notes:updated'));
     } catch (error: any) {
-      toast.error(`삭제에 실패했습니다: ${error.message}`);
+      toast.error(`삭제 중 오류가 발생했습니다: ${error.message}`);
     } finally {
       setIsLoading(false);
     }

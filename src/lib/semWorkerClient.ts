@@ -45,7 +45,7 @@ export async function findSimilar(text: string, topK: number): Promise<any> {
     return rpc('SIMILAR', { text, topK });
 }
 
-// ✅ Backward-compat shim
+// ??Backward-compat shim
 export class SemWorkerClient {
   async ensure(_?: any) { return ensureLocalReady(); }
   async ensureReady(_?: any) { return ensureLocalReady(); }

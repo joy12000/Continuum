@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+'use client';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon, CalendarIcon } from '@heroicons/react/24/outline';
 import CalendarMonth from '../../components/CalendarMonth';
 import PageLayout from '../../components/PageLayout';
@@ -22,6 +23,20 @@ const CalendarPage = () => {
     const [displayDate, setDisplayDate] = useState(new Date());
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+    const [isCompact, setIsCompact] = useState(false);
+
+    useEffect(() => {
+        const handleScroll = () => {
+            if (window.scrollY > 40) {
+                setIsCompact(true);
+            } else {
+                setIsCompact(false);
+            }
+        };
+
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
 
     const handleNoteClick = (noteId: string) => {
         setSelectedNoteId(noteId);
@@ -63,23 +78,22 @@ const CalendarPage = () => {
         setSelectedDate(ymd(today));
     };
 
-    const pageTitle = `${year} ${displayDate.toLocaleString('ko-KR', { month: 'long' })}`;
+    const pageTitle = `${year}년 ${month + 1}월`;
 
     return (
-        <PageLayout title="캘린더" hideBackButton={true}>
-            <SkyCanvasAnimation />
+        <PageLayout hideBackButton={true} hideMoon={true}>
+            {/* <SkyCanvasAnimation /> */}
             <div className="relative z-10">
                 <div className="flex justify-between items-center mb-6">
-                    <button onClick={() => handleMonthChange(-1)} className="p-2 rounded-full hover:bg-secondary transition-colors" aria-label="이전 달"><ChevronLeftIcon className="w-6 h-6" /></button>
+                    <button onClick={() => handleMonthChange(-1)} className="p-2 rounded-full hover:bg-surface transition-colors" aria-label="이전 달"><ChevronLeftIcon className="w-6 h-6 text-foreground" /></button>
                     <div className="flex items-center gap-4">
-                        <h1 className="text-2xl font-bold text-center">{pageTitle}</h1>
-                        <button onClick={goToToday} className="px-4 py-2 text-sm font-medium text-primary-foreground bg-accent rounded-lg hover:bg-accent/80 transition-colors">오늘</button>
+                        <h1 className="text-[24px] font-bold text-center tracking-tight text-foreground">{pageTitle}</h1>
                     </div>
-                    <button onClick={() => handleMonthChange(1)} className="p-2 rounded-full hover:bg-secondary transition-colors" aria-label="다음 달"><ChevronRightIcon className="w-6 h-6" /></button>
+                    <button onClick={() => handleMonthChange(1)} className="p-2 rounded-full hover:bg-surface transition-colors" aria-label="다음 달"><ChevronRightIcon className="w-6 h-6 text-foreground" /></button>
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-                    <div className="lg:col-span-3 bg-card border border-border rounded-lg p-4 shadow-lg">
-                        {isActivityLoading ? <div className="text-center p-8 text-muted-foreground">캘린더 로딩 중...</div> : activityError ? <div className="text-center p-8 text-destructive">오류: {activityError.message}</div> : (
+                    <div className="lg:col-span-3 bg-white border border-border rounded-[20px] p-6 shadow-[0_1px_3px_rgba(25,31,40,0.04)]">
+                        {isActivityLoading ? <div className="text-center p-8 text-muted-foreground">활동 데이터를 불러오는 중...</div> : activityError ? <div className="text-center p-8 text-destructive">오류 발생: {activityError.message}</div> : (
                             <CalendarMonth
                                 year={year}
                                 month={month}
@@ -87,29 +101,30 @@ const CalendarPage = () => {
                                 notesByDate={notesByDate}
                                 selectedDate={selectedDate}
                                 onSelectDate={setSelectedDate}
+                                isCompact={isCompact}
                             />
                         )}
                     </div>
                     <div className="lg:col-span-2">
-                        <h2 className="text-xl font-semibold text-primary mb-4">{selectedDate}</h2>
+                        <h2 className="text-[20px] font-bold text-foreground mb-4 tracking-tight">{selectedDate}</h2>
                         <div className="space-y-4">
                             {isSummaryLoading && (
-                                <div className="p-4 rounded-lg bg-secondary text-center text-muted-foreground animate-pulse">일일 요약 생성 중...</div>
+                                <div className="p-[20px] rounded-[16px] bg-surface text-center text-muted animate-pulse font-medium">오늘의 인사이트를 생성하는 중...</div>
                             )}
                             {summaryError && (
-                                <div className="p-4 rounded-lg bg-destructive/20 text-destructive">
+                                <div className="p-[20px] rounded-[16px] bg-destructive/10 text-destructive">
                                     <p className="font-bold">요약 오류</p><p className="text-sm mt-1">{summaryError.message}</p>
                                 </div>
                             )}
                             {dailySummary && (
-                                <div className="p-4 rounded-lg bg-accent/20 border border-accent/50 mb-4">
-                                    <h3 className="font-bold text-xl text-blue-400">{dailySummary.title}</h3>
-                                    <p className="text-base text-white mt-2 whitespace-pre-line">{dailySummary.summary}</p>
+                                <div className="p-[20px] rounded-[16px] bg-primary-soft border border-primary/20 mb-4">
+                                    <h3 className="font-bold text-[18px] text-primary">{dailySummary.title}</h3>
+                                    <p className="text-[15px] text-text-secondary mt-2 whitespace-pre-line leading-relaxed">{dailySummary.summary}</p>
                                 </div>
                             )}
 
-                            {areNotesLoading && <p className="text-center text-muted-foreground">노트 목록 로딩 중...</p>}
-                            {notesError && <p className="text-center text-destructive">오류: {notesError.message}</p>}
+                            {areNotesLoading && <p className="text-center text-muted-foreground">노트 목록을 불러오는 중...</p>}
+                            {notesError && <p className="text-center text-destructive">오류 발생: {notesError.message}</p>}
                             {notesForSelectedDay && notesForSelectedDay.length > 0 ? (
                                 <ul className="space-y-3">
                                     {notesForSelectedDay.map(note => (
@@ -123,7 +138,7 @@ const CalendarPage = () => {
                                     ))}
                                 </ul>
                             ) : (
-                                !areNotesLoading && !isSummaryLoading && <div className="text-center text-muted-foreground p-8 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center"><CalendarIcon className="w-12 h-12 mb-4" /><p>이 날짜에 노트가 없습니다.</p></div>
+                                !areNotesLoading && !isSummaryLoading && <div className="text-center text-muted-foreground p-8 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center"><CalendarIcon className="w-12 h-12 mb-4" /><p>선택한 날짜에 기록된 노트가 없습니다.</p></div>
                             )}
                         </div>
                     </div>

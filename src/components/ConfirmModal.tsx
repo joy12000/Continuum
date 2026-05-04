@@ -1,3 +1,4 @@
+'use client';
 // src/components/ConfirmModal.tsx
 import React from 'react';
 

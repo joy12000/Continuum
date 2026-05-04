@@ -1,3 +1,4 @@
+'use client';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -13,11 +14,11 @@ import SkyBackground from '../../components/SkyBackground';
 import { useCachedThreads } from './hooks/useLinks';
 import { useJobStatus } from './hooks/useJobStatus';
 import { startGenerationJob } from './services/linkService';
-import type { Note } from '@lib/types';
+import type { Note } from '@server/types';
 
 // --- Time Formatting Helper ---
 const formatTimeAgo = (dateString: string | null): string => {
-    if (!dateString) return '해당 없음';
+    if (!dateString) return '데이터 없음';
     const date = new Date(dateString);
     const now = new Date();
     const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
@@ -33,7 +34,7 @@ const formatTimeAgo = (dateString: string | null): string => {
 
 const LinksPage = () => {
     const queryClient = useQueryClient();
-    const [jobId, setJobId] = useState<string | null>(localStorage.getItem('momentum_job_id'));
+    const [jobId, setJobId] = useState<string | null>(typeof window !== 'undefined' ? localStorage.getItem('momentum_job_id') : null);
     const [isModalOpen, setModalOpen] = useState(false);
     const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
     const [excludeSingletons, setExcludeSingletons] = useState<boolean>(true);
@@ -78,7 +79,6 @@ const LinksPage = () => {
     }, [rowVirtualizer]);
 
     const handleJobSuccess = () => {
-        console.log("Job completed successfully!");
         alert("인사이트 스레드 분석 완료!");
         localStorage.removeItem('momentum_job_id');
         setJobId(null);
@@ -86,7 +86,6 @@ const LinksPage = () => {
     };
 
     const handleJobError = (error: string) => {
-        console.error("Job failed:", error);
         alert(`오류가 발생했습니다: ${error}`);
         localStorage.removeItem('momentum_job_id');
         setJobId(null);
@@ -121,23 +120,23 @@ const LinksPage = () => {
         }
 
         if (isLoadingInitial) {
-            return <div className="flex items-center justify-center h-full text-muted-foreground bg-slate-900/60 backdrop-blur-lg border border-slate-700/50 rounded-lg p-8">캐시된 데이터 확인 중...</div>;
+            return <div className="flex items-center justify-center h-full text-muted bg-card border border-border rounded-[20px] p-8 shadow-[0_1px_3px_rgba(25,31,40,0.04)] font-medium">캐시 데이터를 확인 중..</div>;
         }
 
         if (queryError) {
-            return <div className="flex items-center justify-center h-full text-destructive bg-slate-900/60 backdrop-blur-lg border border-slate-700/50 rounded-lg p-8">오류: {queryError.message}</div>;
+            return <div className="flex items-center justify-center h-full text-destructive bg-destructive/10 border border-destructive/20 rounded-[20px] p-8 font-medium">오류: {queryError.message}</div>;
         }
 
         if (threads.length === 0) {
             return (
-                <div className="text-center p-8 bg-slate-900/60 backdrop-blur-lg border border-slate-700/50 rounded-lg shadow-lg max-w-md mx-auto">
-                    <BeakerIcon className="w-16 h-16 mx-auto text-accent mb-4" />
-                    <h3 className="text-xl font-bold mb-4">아직 연결된 생각 없음</h3>
-                    <p className="text-muted-foreground mb-6">노트를 분석하여 새로운 인사이트를 발견하세요.</p>
+                <div className="text-center p-8 bg-card border border-border rounded-[24px] shadow-[0_1px_3px_rgba(25,31,40,0.04)] max-w-md mx-auto">
+                    <BeakerIcon className="w-16 h-16 mx-auto text-primary mb-4" />
+                    <h3 className="text-[20px] font-bold mb-4 text-foreground tracking-tight">아직 연결된 생각 없음</h3>
+                    <p className="text-secondary-text mb-6 font-medium">노트를 분석하여 새로운 인사이트를 발견하세요.</p>
                     <div className="flex flex-col items-center gap-4">
                         <button
                             onClick={handleGenerateClick}
-                            className="px-6 py-3 font-bold text-white bg-accent rounded-lg hover:bg-accent/80 transition-colors disabled:bg-muted"
+                            className="px-[20px] py-[12px] font-semibold text-primary-foreground bg-primary rounded-[7px] hover:bg-primary-hover transition-colors disabled:bg-surface disabled:text-text-muted"
                         >
                             생각 연결하기
                         </button>
@@ -155,7 +154,7 @@ const LinksPage = () => {
         return (
             <div>
                 <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-                    <span className="text-sm text-muted-foreground text-center sm:text-left">
+                    <span className="text-[14px] text-muted text-center sm:text-left font-medium">
                         마지막 분석: {formatTimeAgo(cachedData?.lastUpdatedAt ?? null)}
                     </span>
                     <div className="flex items-center gap-4">
@@ -167,7 +166,7 @@ const LinksPage = () => {
                         />
                         <button
                             onClick={handleGenerateClick}
-                            className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-accent-foreground bg-accent/80 rounded-lg hover:bg-accent disabled:bg-muted transition-colors"
+                            className="flex items-center gap-2 px-[14px] py-[8px] text-[14px] font-semibold text-primary-foreground bg-primary rounded-[7px] hover:bg-primary-hover disabled:bg-surface transition-colors"
                         >
                             <CpuChipIcon className="w-5 h-5" />
                             다시 분석
@@ -226,9 +225,9 @@ const LinksPage = () => {
     };
 
     return (
-        <PageLayout title="인사이트 스레드" transparent hideBackButton={true}>
-            <SkyBackground className="absolute inset-0 z-0" />
-            <div className="relative z-10">
+        <PageLayout title="인사이트 스레드" hideBackButton={true} hideMoon={true}>
+            {/* <SkyBackground className="absolute inset-0 z-0" /> */}
+            <div className="relative z-10 text-secondary-text leading-relaxed">
                 {renderContent()}
             </div>
             {selectedNoteId && <NoteDetailModal

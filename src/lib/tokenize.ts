@@ -1,6 +1,10 @@
 
 
 export function stripHtmlToText(html: string): string {
+  if (typeof document === "undefined") {
+    // Basic server-side HTML stripping using regex
+    return html.replace(/<[^>]*>/g, "").trim();
+  }
   try {
     const div = document.createElement("div");
     div.innerHTML = html;

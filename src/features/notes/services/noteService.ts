@@ -4,7 +4,7 @@ import type { Note, NoteAttachment } from '../../../types/common';
 export const fetchNoteData = async (noteId: string) => {
     const { data: { session } } = await supabase.auth.getSession();
     const token = session?.access_token;
-    if (!token) throw new Error('인증이 필요합니다.');
+    if (!token) throw new Error('?紐꾩쵄???袁⑹뒄??몃빍??');
 
     const notePromise = fetch(`/api/v1?action=get-note&noteId=${noteId}`, { headers: { 'Authorization': `Bearer ${token}` } });
     const attachmentsPromise = supabase.from('note_attachments').select('*').eq('note_id', noteId);
@@ -14,11 +14,11 @@ export const fetchNoteData = async (noteId: string) => {
     const [noteRes, { data: attachments, error: attachmentsError }, backlinksRes, connectionsRes] = await Promise.all([notePromise, attachmentsPromise, backlinksPromise, connectionsPromise]);
 
     if (!noteRes.ok) {
-        if (noteRes.status === 404) throw new Error('노트를 찾을 수 없습니다.');
+        if (noteRes.status === 404) throw new Error('?紐낅뱜??筌≪뼚??????곷뮸??덈뼄.');
         const errorData = await noteRes.json();
-        throw new Error(errorData.error || '노트를 불러오는데 실패했습니다.');
+        throw new Error(errorData.error || '?紐낅뱜???븍뜄???삳뮉????쎈솭??됰뮸??덈뼄.');
     }
-    if (attachmentsError) throw new Error('첨부파일을 불러오는데 실패했습니다.');
+    if (attachmentsError) throw new Error('筌ｂ뫀????뵬???븍뜄???삳뮉????쎈솭??됰뮸??덈뼄.');
 
     const note: Note = await noteRes.json();
     const backlinks: { backlinks: { from_note_id: string; title: string | null; }[] } = await backlinksRes.json();

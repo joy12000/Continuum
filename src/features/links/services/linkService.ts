@@ -1,5 +1,5 @@
 import { supabase } from '../../../lib/supabase';
-import type { InsightThread } from '@lib/types';
+import type { InsightThread } from '@server/types';
 
 export interface CachedThreadsResponse {
     threads: InsightThread[];
@@ -16,7 +16,7 @@ export const fetchCachedThreads = async (): Promise<CachedThreadsResponse> => {
         if (response.status === 204 || response.headers.get('content-length') === '0') {
             return { threads: [], lastUpdatedAt: null };
         }
-        throw new Error(`HTTP 오류! 상태: ${response.status}`);
+        throw new Error(`HTTP 오류! 상태 코드: ${response.status}`);
     }
     return response.json();
 };
@@ -33,8 +33,8 @@ export const startGenerationJob = async (excludeSingletons: boolean): Promise<{ 
         body: JSON.stringify({ excludeSingletons })
     });
     if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: "알 수 없는 오류가 발생했습니다." }));
-        throw new Error(errorData.message || `HTTP 오류! 상태: ${response.status}`);
+        const errorData = await response.json().catch(() => ({ message: "요청을 처리하는 중 오류가 발생했습니다." }));
+        throw new Error(errorData.message || `HTTP 오류! 상태 코드: ${response.status}`);
     }
     return response.json();
 };

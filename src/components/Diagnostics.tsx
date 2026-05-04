@@ -1,4 +1,4 @@
-// src/components/Diagnostics.tsx
+'use client';
 import React, { useState } from 'react';
 
 type Props = {
@@ -73,7 +73,7 @@ export default function Diagnostics({ onBack }: Props){
       const times:number[] = [];
       for (let i=0;i<N;i++){
         const t0 = performance.now();
-        const res = await postJSON('/api/embed', { texts:[q] });
+        const res = await postJSON('/api/v1?action=create-embedding', { texts:[q] });
         const t1 = performance.now();
         times.push(t1 - t0);
         if (!res.ok) append(`  ${q} -> HTTP ${res.status}: ${JSON.stringify(res.data).slice(0,140)}`);
@@ -87,7 +87,7 @@ export default function Diagnostics({ onBack }: Props){
 
   async function runRagTests(){
     setRag(null); setLog('');
-    append('Starting RAG tests (calls /api/remote/generate)...');
+    append('Starting RAG tests (calls /api/v1?action=generate)...');
     const rows:any[] = [];
     for (const tc of RAG_TEST_CASES){
       const res = await postJSON('/api/v1?action=generate', { type: 'rag', input: { query: tc.question }, context: tc.context });
@@ -98,7 +98,7 @@ export default function Diagnostics({ onBack }: Props){
         answerPass = typeof answer === 'string' && answer.toLowerCase().includes(tc.expectedAnswerSubstring.toLowerCase());
         const sentences: any[] = Array.isArray(res.data.sentences) ? res.data.sentences : [];
         sourcePass = sentences.some(s => s?.sourceNoteId === tc.expectedSourceId);
-        detail = `ans:${answerPass?'✓':'✗'} src:${sourcePass?'✓':'✗'}`;
+        detail = `ans:${answerPass?'성공':'실패'} src:${sourcePass?'성공':'실패'}`;
       } else {
         detail = `HTTP ${res.status}`;
       }
@@ -118,26 +118,31 @@ export default function Diagnostics({ onBack }: Props){
   return (
     <div className="p-4 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold">Diagnostics</h1>
+        <h1 className="text-2xl font-bold text-sky-400">Diagnostics</h1>
         {onBack && (
-          <button onClick={onBack} className="px-3 py-1 rounded-lg border">
-            ← 뒤로
+          <button onClick={onBack} className="px-3 py-1 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors">
+            뒤로 가기
           </button>
         )}
       </div>
 
-      <section className="mb-6">
-        <h2 className="text-lg font-semibold mb-2">검색 속도 벤치마크</h2>
-        <p className="text-sm text-gray-600 mb-2">/api/embed 엔드포인트를 10개 쿼리×5회 호출하여 평균 시간을 측정합니다.</p>
-        <button className="px-3 py-1 rounded-lg bg-black text-white" onClick={runBenchmark}>벤치마크 시작</button>
+      <section className="mb-8 p-4 rounded-xl border border-slate-800 bg-slate-900/50">
+        <h2 className="text-lg font-semibold mb-2">검색 임베딩 벤치마크</h2>
+        <p className="text-sm text-gray-400 mb-4">/api/v1?action=create-embedding 엔드포인트를 통해 10개의 검색어 x 5번씩 테스트하여 평균 속도를 측정합니다.</p>
+        <button className="px-4 py-2 rounded-lg bg-sky-500 hover:bg-sky-400 text-white transition-colors" onClick={runBenchmark}>벤치마크 시작</button>
         {bench && (
-          <table className="mt-3 w-full text-sm">
-            <thead><tr><th className="text-left p-1 border-b">검색어</th><th className="text-right p-1 border-b">평균 응답 시간 (ms)</th></tr></thead>
+          <table className="mt-4 w-full text-sm border-collapse">
+            <thead>
+              <tr className="border-b border-slate-800">
+                <th className="text-left p-2 text-gray-400">검색어</th>
+                <th className="text-right p-2 text-gray-400">평균 응답 시간 (ms)</th>
+              </tr>
+            </thead>
             <tbody>
               {bench.map(r => (
-                <tr key={r.query}>
-                  <td className="p-1 border-b">{r.query}</td>
-                  <td className="p-1 border-b text-right">{r.avgMs}</td>
+                <tr key={r.query} className="border-b border-slate-800 last:border-0">
+                  <td className="p-2">{r.query}</td>
+                  <td className="p-2 text-right font-mono text-sky-400">{r.avgMs}</td>
                 </tr>
               ))}
             </tbody>
@@ -145,42 +150,48 @@ export default function Diagnostics({ onBack }: Props){
         )}
       </section>
 
-      <section className="mb-6">
-        <h2 className="text-lg font-semibold mb-2">RAG 품질 테스트</h2>
-        <p className="text-sm text-gray-600 mb-2">각 테스트 케이스에 대해 /api/remote/generate를 호출하고, 답변/출처 정확도를 검증합니다.</p>
-        <button className="px-3 py-1 rounded-lg bg-black text-white" onClick={runRagTests}>RAG 테스트 시작</button>
+      <section className="mb-8 p-4 rounded-xl border border-slate-800 bg-slate-900/50">
+        <h2 className="text-lg font-semibold mb-2">RAG 성능 테스트</h2>
+        <p className="text-sm text-gray-400 mb-4">미리 정의된 질문과 컨텍스트로 /api/v1?action=generate 엔드포인트를 호출하여 정답 및 출처 정확도를 검증합니다.</p>
+        <button className="px-4 py-2 rounded-lg bg-sky-500 hover:bg-sky-400 text-white transition-colors" onClick={runRagTests}>RAG 테스트 시작</button>
         {rag && (
-          <table className="mt-3 w-full text-sm">
-            <thead><tr>
-              <th className="text-left p-1 border-b">ID</th>
-              <th className="text-left p-1 border-b">질문</th>
-              <th className="text-center p-1 border-b">답변 정확도</th>
-              <th className="text-center p-1 border-b">출처 정확도</th>
-              <th className="text-center p-1 border-b">최종</th>
-              <th className="text-left p-1 border-b">비고</th>
-            </tr></thead>
-            <tbody>
-              {rag.map((r) => (
-                <tr key={r.id}>
-                  <td className="p-1 border-b">{r.id}</td>
-                  <td className="p-1 border-b">{r.question}</td>
-                  <td className="p-1 border-b text-center">{r.answerPass}</td>
-                  <td className="p-1 border-b text-center">{r.sourcePass}</td>
-                  <td className="p-1 border-b text-center font-semibold">{r.final}</td>
-                  <td className="p-1 border-b">{r.detail}</td>
+          <div className="overflow-x-auto">
+            <table className="mt-4 w-full text-sm border-collapse min-w-[600px]">
+              <thead>
+                <tr className="border-b border-slate-800">
+                  <th className="text-left p-2 text-gray-400">ID</th>
+                  <th className="text-left p-2 text-gray-400">질문</th>
+                  <th className="text-center p-2 text-gray-400">정답 정확도</th>
+                  <th className="text-center p-2 text-gray-400">출처 정확도</th>
+                  <th className="text-center p-2 text-gray-400">결과</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rag.map((r) => (
+                  <tr key={r.id} className="border-b border-slate-800 last:border-0 hover:bg-slate-800/30">
+                    <td className="p-2">{r.id}</td>
+                    <td className="p-2">{r.question}</td>
+                    <td className="p-2 text-center">
+                      <span className={r.answerPass === 'Pass' ? 'text-emerald-400' : 'text-rose-400'}>{r.answerPass}</span>
+                    </td>
+                    <td className="p-2 text-center">
+                      <span className={r.sourcePass === 'Pass' ? 'text-emerald-400' : 'text-rose-400'}>{r.sourcePass}</span>
+                    </td>
+                    <td className="p-2 text-center font-bold">
+                      <span className={r.final === 'Pass' ? 'text-emerald-400' : 'text-rose-400'}>{r.final}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 
-      <section className="mb-6">
-        <h2 className="text-lg font-semibold mb-2">API 디버그</h2>
-        <p className="text-sm text-gray-600 mb-2"><a className="underline" href="/debug/api2.html">/debug/api2.html</a>에서 ping/embed/generate를 수동으로 호출해 확인할 수 있습니다.</p>
+      <section className="mb-8 p-4 rounded-xl border border-slate-800 bg-slate-900/50">
+        <h2 className="text-lg font-semibold mb-2">실행 로그</h2>
+        <pre className="bg-black/50 text-sky-300 p-4 rounded-lg whitespace-pre-wrap text-xs font-mono max-h-60 overflow-y-auto">{log || '벤치마크 혹은 RAG 수행 시 로그가 여기에 표시됩니다...'}</pre>
       </section>
-
-      <pre className="bg-gray-900 text-gray-100 p-3 rounded-xl whitespace-pre-wrap text-xs">{log}</pre>
     </div>
   );
 }

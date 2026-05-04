@@ -1,18 +1,9 @@
-import React, { useEffect } from 'react';
-import { useRegisterSW } from 'virtual:pwa-register/react';
+'use client';
+import React from 'react';
 
 const UpdatePrompt: React.FC = () => {
-  const {
-    needRefresh: [needRefresh, setNeedRefresh],
-    updateServiceWorker,
-  } = useRegisterSW();
-
-  useEffect(() => {
-    if (needRefresh) {
-      updateServiceWorker(true);
-    }
-  }, [needRefresh, updateServiceWorker]);
-
+  // Note: Vite-PWA logic removed for Next.js migration.
+  // Real PWA update logic for Next.js should be implemented separately.
   return null;
 };
 

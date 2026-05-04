@@ -1,5 +1,5 @@
 // src/lib/search/searchChunks.ts
-// (선택) uid를 헤더나 쿼리로 전달할 수 있게 확장
+// 검색 쿼리를 받아 API를 호출하는 유틸리티 함수입니다.
 export async function searchChunksGET({
   q,
   limit = 12,

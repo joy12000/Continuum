@@ -1,3 +1,4 @@
+'use client';
 import React, { useState } from 'react';
 import { SearchResult } from '../hooks/useSearch';
 import Highlight from './Highlight';
@@ -58,7 +59,7 @@ const SearchResultsList: React.FC<SearchResultsListProps> = ({ results, loading,
                   </button>
                 </div>
               </div>
-              <div className="text-xs text-muted-foreground/80 mt-3 pt-2 border-t border-slate-800">유사도: {result.similarity.toFixed(3)}</div>
+              <div className="text-xs text-muted-foreground/80 mt-3 pt-2 border-t border-slate-800">유사도: {(result.similarity ?? 0).toFixed(3)}</div>
             </div>
           </li>
         );

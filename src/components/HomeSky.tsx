@@ -1,6 +1,7 @@
+'use client';
 import React, { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import toast, { Toaster } from 'react-hot-toast';
+import { useRouter } from "next/navigation";
+import toast from 'react-hot-toast';
 import { CHAT_BUNDLE_EVENT } from "../lib/events";
 
 // Type definitions
@@ -14,20 +15,14 @@ const DEFAULT_PREFS: QuickPrefs = {
   starBrightness: 1.0,
 };
 
-const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-
-interface HomeSkyProps {
-  answerSignal?: number;
-  onOpenAnswer?: () => void;
-}
-
 // Main Component
-export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
-  const navigate = useNavigate();
+export default function HomeSky({ answerSignal, onOpenAnswer }: { answerSignal?: number; onOpenAnswer?: () => void }) {
+  const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null); // Ref for meteor container
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const rafRef = useRef<number | null>(null);
   const [prefs, setPrefs] = useState<QuickPrefs>(() => {
+    if (typeof window === 'undefined') return DEFAULT_PREFS;
     try {
       const saved = localStorage.getItem("sky.prefs");
       return saved ? { ...DEFAULT_PREFS, ...JSON.parse(saved) } : DEFAULT_PREFS;
@@ -40,8 +35,9 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
   const editorRef = useRef<HTMLDivElement | null>(null);
   const [showQuick, setShowQuick] = useState(false);
   const [showAnswerStar, setShowAnswerStar] = useState(false);
-  
   const starsRef = useRef<{ x: number; y: number; r: number; tw: number }[]>([]);
+
+  const dpr = typeof window !== 'undefined' ? Math.max(1, Math.min(2, window.devicePixelRatio || 1)) : 1;
 
   useEffect(() => {
     if (answerSignal && answerSignal > 0) {
@@ -49,9 +45,9 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
     }
   }, [answerSignal]);
 
-  // Canvas resize and star seeding effect
   useEffect(() => {
-    const canvas = canvasRef.current!;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
     const ctx = canvas.getContext("2d")!;
 
     const resize = () => {
@@ -80,11 +76,11 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
     resize();
     window.addEventListener("resize", resize);
     return () => window.removeEventListener("resize", resize);
-  }, [prefs.starDensity]);
+  }, [prefs.starDensity, dpr]);
 
-  // Canvas render loop
   useEffect(() => {
-    const canvas = canvasRef.current!;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
     const ctx = canvas.getContext("2d")!;
 
     const render = () => {
@@ -130,13 +126,11 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
 
     rafRef.current = requestAnimationFrame(render);
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, [prefs.starBrightness]);
+  }, [prefs.starBrightness, dpr]);
 
-  // Focus handling
   useEffect(() => {
     const onSkyClick = (e: MouseEvent) => {
       const target = e.target as Node;
-      
       if (document.getElementById("quick-panel")?.contains(target)) return;
       if (document.getElementById("save-button")?.contains(target)) return;
       editorRef.current?.focus();
@@ -145,49 +139,10 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
     return () => window.removeEventListener("click", onSkyClick);
   }, []);
 
-  // Save prefs to localStorage
   useEffect(() => {
     localStorage.setItem("sky.prefs", JSON.stringify(prefs));
   }, [prefs]);
 
-  // Listen for paste event from other pages (e.g., Calendar)
-  useEffect(() => {
-    const handlePaste = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      if (detail && typeof detail.text === 'string') {
-        setDraft(detail.text);
-        editorRef.current?.focus();
-      }
-    };
-
-    window.addEventListener('sky:paste', handlePaste);
-    return () => {
-      window.removeEventListener('sky:paste', handlePaste);
-    };
-  }, []); // Empty dependency array ensures this runs only once
-
-  // Sync editor with draft state
-  useEffect(() => {
-    if (editorRef.current && editorRef.current.innerText !== draft) {
-      editorRef.current.innerText = draft;
-    }
-  }, [draft]);
-
-  // Listen for long-press event from the global moon to toggle quick settings
-  useEffect(() => {
-    const handleOpenQuickSettings = () => {
-      setShowQuick(s => !s);
-    };
-
-    // Expose the toggle function globally for the moon button to call
-    (window as any).toggleQuickSettings = handleOpenQuickSettings;
-
-    return () => {
-      (window as any).toggleQuickSettings = undefined;
-    };
-  }, []);
-
-  // Shooting star animation function
   function spawnClassicMeteor() {
     const host = containerRef.current;
     if (!host) return;
@@ -202,7 +157,6 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
     el.addEventListener("animationend", () => el.remove());
   }
 
-  
   const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
     setDraft((e.target as HTMLDivElement).innerText);
   };
@@ -212,34 +166,30 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
     window.dispatchEvent(new CustomEvent(CHAT_BUNDLE_EVENT, { detail: payload }));
     setDraft("");
     if (editorRef.current) editorRef.current.innerText = "";
-    toast.success("저장했어요 ✨");
+    toast.success("기억이 별빛이 되어 저장되었습니다.");
     const count = 2 + Math.floor(Math.random() * 2);
     for (let i = 0; i < count; i++) setTimeout(spawnClassicMeteor, i * 350);
   };
 
   return (
     <div ref={containerRef} className="relative h-dvh w-full overflow-hidden text-white">
-      
       <canvas ref={canvasRef} className="absolute inset-0 block w-full h-full" />
-
       <div className="absolute top-3 left-3 z-30">
-        <button className="sky-constellation" onClick={handleSave} aria-label="저장">
+        <button id="save-button" className="sky-constellation" onClick={handleSave} aria-label="기록 저장하기">
           <span className="star s1" /><span className="star s2" /><span className="star s3" /><span className="star s4" />
         </button>
       </div>
 
-      
-
       <div
         ref={editorRef}
         role="textbox"
-        aria-label="밤하늘 메모"
+        aria-label="노트 작성 공간"
         contentEditable
         suppressContentEditableWarning
         spellCheck={false}
         className="absolute inset-0 z-10 px-6 md:px-12 outline-none focus:outline-none select-text flex items-center justify-center"
         onInput={handleInput}
-        data-placeholder="밤하늘에 오늘의 조각을 새겨보세요."
+        data-placeholder="떠오르는 생각을 적어주세요. 당신의 지식은 연결됩니다."
         style={{
           fontFamily: "'Pretendard Variable', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Noto Sans KR, Apple SD Gothic Neo, sans-serif",
           fontWeight: 500,
@@ -254,13 +204,13 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
 
       {!draft && (
         <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center px-6 md:px-12 text-center" style={{ fontSize: "clamp(18px, 3.4vw, 28px)", lineHeight: 1.6, color: "rgba(220,235,255,0.42)", textShadow: "0 0 0.7rem rgba(150,190,255,0.2)" }}>
-          밤하늘에 오늘의 조각을 새겨보세요.
+          떠오르는 생각을 적어주세요. 당신의 지식은 연결됩니다.
         </div>
       )}
 
       {showQuick && (
         <div id="quick-panel" className="absolute right-3 top-16 z-40 w-[260px] rounded-2xl border border-white/10 bg-[#0b1830]/80 p-3 backdrop-blur">
-          <h3 className="mb-2 text-sm text-white/80">빠른 설정</h3>
+          <h3 className="mb-2 text-sm text-white/80">이미지 설정</h3>
           <Slider label="별 밀도" min={0.2} max={2} step={0.05} value={prefs.starDensity} onChange={(v) => setPrefs((p) => ({ ...p, starDensity: v }))} />
           <Slider label="별 밝기" min={0.5} max={1.5} step={0.05} value={prefs.starBrightness} onChange={(v) => setPrefs((p) => ({ ...p, starBrightness: v }))} />
         </div>
@@ -269,7 +219,6 @@ export default function HomeSky({ answerSignal, onOpenAnswer }: HomeSkyProps) {
   );
 }
 
-// Helper Components
 function Slider({ label, min, max, step, value, onChange }: { label: string; min: number; max: number; step: number; value: number; onChange: (v: number) => void; }) {
   return (
     <label className="mb-3 block text-xs text-white/70">
@@ -277,42 +226,5 @@ function Slider({ label, min, max, step, value, onChange }: { label: string; min
       <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} className="w-full accent-sky-300" />
       <div className="mt-0.5 text-right text-[11px] text-white/50">{value.toFixed(2)}</div>
     </label>
-  );
-}
-
-function AnswerStarSVG() {
-  return (
-    <svg width="36" height="36" viewBox="0 0 24 24" fill="url(#answer-gradient)" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <defs>
-        <linearGradient id="answer-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" style={{stopColor: '#fde047', stopOpacity: 1}} />
-          <stop offset="100%" style={{stopColor: '#f97316', stopOpacity: 1}} />
-        </linearGradient>
-      </defs>
-      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.77 5.82 22 7 14.14 2 9.27l6.91-1.01L12 2z" />
-    </svg>
-  );
-}
-
-function CrescentMoonSVG() {
-  return (
-    <svg width="36" height="36" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <radialGradient id="moonGlow" cx="50%" cy="45%" r="55%"><stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" /><stop offset="60%" stopColor="#dbe7ff" stopOpacity="0.85" /><stop offset="100%" stopColor="#c0d6ff" stopOpacity="0.55" /></radialGradient>
-        <mask id="crescentMask"><rect width="100%" height="100%" fill="black" /><circle cx="34" cy="30" r="18" fill="white" /><circle cx="42" cy="26" r="16" fill="black" /></mask>
-        <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.6" result="blur" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
-      </defs>
-      <g filter="url(#softGlow)"><circle cx="34" cy="30" r="20" fill="url(#moonGlow)" mask="url(#crescentMask)" /></g>
-    </svg>
-  );
-}
-
-function SaveIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-      <polyline points="17 21 17 13 7 13 7 21" />
-      <polyline points="7 3 7 8 15 8" />
-    </svg>
   );
 }

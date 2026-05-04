@@ -1,14 +1,10 @@
-node_modules/
+.next/
+out/
+build/
+.vercel
+/dist
 
 *.log
 .env
 .DS_Store
-src/**/*.js
-src/**/*.js.map
-src/types/**/*.d.ts
-api/**/*.js
-api/**/*.d.ts
-tsconfig.tsbuildinfo 
-
-.vercel
-/dist 
+node_modules/

@@ -1,18 +1,18 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import type { NoteAttachment } from '../../../types/common';
 
 export const useNoteMutations = (noteId: string | undefined) => {
     const queryClient = useQueryClient();
-    const navigate = useNavigate();
+    const router = useRouter();
 
     const updateNoteMutation = useMutation({
         mutationFn: async ({ title, body, tags }: { title: string; body: string; tags: string[] }) => {
             const { data: { session } } = await supabase.auth.getSession();
             const token = session?.access_token;
-            if (!token) throw new Error('인증이 필요합니다.');
+            if (!token) throw new Error('?紐꾩쵄???袁⑹뒄??몃빍??');
 
             const response = await fetch(`/api/v1?action=update-note&noteId=${noteId}`, {
                 method: 'POST',
@@ -29,23 +29,23 @@ export const useNoteMutations = (noteId: string | undefined) => {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || '노트 업데이트에 실패했습니다.');
+                throw new Error(errorData.error || '?紐낅뱜 ??낅쑓??꾨뱜????쎈솭??됰뮸??덈뼄.');
             }
         },
         onSuccess: () => {
-            toast.success("노트가 성공적으로 업데이트되었습니다.");
+            toast.success("?紐낅뱜揶쎛 ?源껊궗?怨몄몵嚥???낅쑓??꾨뱜??뤿???щ빍??");
             queryClient.invalidateQueries({ queryKey: ['noteDetail', noteId] });
             queryClient.invalidateQueries({ queryKey: ['noteActivity'] });
             window.dispatchEvent(new CustomEvent('notes:updated'));
         },
-        onError: (err: any) => toast.error(`업데이트 실패: ${err.message}`),
+        onError: (err: any) => toast.error(`??낅쑓??꾨뱜 ??쎈솭: ${err.message}`),
     });
 
     const updateNoteLinksMutation = useMutation({
         mutationFn: async ({ linksToAdd, linksToRemove }: { linksToAdd: string[], linksToRemove: string[] }) => {
             const { data: { session } } = await supabase.auth.getSession();
             const token = session?.access_token;
-            if (!token) throw new Error('인증이 필요합니다.');
+            if (!token) throw new Error('?紐꾩쵄???袁⑹뒄??몃빍??');
 
             const response = await fetch(`/api/v1?action=update-note&noteId=${noteId}`, {
                 method: 'POST',
@@ -61,15 +61,15 @@ export const useNoteMutations = (noteId: string | undefined) => {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || '노트 링크 업데이트에 실패했습니다.');
+                throw new Error(errorData.error || '?紐낅뱜 筌띻낱寃???낅쑓??꾨뱜????쎈솭??됰뮸??덈뼄.');
             }
         },
         onSuccess: () => {
-            toast.success("노트 링크가 업데이트되었습니다.");
+            toast.success("?紐낅뱜 筌띻낱寃뺝첎? ??낅쑓??꾨뱜??뤿???щ빍??");
             queryClient.invalidateQueries({ queryKey: ['noteDetail', noteId] });
         },
         onError: (err: any) => {
-            toast.error(`링크 업데이트 실패: ${err.message}`);
+            toast.error(`筌띻낱寃???낅쑓??꾨뱜 ??쎈솭: ${err.message}`);
         },
     });
 
@@ -83,12 +83,12 @@ export const useNoteMutations = (noteId: string | undefined) => {
             if (error) throw error;
         },
         onSuccess: () => {
-            toast.success('노트가 삭제되었습니다.');
+            toast.success('?紐낅뱜揶쎛 ?????뤿???щ빍??');
             queryClient.invalidateQueries({ queryKey: ['notes'] });
             window.dispatchEvent(new CustomEvent('notes:updated'));
-            navigate('/');
+            router.push('/');
         },
-        onError: (err: any) => toast.error(`삭제 실패: ${err.message}`),
+        onError: (err: any) => toast.error(`??????쎈솭: ${err.message}`),
     });
 
     const deleteAttachmentMutation = useMutation({
@@ -98,10 +98,10 @@ export const useNoteMutations = (noteId: string | undefined) => {
             if (error) throw error;
         },
         onSuccess: () => {
-            toast.success("첨부파일이 삭제되었습니다.");
+            toast.success("筌ｂ뫀????뵬???????뤿???щ빍??");
             queryClient.invalidateQueries({ queryKey: ['noteDetail', noteId] });
         },
-        onError: (err: any) => toast.error(`첨부파일 삭제 실패: ${err.message}`),
+        onError: (err: any) => toast.error(`筌ｂ뫀????뵬 ??????쎈솭: ${err.message}`),
     });
 
     return {

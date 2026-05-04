@@ -6,13 +6,13 @@ export interface Config {
   autoBackup: boolean;
   backupIntervalDays: number;
   lastBackupTimestamp?: number;
-  genEnabled?: boolean; // 다시 추가
-  genEndpoint?: string; // 다시 추가
+  genEnabled?: boolean; 
+  genEndpoint?: string; 
 }
 
 const CONFIG_KEY = 'momentum-config';
 
-// 항상 일관된 기본값을 제공하는 상수
+// 기본 설정을 정의하는 상수
 const DEFAULT_CONFIG: Config = {
   isGenerativeMode: true,
   apiUrl: '/.netlify/functions/generate',
@@ -21,28 +21,28 @@ const DEFAULT_CONFIG: Config = {
 };
 
 /**
- * localStorage에서 설정을 안전하게 불러옵니다.
- * 설정이 없거나 파싱 오류가 발생하면, 항상 안정적인 기본값을 반환합니다.
- * @returns {Config} - 유효한 설정 객체
+ * localStorage에서 설정을 불러옵니다.
+ * 설정이 없거나 불러오는 중에 오류가 발생하면 기본 설정을 반환합니다.
+ * @returns {Config} - 최종 설정 객체
  */
 export function getConfig(): Config {
   try {
     const storedConfig = localStorage.getItem(CONFIG_KEY);
     if (storedConfig) {
-      // 저장된 설정과 기본 설정을 병합하여, 나중에 추가될 수 있는 새로운 설정 키에도 대비합니다.
+      // 저장된 설정이 기본 설정에 병합되어, 새로운 설정 필드에 대해서도 유연하게 대응합니다.
       return { ...DEFAULT_CONFIG, ...JSON.parse(storedConfig) };
     }
   } catch (error) {
     console.error('Failed to parse config. Returning default.', error);
   }
-  // 설정이 없거나 오류 발생 시, 항상 기본값을 반환합니다.
+  // 설정 정보가 없거나 오류 시 기본 설정을 반환합니다.
   return DEFAULT_CONFIG;
 }
 
 /**
- * 새로운 설정을 저장하고 업데이트된 전체 설정을 반환합니다.
- * @param {Partial<Config>} newConfig - 업데이트할 설정 항목
- * @returns {Config} - 저장 후의 전체 설정 객체
+ * 새로운 설정을 업데이트하고 저장합니다.
+ * @param {Partial<Config>} newConfig - 업데이트할 설정 정보
+ * @returns {Config} - 업데이트된 최종 설정 객체
  */
 export function saveConfig(newConfig: Partial<Config>): Config {
   try {
@@ -53,8 +53,8 @@ export function saveConfig(newConfig: Partial<Config>): Config {
     return updatedConfig;
   } catch (error) {
     console.error('Failed to save config.', error);
-    toast.error('설정 저장에 실패했습니다.');
-    // 저장 실패 시에도 현재 메모리에 로드된 설정을 반환합니다.
+    toast.error('설정 저장 중 오류가 발생했습니다.');
+    // 저장 실패 시 현재 설정을 유지하여 반환합니다.
     return getConfig();
   }
 }

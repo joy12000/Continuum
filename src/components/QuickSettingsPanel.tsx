@@ -1,7 +1,8 @@
+'use client';
 import React from 'react';
 import { useSkySettings } from '../contexts/SkySettingsContext';
 
-// Helper component, co-located for simplicity
+// Helper component
 function Slider({ label, min, max, step, value, onChange }: { label: string; min: number; max: number; step: number; value: number; onChange: (v: number) => void; }) {
   return (
     <label className="mb-3 block text-xs text-white/70">

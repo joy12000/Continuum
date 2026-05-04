@@ -1,6 +1,7 @@
+'use client';
 import React from 'react';
 import Moon from './Moon';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 
 interface PageLayoutProps {
@@ -14,7 +15,7 @@ interface PageLayoutProps {
 }
 
 const PageLayout: React.FC<PageLayoutProps> = ({ children, title, transparent, fullWidth, className, hideMoon, hideBackButton }) => {
-  const navigate = useNavigate();
+  const router = useRouter();
   const layoutClasses = `relative min-h-screen text-foreground font-sans ${transparent ? '' : ''} ${className || ''}`;
   
   const contentWrapperClasses = fullWidth 
@@ -23,20 +24,20 @@ const PageLayout: React.FC<PageLayoutProps> = ({ children, title, transparent, f
 
   return (
     <div className={layoutClasses}>
-      {!hideMoon && <Moon onClick={() => navigate('/settings')} />}
+      {!hideMoon && <Moon onClick={() => router.push('/settings')} />}
       <div className={contentWrapperClasses}>
         {title && (
           <div className="relative text-center mb-6">
             {!hideBackButton &&
               <button 
-                onClick={() => navigate(-1)} 
-                className="absolute left-0 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-slate-800 transition-colors"
+                onClick={() => router.back()} 
+                className="absolute left-0 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-surface transition-colors"
                 aria-label="Go back"
               >
-                <ArrowLeft size={24} className="text-gray-200" />
+                <ArrowLeft size={24} className="text-foreground" />
               </button>
             }
-            <h1 className="text-3xl font-bold text-gray-200 text-shadow-glow inline-block">
+            <h1 className="text-[24px] font-bold text-foreground inline-block tracking-tight">
               {title}
             </h1>
           </div>

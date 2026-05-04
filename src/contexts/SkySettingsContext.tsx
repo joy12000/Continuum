@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
 
-// 1. 타입 정의
+// 1. ?????類ㅼ벥
 interface QuickPrefs {
   starDensity: number;
   starBrightness: number;
@@ -20,10 +20,10 @@ const DEFAULT_PREFS: QuickPrefs = {
   starBrightness: 1.0,
 };
 
-// 2. Context 생성
+// 2. Context ??밴쉐
 const SkySettingsContext = createContext<SkySettingsContextType | undefined>(undefined);
 
-// 3. Provider 컴포넌트 생성
+// 3. Provider ?뚮똾猷??곕뱜 ??밴쉐
 export const SkySettingsProvider = ({ children }: { children: React.ReactNode }) => {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [prefs, setPrefs] = useState<QuickPrefs>(() => {
@@ -55,7 +55,7 @@ export const SkySettingsProvider = ({ children }: { children: React.ReactNode })
   );
 };
 
-// 4. Custom Hook 생성
+// 4. Custom Hook ??밴쉐
 export const useSkySettings = () => {
   const context = useContext(SkySettingsContext);
   if (context === undefined) {

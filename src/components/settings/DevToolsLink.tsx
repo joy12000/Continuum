@@ -1,15 +1,16 @@
+'use client';
 // src/components/settings/DevToolsLink.tsx
 import React from 'react';
 
 export default function DevToolsLink(){
   return (
     <div className="mt-6 p-3 border rounded-xl bg-gray-50 text-sm">
-      <div className="font-semibold mb-1">개발자 도구</div>
+      <div className="font-semibold mb-1">揶쏆뮆而???袁㏓럡</div>
       <ul className="list-disc ml-5 space-y-1">
-        <li><a className="underline" href="/diagnostics">/diagnostics</a> (라우팅 연결 후 접근 가능)</li>
-        <li><a className="underline" href="/debug/api2.html">/debug/api2.html</a> (API 헬스체크)</li>
+        <li><a className="underline" href="/diagnostics">/diagnostics</a> (??깆뒭???怨뚭퍙 ???臾롫젏 揶쎛??</li>
+        <li><a className="underline" href="/debug/api2.html">/debug/api2.html</a> (API ???わ㎗?꾧쾿)</li>
       </ul>
-      <p className="text-gray-600 mt-2">주의: <code>src/App.tsx</code>나 라우터에 <code>&lt;Diagnostics /&gt;</code>를 경로에 연결해야 페이지가 보입니다. 연결하지 않아도 빌드에는 영향 없습니다.</p>
+      <p className="text-gray-600 mt-2">雅뚯눘?? <code>src/App.tsx</code>????깆뒭?怨쀫퓠 <code>&lt;Diagnostics /&gt;</code>??野껋럥以???怨뚭퍙??곷튊 ??륁뵠筌왖揶쎛 癰귣똻???덈뼄. ?怨뚭퍙??? ??녿툡????슢諭?癒?뮉 ?怨밸샨 ??곷뮸??덈뼄.</p>
     </div>
   );
 }

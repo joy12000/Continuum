@@ -54,7 +54,7 @@ export const generateSearchAnswer = async (query: string, searchResults: SearchR
 
     const noteTitlesMap: Record<string, string> = {};
     contextNotes.forEach((n: Note) => {
-        noteTitlesMap[n.id] = n.title || '제목 없는 노트';
+        noteTitlesMap[n.id] = n.title || '제목 없는 메모';
     });
 
     const generateRes = await fetch('/api/v1?action=generate', {
@@ -66,13 +66,13 @@ export const generateSearchAnswer = async (query: string, searchResults: SearchR
         body: JSON.stringify({
             type: 'rag',
             input: { query },
-            context: contextNotes.map((n: Note) => ({ id: n.id, body: n.body }))
+            context: contextNotes.map((n: Note) => ({ id: n.id, body: n.body, createdAt: n.createdAt }))
         })
     });
 
     if (!generateRes.ok || !generateRes.body) {
         const errorText = await generateRes.text();
-        throw new Error(`요약 생성 실패: ${errorText}`);
+        throw new Error(`답변 생성 실패: ${errorText}`);
     }
 
     const result = await generateRes.json();

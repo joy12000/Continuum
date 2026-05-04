@@ -1,3 +1,4 @@
+'use client';
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import Modal from './Modal';
@@ -9,7 +10,6 @@ interface LinkEditorModalProps {
   onSave: (linksToAdd: string[], linksToRemove: string[]) => void;
 }
 
-// Local type for the modal, only has the fields we need.
 interface SelectableNote {
   id: string;
   title: string | null;
@@ -26,7 +26,6 @@ export function LinkEditorModal({ noteId, onClose, onSave }: LinkEditorModalProp
     async function fetchData() {
       setIsLoading(true);
       try {
-        // Fetch all notes (just id and title) and current connections in parallel
         const allNotesPromise = supabase.from('notes').select('id, title, created_at').neq('id', noteId).order('created_at', { ascending: false });
         const connectionsPromise = supabase.rpc('get_connections_for_note', { target_note_id: noteId });
 
@@ -49,7 +48,7 @@ export function LinkEditorModal({ noteId, onClose, onSave }: LinkEditorModalProp
         setAllNotes(allNotesRes.data || []);
 
       } catch (error: any) {
-        toast.error(`데이터 로딩 실패: ${error.message}`);
+        toast.error(`연결 정보 로드 실패: ${error.message}`);
         console.error(error);
       } finally {
         setIsLoading(false);
@@ -66,14 +65,14 @@ export function LinkEditorModal({ noteId, onClose, onSave }: LinkEditorModalProp
       } else {
         newSet.add(targetNoteId);
       }
-      return newSet;
+        return newSet;
     });
   };
 
   const handleConfirmSave = () => {
     const initialSet = new Set(initialConnections);
-    const linksToAdd = [...selectedLinks].filter(id => !initialSet.has(id));
-    const linksToRemove = [...initialSet].filter(id => !selectedLinks.has(id));
+    const linksToAdd = Array.from(selectedLinks).filter(id => !initialSet.has(id));
+    const linksToRemove = Array.from(initialSet).filter(id => !selectedLinks.has(id));
     onSave(linksToAdd, linksToRemove);
     onClose();
   };
@@ -86,7 +85,7 @@ export function LinkEditorModal({ noteId, onClose, onSave }: LinkEditorModalProp
   );
 
   return (
-    <Modal title="노트 연결 관리" onClose={onClose} actions={modalActions}>
+    <Modal title="노트 연결 편집" onClose={onClose} actions={modalActions}>
       {isLoading ? (
         <p>노트 목록을 불러오는 중...</p>
       ) : (
@@ -95,7 +94,7 @@ export function LinkEditorModal({ noteId, onClose, onSave }: LinkEditorModalProp
             {allNotes.map(note => (
               <li key={note.id} className="flex items-center justify-between p-2 hover:bg-slate-700 rounded-md">
                 <label htmlFor={`note-link-${note.id}`} className="truncate flex-grow cursor-pointer">
-                  {note.title}
+                  {note.title || "제목 없음"}
                 </label>
                 <input
                   id={`note-link-${note.id}`}

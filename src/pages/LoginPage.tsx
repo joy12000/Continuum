@@ -1,108 +1,115 @@
-import { useRef, useEffect } from 'react';
+'use client';
 import { supabase } from '../lib/supabase';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
-// import { ko } from '@supabase/auth-ui-shared/dist/esm/localization/locales';
 
-// Refined custom theme for the Auth component
+// Toss Design-inspired custom theme for the Auth component
 const customTheme = {
   ...ThemeSupa,
   default: {
     ...ThemeSupa.default,
     colors: {
       ...ThemeSupa.default.colors,
-      brand: 'hsl(217, 80%, 60%)', // A more vibrant blue
-      brandAccent: 'hsl(217, 80%, 70%)',
-      brandButtonText: 'white',
-      defaultButtonBackground: 'hsl(217, 30%, 25%)',
-      defaultButtonBackgroundHover: 'hsl(217, 30%, 35%)',
-      defaultButtonBorder: 'hsl(217, 30%, 25%)',
-      defaultButtonText: 'white',
-      dividerBackground: 'hsl(217, 20%, 25%)',
-      inputBackground: 'hsl(220, 30%, 10%)', // Darker input
-      inputBorder: 'hsl(217, 20%, 30%)',
-      inputBorderHover: 'hsl(217, 80%, 60%)',
-      inputBorderFocus: 'hsl(217, 80%, 60%)',
-      inputText: 'white',
-      inputLabelText: 'hsl(215, 20%, 75%)',
-      inputPlaceholder: 'hsl(215, 20%, 55%)',
-      messageText: 'hsl(215, 20%, 75%)',
-      messageTextDanger: 'hsl(0, 70%, 60%)',
-      anchorTextColor: 'hsl(217, 80%, 70%)',
-      anchorTextHoverColor: 'hsl(217, 80%, 80%)',
+      brand: '#3182f6', // Toss Blue
+      brandAccent: '#1b64da', // Hover blue
+      brandButtonText: '#f9fafb',
+      defaultButtonBackground: '#e8f3ff', // secondary tinted blue
+      defaultButtonBackgroundHover: '#e8f3ff',
+      defaultButtonBorder: '#e8f3ff',
+      defaultButtonText: '#1b64da',
+      dividerBackground: '#e5e8eb', // border
+      inputBackground: '#f2f4f6', // surface
+      inputBorder: '#f2f4f6', // no border at rest
+      inputBorderHover: '#e5e8eb',
+      inputBorderFocus: '#3182f6', // focus ring
+      inputText: '#191f28', // text near-ink
+      inputLabelText: '#333d4b', // text-secondary
+      inputPlaceholder: '#8b95a1', // text-dim
+      messageText: '#6b7684', // text-muted
+      messageTextDanger: '#f04452', // danger coral red
+      anchorTextColor: '#6b7684',
+      anchorTextHoverColor: '#3182f6',
     },
     space: {
       ...ThemeSupa.default.space,
-      buttonPadding: '0.875rem 1.5rem', // 14px
-      inputPadding: '0.875rem 1rem',
+      buttonPadding: '14px 20px',
+      inputPadding: '16px 20px',
     },
     radii: {
       ...ThemeSupa.default.radii,
-      borderRadiusButton: '0.5rem', // 8px
-      buttonBorderRadius: '0.5rem',
-      inputBorderRadius: '0.5rem',
+      borderRadiusButton: '7px',
+      buttonBorderRadius: '7px',
+      inputBorderRadius: '12px',
     },
     fonts: {
-        ...ThemeSupa.default.fonts,
-        bodyFontFamily: `system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif`,
-        buttonFontFamily: `system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif`,
-        labelFontFamily: `system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif`,
+      ...ThemeSupa.default.fonts,
+      bodyFontFamily: `'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif`,
+      buttonFontFamily: `'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif`,
+      labelFontFamily: `'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif`,
     }
   },
 };
 
 const LoginPage = () => {
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const handleEnded = () => {
-      video.playbackRate = -1;
-      video.play();
-    };
-
-    const handleTimeUpdate = () => {
-      if (video.playbackRate < 0 && video.currentTime < 0.1) {
-        video.playbackRate = 1;
-        video.play();
-      }
-    };
-    
-    video.addEventListener('ended', handleEnded);
-    video.addEventListener('timeupdate', handleTimeUpdate);
-
-    return () => {
-      video.removeEventListener('ended', handleEnded);
-      video.removeEventListener('timeupdate', handleTimeUpdate);
-    };
-  }, []);
-
   return (
-    <div className="flex items-center justify-center h-screen bg-background">
-      <div className="w-full max-w-sm p-8 space-y-6 bg-card rounded-2xl shadow-lg border border-slate-700/50">
-        <div className="text-center">
-          <video 
-            ref={videoRef}
-            src="/AIiconmotion.mp4" 
-            autoPlay 
-            muted 
-            playsInline 
-            className="w-24 h-24 mx-auto mb-4 rounded-full shadow-[0_0_16px_rgba(255,255,220,0.35)] object-cover"
-            aria-label="Momentum Logo"
-          ></video>
-          <h1 className="text-3xl font-bold text-gray-200">Momentum</h1>
-          <p className="text-muted-foreground">로그인하여 계속하세요</p>
+    <div className="flex items-center justify-center min-h-screen bg-white">
+      {/* Mobile-first constraints: 480px max width */}
+      <div className="w-full max-w-[480px] p-8 space-y-8 bg-white md:border md:border-[#e5e8eb] md:rounded-2xl md:shadow-[0_1px_3px_rgba(25,31,40,0.04)]">
+        <div className="text-center pt-8">
+          {/* Tracking -1% tight spacing for headers */}
+          <h1 className="text-3xl md:text-4xl font-bold text-[#191f28] tracking-[-0.01em]" style={{ fontFamily: `'Pretendard Variable', 'Pretendard', sans-serif` }}>
+            Momentum
+          </h1>
+          <p className="mt-2 text-[#6b7684] text-[15px] font-medium" style={{ fontFamily: `'Pretendard Variable', 'Pretendard', sans-serif` }}>
+            기록하고 연결하며 성장하는 당신을 위한 모멘텀
+          </p>
         </div>
-        <Auth
-          supabaseClient={supabase}
-          appearance={{ theme: customTheme }}
-          providers={['google']}
-          // localization={{ variables: ko }}
-          theme="dark"
-          redirectTo={window.location.origin}
-        />
+        {typeof window !== 'undefined' && (
+          <Auth
+            supabaseClient={supabase}
+            appearance={{ theme: customTheme }}
+            providers={['google']}
+            theme="default"
+            redirectTo={window.location.origin}
+            localization={{
+              variables: {
+                sign_in: {
+                  email_label: '이메일 주소',
+                  email_input_placeholder: '이메일 주소 입력',
+                  password_label: '비밀번호',
+                  password_input_placeholder: '비밀번호 입력',
+                  button_label: '로그인하기',
+                  loading_button_label: '로그인 중...',
+                  social_provider_text: '{{provider}} 계정으로 시작하기',
+                  link_text: '이미 계정이 있으신가요? 로그인하기',
+                },
+                sign_up: {
+                  email_label: '이메일 주소',
+                  email_input_placeholder: '이메일 주소 입력',
+                  password_label: '비밀번호',
+                  password_input_placeholder: '비밀번호 입력',
+                  button_label: '가입하기',
+                  loading_button_label: '가입 중...',
+                  social_provider_text: '{{provider}} 계정으로 시작하기',
+                  link_text: '계정이 없으신가요? 가입하기',
+                },
+                forgotten_password: {
+                  email_label: '이메일 주소',
+                  password_label: '비밀번호',
+                  button_label: '비밀번호 재설정 메일 보내기',
+                  loading_button_label: '메일 보내는 중...',
+                  link_text: '비밀번호를 잊으셨나요?',
+                },
+                update_password: {
+                  password_label: '새 비밀번호',
+                  password_input_placeholder: '새 비밀번호를 입력하세요',
+                  button_label: '비밀번호 변경하기',
+                  loading_button_label: '변경 중...',
+                },
+              },
+            }}
+          />
+        )}
       </div>
     </div>
   );

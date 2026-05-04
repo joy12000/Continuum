@@ -5,7 +5,7 @@ import type { AnswerData, Note } from '../types/common';
 
 export class AnswerGenerationService {
     async generateAnswer(newNoteId: string, noteText: string, userId: string) {
-        toast.loading("과거 노트와 연결하는 중...", { id: 'ai-summary-toast' });
+        toast.loading("새로운 노트를 분석하고 있습니다...", { id: 'ai-summary-toast' });
 
         try {
             // 1. 컨텍스트 클러스터 찾기
@@ -13,29 +13,29 @@ export class AnswerGenerationService {
 
             if (!contextNoteIds || contextNoteIds.length <= 1) {
                 toast.dismiss('ai-summary-toast');
-                throw new Error("관련된 과거가 없습니다.");
+                throw new Error("연결된 다른 노트를 찾지 못했습니다.");
             }
 
-            // 2. 컨텍스트 노트 가져오기
+            // 2. 컨텍스트 노트 정보 가져오기
             const contextNotes = await this.fetchContextNotes(contextNoteIds, newNoteId);
 
             if (contextNotes.length === 0) {
                 toast.dismiss('ai-summary-toast');
-                throw new Error("관련된 과거가 없습니다.");
+                throw new Error("연결된 다른 노트를 찾지 못했습니다.");
             }
 
             // 3. AI 답변 생성
             const summary = await this.generateSummary(noteText, contextNotes);
 
-            // 4. 답변 데이터 포맷
+            // 4. 답변 데이터 포맷팅
             const answerData = this.formatAnswer(summary, contextNotes);
 
-            toast.success("생각 연결이 완료되었습니다!", { id: 'ai-summary-toast' });
+            toast.success("분석이 완료되었습니다!", { id: 'ai-summary-toast' });
 
             return answerData;
         } catch (error: any) {
             console.error("Failed to generate summary after save:", error);
-            toast.error(`연결 실패: ${error.message}`, { id: 'ai-summary-toast' });
+            toast.error(`분석 오류: ${error.message}`, { id: 'ai-summary-toast' });
             throw error;
         }
     }

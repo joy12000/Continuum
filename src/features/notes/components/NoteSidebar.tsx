@@ -1,3 +1,4 @@
+'use client';
 import React from 'react';
 import { TagIcon, TrashIcon, PaperClipIcon, LinkIcon } from '@heroicons/react/24/outline';
 import type { Note, NoteAttachment } from '../../../types/common';
@@ -42,7 +43,7 @@ export const NoteSidebar: React.FC<NoteSidebarProps> = ({
             </div>
 
             <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
-                <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">상세 정보</h3>
+                <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">노트 정보</h3>
                 <ul className="space-y-2 text-sm text-muted-foreground">
                     <li className="flex justify-between"><strong>생성일</strong><span>{new Date(note.createdAt).toLocaleString('ko-KR')}</span></li>
                     <li className="flex justify-between"><strong>수정일</strong><span>{new Date(note.updatedAt).toLocaleString('ko-KR')}</span></li>
@@ -84,10 +85,10 @@ export const NoteSidebar: React.FC<NoteSidebarProps> = ({
 
             {isEditing && (
                 <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
-                    <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">링크 관리</h3>
+                    <h3 className="text-xl font-semibold mb-4 border-b border-border pb-2">연결 설정</h3>
                     <button onClick={onOpenLinkEditor} className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-primary-foreground bg-secondary rounded-lg hover:bg-secondary/80 transition-colors">
                         <LinkIcon className="w-5 h-5" />
-                        <span>링크 수정</span>
+                        <span>연결 수정</span>
                     </button>
                 </div>
             )}

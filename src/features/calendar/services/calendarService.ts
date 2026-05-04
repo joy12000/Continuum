@@ -21,7 +21,7 @@ export const fetchNotesForDate = async (date: string | null): Promise<NoteTitle[
 
     if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || '선택한 날짜의 노트를 불러오는데 실패했습니다.');
+        throw new Error(errorData.error || '해당 날짜의 노트 목록을 가져오는 데 실패했습니다.');
     }
     return response.json();
 };
@@ -38,7 +38,7 @@ export const fetchAndSummarizeDay = async (date: string | null): Promise<{ title
         headers: { 'Authorization': `Bearer ${token}` },
     });
     if (!notesResponse.ok) {
-        console.error('요약을 위한 노트 전체 데이터 로딩 실패');
+        console.error('해당 날짜의 전체 노트를 가져오지 못했습니다.');
         return null;
     }
     const notes: Note[] = await notesResponse.json();
@@ -59,7 +59,7 @@ export const fetchAndSummarizeDay = async (date: string | null): Promise<{ title
 
     if (!summaryResponse.ok) {
         const errorData = await summaryResponse.json();
-        throw new Error(errorData.error || '일일 요약을 생성하는데 실패했습니다.');
+        throw new Error(errorData.error || '일일 요약을 생성하는 데 실패했습니다.');
     }
     return summaryResponse.json();
 };
@@ -75,7 +75,7 @@ export const fetchNoteActivity = async (startDate: string, endDate: string): Pro
 
     if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || '노트 활동을 불러오는데 실패했습니다.');
+        throw new Error(errorData.error || '노트 활동 내역을 가져오는 데 실패했습니다.');
     }
     return response.json();
 }

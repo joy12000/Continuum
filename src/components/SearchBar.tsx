@@ -1,3 +1,4 @@
+'use client';
 import React from 'react';
 import { Search, ArrowRight } from 'lucide-react';
 
@@ -28,7 +29,7 @@ export function SearchBar({
     <div className="relative w-full max-w-md">
       <div className="relative">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <Search className="h-5 w-5 text-text-secondary" />
+          <Search className="h-5 w-5 text-secondary-text" />
         </div>
         <input
           type="search"
@@ -36,14 +37,14 @@ export function SearchBar({
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={handleKeyDown}
           onFocus={onFocus}
-          placeholder={isModelReady ? "과거의 나에게 무엇이든 물어보세요..." : modelStatus}
-          className={`w-full p-3 pl-10 pr-12 bg-surface-2 text-text-primary rounded-full shadow-sm focus:ring-2 focus:ring-accent focus:outline-none transition disabled:opacity-50 ${className}`}
+          placeholder={isModelReady ? "메모 검색..." : modelStatus}
+          className={`w-full p-4 pl-12 pr-12 bg-surface text-foreground placeholder-muted rounded-[12px] focus:ring-2 focus:ring-primary focus:outline-none transition disabled:opacity-50 ${className}`}
           disabled={!isModelReady}
         />
         <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
           <button
             onClick={onSearch}
-            className="p-1.5 bg-surface-2 hover:bg-surface-3 rounded-full text-text-secondary hover:text-text-primary transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-accent"
+            className="p-2 bg-surface hover:bg-border rounded-[8px] text-secondary-text hover:text-foreground transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary"
             aria-label="Search"
             disabled={!isModelReady}
           >
@@ -54,7 +55,7 @@ export function SearchBar({
 
       <div className="mt-2 text-center">
         {isLoadingSuggestions && (
-          <div className="text-sm text-text-secondary animate-pulse">
+          <div className="text-[13px] text-secondary-text animate-pulse">
             Generating suggestions...
           </div>
         )}
@@ -65,7 +66,7 @@ export function SearchBar({
               <button
                 key={index}
                 onClick={() => setQ(question)}
-                className="px-3 py-1 text-sm bg-surface-2 text-text-secondary rounded-lg hover:bg-surface transition"
+                className="px-[12px] py-[6px] text-[13px] font-medium bg-surface text-secondary-text rounded-[8px] hover:bg-border hover:text-foreground transition-colors"
               >
                 {question}
               </button>

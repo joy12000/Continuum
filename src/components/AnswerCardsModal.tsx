@@ -1,9 +1,10 @@
+'use client';
 import React, { useEffect, useRef } from 'react';
 
 /**
  * AnswerCardsModal
- * - 그냥 그 자리에서 기존 AnswerCard/GeneratedAnswer 컴포넌트를 children으로 렌더합니다.
- * - 접근성: role="dialog", aria-modal, 포커스 트랩, ESC 닫기
+ * - 域밸챶源?域??癒?봺?癒?퐣 疫꿸퀣??AnswerCard/GeneratedAnswer ?뚮똾猷??곕뱜??children??곗쨮 ???쐭??몃빍??
+ * - ?臾롫젏?? role="dialog", aria-modal, ??鍮???紐껋삫, ESC ??る┛
  */
 export default function AnswerCardsModal({
   open,
@@ -50,7 +51,7 @@ export default function AnswerCardsModal({
           ref={firstRef} 
           onClick={onClose} 
           className="absolute top-0 right-0 z-10 m-2 p-2 rounded-full bg-black/20 hover:bg-black/40 text-white"
-          aria-label="닫기"
+          aria-label="??る┛"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
