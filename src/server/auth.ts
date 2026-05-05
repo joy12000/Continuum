@@ -1,4 +1,4 @@
-import { getSupabaseClient } from "./supabaseClient";
+import { getSupabaseServer } from "../lib/server/supabase";
 
 export async function requireUser(req: any, res: any) {
   const auth = req.headers["authorization"] || req.headers["Authorization"];
@@ -7,7 +7,7 @@ export async function requireUser(req: any, res: any) {
     return null;
   }
   const token = auth.slice("Bearer ".length);
-  const supabase = getSupabaseServer(token); // Use updated client
+  const supabase = getSupabaseServer(token);
   const { data, error } = await supabase.auth.getUser();
   if (error || !data?.user) {
     if (res.status) res.status(401).json({ error: "Invalid token" });
@@ -17,5 +17,3 @@ export async function requireUser(req: any, res: any) {
   return { supabase, userId, token };
 }
 
-// Helper to keep compatibility with old imports if needed
-import { getSupabaseServer } from "../lib/server/supabase";

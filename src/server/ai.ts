@@ -5,16 +5,7 @@ import { CHAT_HISTORY_MARKER } from '../lib/supabaseService';
 // Types derived from your Schema
 export type UUID = string;
 
-export interface Note {
-  id: UUID;
-  user_id: UUID;
-  title: string;
-  body: string;
-  tags?: string[];
-  embedding?: number[];
-  createdAt: number;
-  updatedAt?: number;
-}
+import { Note } from './types';
 
 export interface Thread {
   threadId: string;
@@ -114,7 +105,7 @@ export async function generateTitleAndTags(body: string): Promise<{ title: strin
   }
 }
 
-export async function connectNewNote(query: string, context: string): Promise<string> {
+export async function connectNewNote(query: string, context: string | Note[]): Promise<string> {
   try {
     const model = getGenerativeModel();
     const today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
